@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
-// 打字相关节奏（整体加快一点）
-const TYPING_INDICATOR_MS = 450;   // 「正在输入」显示时长（更快）
-const TYPEWRITER_DELAY_MS = 16;    // 打字机每字间隔（毫秒，更快）
-const AFTER_TYPE_PAUSE_MS = 150;   // 打完字后停顿再出下一条（更快）
+// 打字相关节奏（进一步提速）
+const TYPING_INDICATOR_MS = 100;   // 「正在输入」显示时长（更快）
+const TYPEWRITER_DELAY_MS = 16;    // 打字机每字间隔（毫秒）
+const AFTER_TYPE_PAUSE_MS = 120;   // 打完字后停顿再出下一条
 const LOADING_MESSAGE = '稍等一下，大师们正在打车，马上到'; // 提交问题后的加载文案（唯一来源）
 import { PRESET_MASTERS } from '../data/masters';
 
@@ -305,7 +305,18 @@ export default function Home() {
   const doRequest = useCallback(async (messages, userQuery) => {
     const text = await getResponseText(messages, userQuery);
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('响应格式异常，请重试');
+    if (!match) {
+      // 如果没严格返回 JSON，就把整段文本当成一次总结性发言兜底返回，避免完全没回应
+      return {
+        discussion: [{
+          investorId: 'host-fallback',
+          stance: 'NEUTRAL',
+          content: text,
+          keyPoint: '综合回答用户追问（非结构化兜底）',
+        }],
+        verdict: {},
+      };
+    }
     return JSON.parse(match[0]);
   }, [getResponseText]);
 
