@@ -1,0 +1,100 @@
+/* 大师吵股 - 学院风主题变量 */
+:root {
+  --bg-page: #0a0a0f;
+  --bg-card: #10101a;
+  --bg-input: #0d0d18;
+  --border: #1e1e30;
+  --border-subtle: #252535;
+  --text: #e8e4d8;
+  --text-muted: #3a3a5a;
+  --accent: #c9a84c;
+  --accent-dim: rgba(201, 168, 76, 0.25);
+  --accent-bg: rgba(201, 168, 76, 0.08);
+  --bull: #4caf7d;
+  --bear: #e05555;
+  --neutral: #c9a84c;
+  --font-serif: Georgia, "Songti SC", "SimSun", serif;
+  --font-mono: "SF Mono", "Consolas", monospace;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --overlay: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] {
+  --bg-page: #f5f0e6;
+  --bg-card: #fffef9;
+  --bg-input: #faf8f3;
+  --border: #d4cfc4;
+  --border-subtle: #e8e4dc;
+  --text: #1a1915;
+  --text-muted: #5c5a54;
+  --accent: #9a7830;
+  --accent-dim: rgba(154, 120, 48, 0.35);
+  --accent-bg: rgba(154, 120, 48, 0.08);
+  --bull: #2e7d57;
+  --bear: #c04040;
+  --neutral: #9a7830;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --overlay: rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-page);
+  color: var(--text);
+  font-family: var(--font-serif);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* 学院风背景：暗色为书房/羊皮纸纹理感，亮色为浅色羊皮纸 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: 
+    radial-gradient(ellipse 80% 50% at 20% 10%, var(--accent-bg), transparent 45%),
+    radial-gradient(ellipse 60% 40% at 85% 85%, var(--accent-bg), transparent 40%);
+  z-index: 0;
+}
+
+[data-theme="light"] body::before {
+  background: 
+    radial-gradient(ellipse 80% 50% at 20% 10%, var(--accent-bg), transparent 45%),
+    radial-gradient(ellipse 60% 40% at 85% 85%, var(--accent-bg), transparent 40%);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+@keyframes dot {
+  0%, 80%, 100% { opacity: 0.15; transform: scale(0.7); }
+  40% { opacity: 1; transform: scale(1); }
+}
+@keyframes prog {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
