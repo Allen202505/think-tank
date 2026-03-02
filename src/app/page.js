@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
-const TYPING_INDICATOR_MS = 1400;   // 「正在输入」显示时长
-const TYPEWRITER_DELAY_MS = 38;    // 打字机每字间隔（毫秒）
-const AFTER_TYPE_PAUSE_MS = 400;   // 打完字后停顿再出下一条
+// 打字相关节奏（整体加快一点）
+const TYPING_INDICATOR_MS = 700;   // 「正在输入」显示时长（原来 1400）
+const TYPEWRITER_DELAY_MS = 22;    // 打字机每字间隔（毫秒，原来 38）
+const AFTER_TYPE_PAUSE_MS = 250;   // 打完字后停顿再出下一条（原来 400）
 const LOADING_MESSAGE = '稍等一下，大师们正在打车，马上到'; // 提交问题后的加载文案（唯一来源）
 import { PRESET_MASTERS } from '../data/masters';
 
