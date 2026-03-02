@@ -890,7 +890,7 @@ export default function Home() {
         .followup-input:focus { border-color: var(--accent); }
         .btn-followup { padding: 10px 20px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 3px; font-weight: 600; cursor: pointer; }
         .btn-followup:disabled { opacity: 0.5; cursor: not-allowed; }
-        .followup-hint-inline { margin-top: 8px; font-size: 13px; color: var(--accent); font-family: var(--font-mono); }
+        .followup-hint-inline { margin-top: 8px; font-size: 15px; color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
         .card-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 16px; position: relative; overflow: hidden; }
         .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
         .card-title { font-family: var(--font-mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
