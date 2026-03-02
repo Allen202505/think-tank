@@ -458,18 +458,33 @@ export default function Home() {
     if (!msg || !result || loadingFollowUp) return;
     const investors = result.investors;
     const prevSummary = result.verdict?.summary || '（无）';
+    setError(''); // 清掉旧错误
+    // 先乐观地把「您的追问」插入到对话中，避免长时间空白
+    setRounds(prev => [...prev, { type: 'followUp', userMsg: msg, discussion: [], verdict: {} }]);
     setLoadingFollowUp(true);
-    setFollowUpInput('');
     try {
       const payload = buildFollowUpPrompt(prevSummary, msg, investors);
       const parsed = await doRequest([{ role: 'user', content: payload }], query);
-      const newRound = { type: 'followUp', userMsg: msg, discussion: parsed.discussion || [], verdict: parsed.verdict || {} };
-      setRounds(prev => [...prev, newRound]);
+      const parsedDiscussion = parsed.discussion || [];
+      const parsedVerdict = parsed.verdict || {};
+      // 将刚才插入的那条 followUp 补全大师发言和裁决；如果没找到，就追加一条
+      setRounds(prev => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i -= 1) {
+          const r = next[i];
+          if (r.type === 'followUp' && r.userMsg === msg && (!r.discussion || r.discussion.length === 0)) {
+            next[i] = { ...r, discussion: parsedDiscussion, verdict: parsedVerdict };
+            return next;
+          }
+        }
+        return [...prev, { type: 'followUp', userMsg: msg, discussion: parsedDiscussion, verdict: parsedVerdict }];
+      });
       setResult(prev => ({
         ...prev,
-        discussion: [...(prev.discussion || []), ...(parsed.discussion || [])],
-        verdict: parsed.verdict || prev.verdict,
+        discussion: [...(prev.discussion || []), ...parsedDiscussion],
+        verdict: parsedVerdict || prev.verdict,
       }));
+      setFollowUpInput(''); // 成功后再清空输入
     } catch (e) {
       setError(e.message || '追问失败，请重试');
     }
@@ -754,9 +769,12 @@ export default function Home() {
                       disabled={loadingFollowUp}
                     />
                     <button type="button" className="btn-followup" onClick={sendFollowUp} disabled={loadingFollowUp || !followUpInput.trim()}>
-                      {loadingFollowUp ? '…' : '发送'}
+                      {loadingFollowUp ? '思考中…' : '发送'}
                     </button>
                   </div>
+                  {loadingFollowUp && (
+                    <div className="followup-hint">大师们正在就你的追问激烈讨论中，请稍候…</div>
+                  )}
                 </div>
               </div>
             )}
@@ -850,6 +868,7 @@ export default function Home() {
         .followup-input:focus { border-color: var(--accent); }
         .btn-followup { padding: 10px 20px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 3px; font-weight: 600; cursor: pointer; }
         .btn-followup:disabled { opacity: 0.5; cursor: not-allowed; }
+        .followup-hint { margin-top: 6px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
         .card-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 16px; position: relative; overflow: hidden; }
         .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
         .card-title { font-family: var(--font-mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
