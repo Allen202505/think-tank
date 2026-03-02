@@ -178,7 +178,11 @@ function MasterProfileModal({ master, onClose }) {
 // ─── 主组件 ────────────────────────────────────────────────────────────────
 export default function Home() {
   const [theme, setTheme] = useState('light');
-  const [selected, setSelected] = useState(new Set(PRESET_MASTERS.map(i => i.id)));
+  // 默认随机选 5 位大师
+  const [selected, setSelected] = useState(() => {
+    const shuffled = [...PRESET_MASTERS].sort(() => Math.random() - 0.5);
+    return new Set(shuffled.slice(0, 5).map(i => i.id));
+  });
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -472,6 +476,10 @@ export default function Home() {
     setError(''); // 清掉旧错误
     // 先乐观地把「您的追问」插入到对话中，避免长时间空白
     setRounds(prev => [...prev, { type: 'followUp', userMsg: msg, discussion: [], verdict: {} }]);
+    // 让追问这一轮也按首轮那样逐条展示：从新一轮的开头开始 reveal
+    setRevealStepLegacy(blocksFromRounds.length);
+    setTypingPhase('typing');
+    setTypeCharIndex(0);
     setLoadingFollowUp(true);
     try {
       const payload = buildFollowUpPrompt(prevSummary, msg, investors);
@@ -714,6 +722,9 @@ export default function Home() {
                       <div className="user-followup">
                         <span className="user-label">您的追问</span>
                         <p>{currentText.slice(0, typeCharIndex)}<span className="caret" /></p>
+                        {loadingFollowUp && (
+                          <div className="followup-hint-inline">大师们正在就你的追问激烈讨论中，请稍候…</div>
+                        )}
                       </div>
                     )}
                     {typingPhase === 'content' && currentBlock.type === 'speech' && (() => {
