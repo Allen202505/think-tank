@@ -783,9 +783,6 @@ export default function Home() {
                       {loadingFollowUp ? '思考中…' : '发送'}
                     </button>
                   </div>
-                  {loadingFollowUp && (
-                    <div className="followup-hint">大师们正在就你的追问激烈讨论中，请稍候…</div>
-                  )}
                 </div>
               </div>
             )}
@@ -879,7 +876,6 @@ export default function Home() {
         .followup-input:focus { border-color: var(--accent); }
         .btn-followup { padding: 10px 20px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 3px; font-weight: 600; cursor: pointer; }
         .btn-followup:disabled { opacity: 0.5; cursor: not-allowed; }
-        .followup-hint { margin-top: 6px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
         .card-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 16px; position: relative; overflow: hidden; }
         .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
         .card-title { font-family: var(--font-mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
