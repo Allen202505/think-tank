@@ -191,6 +191,8 @@ export default function Home() {
   const [currentBlock, setCurrentBlock] = useState(null);     // 当前条 { type, speakerId?, content? }，有 content 时进入打字
   const [typingPhase, setTypingPhase] = useState('typing');
   const [typeCharIndex, setTypeCharIndex] = useState(0);
+  // 非流式（rounds）模式的逐条展示进度；流式结束后也会用它来保留历史记录
+  const [revealStepLegacy, setRevealStepLegacy] = useState(0);
   const fetchInProgressRef = useRef(false);
   const goTimeoutRef = useRef(null);
 
@@ -216,9 +218,10 @@ export default function Home() {
   }, [rounds]);
 
   const useStreamingMode = sequence.length > 0;
-  // 逐条模式：已完成列表 + 当前条（正在请求=显示正在输入，收到后=打字机）
+  // 已完成列表（逐条模式用 completedBlocks；rounds 模式用 blocksFromRounds）
   const blocks = useStreamingMode ? completedBlocks : blocksFromRounds;
-  const revealStep = useStreamingMode ? completedBlocks.length : 0;
+  // 关键：rounds 模式下用 revealStepLegacy，避免流式结束后“清屏”
+  const revealStep = useStreamingMode ? completedBlocks.length : revealStepLegacy;
   // 当前条要打字的文案（逐条模式用 currentBlock.content 导出）
   const getCurrentText = () => {
     if (!currentBlock?.content) return '';
@@ -240,14 +243,16 @@ export default function Home() {
     if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // 预加载模式（追问）：当前条与打字长度
-  const currentBlockFromRounds = result && !useStreamingMode && blocksFromRounds.length > 0 && revealStep < blocksFromRounds.length ? blocksFromRounds[revealStep] : null;
+  // 预加载模式（追问）：当前条与打字长度（按 revealStepLegacy 推进）
+  const currentBlockFromRounds =
+    result && !useStreamingMode && blocksFromRounds.length > 0 && revealStepLegacy < blocksFromRounds.length
+      ? blocksFromRounds[revealStepLegacy]
+      : null;
   const currentTextRounds = currentBlockFromRounds?.textToType ?? '';
   const currentLenRounds = currentTextRounds.length;
   const currentText = (useStreamingMode ? currentTextStreaming : currentTextRounds) ?? '';
   const currentLen = (useStreamingMode ? currentLenStreaming : currentLenRounds) ?? 0;
   const revealStepRounds = useStreamingMode ? -1 : revealStep;
-  const [revealStepLegacy, setRevealStepLegacy] = useState(0);
 
   // 预加载模式：先「正在输入」再打字，打完进下一条
   useEffect(() => {
