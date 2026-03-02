@@ -32,10 +32,11 @@ ${list}
 1. 主持人先发表 **开场白**（80–120 字），风趣、幽默、毒舌，可点名挑事、预言待会要吵起来。
 2. 讨论环节必须 **你说一句我顶一句**：后发言的大师要 **直接反驳、引用前一位的原话再批驳**，用「你刚才说……恰恰相反」「恕我直言，某某的逻辑站不住脚」「我不同意」等句式，形成 **互相 PK、有争吵感** 的对话。立场对立的大师之间要有明显冲突和讽刺，可适度调侃对方流派。
 3. **发言要有数据支撑**：每位大师在表达观点时，尽量用 **具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例、可比公司或行业数据** 等举证，避免只讲空泛观点。例如提到估值时可给区间或倍数，提到增长可给百分比，反驳时也可用数据指出对方论据的漏洞。
-4. 每位大师 120–180 字，每人明确立场：BULL / BEAR / NEUTRAL。
-5. 已故大师用「我一贯认为」「我的原则是」等措辞，但同样可以怼人。
-6. 主持人 **散场总结**（80–120 字），风趣毒舌，可总结谁和谁吵得最凶、投票结果。
-7. 最后智囊团裁决（投票统计、共识、风险）。
+4. **时间要求（很重要）**：如需引用“财务/行业/宏观/公司经营”等数据，**优先引用 2025 年（或最近 12 个月 / 最新年报季报）**的口径与区间；避免引用 2020 年前后那类过时年份的精确数字。若无法确定最新数值，只能给出区间并明确写“可能过时/不确定”，不要装作精确。
+5. 每位大师 120–180 字，每人明确立场：BULL / BEAR / NEUTRAL。
+6. 已故大师用「我一贯认为」「我的原则是」等措辞，但同样可以怼人。
+7. 主持人 **散场总结**（80–120 字），风趣毒舌，可总结谁和谁吵得最凶、投票结果。
+8. 最后智囊团裁决（投票统计、共识、风险）。
 
 只输出一个 JSON，不要任何其他内容或 markdown 代码块：
 {"hostId":"${hostId}","hostOpening":"主持人开场白","discussion":[{"investorId":"id","stance":"BULL或BEAR或NEUTRAL","content":"发言内容","keyPoint":"核心观点一句话"}],"hostClosing":"主持人散场总结","verdict":{"summary":"综合总结约150字","bullCount":数字,"bearCount":数字,"neutralCount":数字,"consensus":"核心共识一句话","mainRisk":"主要风险一句话"}}`;
@@ -54,6 +55,7 @@ function buildFollowUpPrompt(previousSummary, userFollowUp, investors) {
 ${list}
 
 请让各位大师针对追问 **轮流发言、互相反驳**（每人 60–100 字），后发言的要引用或直接批驳前面的观点，有火药味。发言时尽量用 **数据、估值指标、历史或可比案例** 举证支撑观点，避免只讲空泛看法。最后更新裁决。
+时间要求：如需引用数据，优先引用 **2025 年（或最近 12 个月 / 最新财报）**口径；不确定就写区间并标注可能过时，避免引用更早年份的精确数字。
 
 只输出一个 JSON：
 {"discussion":[{"investorId":"id","stance":"BULL或BEAR或NEUTRAL","content":"发言内容","keyPoint":"一句话"}],"verdict":{"summary":"更新后的综合总结","bullCount":数字,"bearCount":数字,"neutralCount":数字,"consensus":"共识","mainRisk":"风险"}}`;
@@ -68,7 +70,7 @@ function buildOpeningOnlyPrompt(question, host, investors) {
 function buildOneSpeechPrompt(question, investors, previousParts, nextSpeakerId) {
   const list = investors.map(i => `ID:${i.id} | ${i.name} | 风格:${i.style} | 性格:${i.personality} | 语录:"${i.quote}"`).join('\n');
   const context = previousParts.map(p => p.type === 'hostOpening' ? `开场白：${p.text}` : p.type === 'speech' ? `${p.investorId}说：${p.content}` : '').filter(Boolean).join('\n');
-  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，要直接反驳或回应前面观点，有争吵感。**发言必须有数据支撑**：用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点。只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证","keyPoint":"核心观点一句话"}`;
+  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，要直接反驳或回应前面观点，有争吵感。**发言必须有数据支撑**：用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点。**时间要求**：如需引用数据，优先引用 2025 年（或最近12个月/最新财报）口径；不确定就给区间并标注可能过时，不要引用更早年份的精确数字。只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证（尽量用2025口径）","keyPoint":"核心观点一句话"}`;
 }
 
 function buildClosingOnlyPrompt(question, hostName, opening, discussionSummary) {
