@@ -6,8 +6,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 const TYPING_INDICATOR_MS = 100;   // 「正在输入」显示时长（更快）
 const TYPEWRITER_DELAY_MS = 16;    // 打字机每字间隔（毫秒）
 const AFTER_TYPE_PAUSE_MS = 120;   // 打完字后停顿再出下一条
-const LOADING_MESSAGE = '稍等一下，大师们正在打车，马上到'; // 提交问题后的加载文案（唯一来源）
 import { PRESET_MASTERS } from '../data/masters';
+import { messages } from '../i18n/messages';
 
 const STANCES = {
   BULL:    { label: '看多 ▲', color: 'var(--bull)', bg: 'rgba(76,175,125,0.12)', border: 'var(--bull)' },
@@ -178,6 +178,8 @@ function MasterProfileModal({ master, onClose }) {
 // ─── 主组件 ────────────────────────────────────────────────────────────────
 export default function Home() {
   const [theme, setTheme] = useState('light');
+  // 语言：默认跟随浏览器语言（中文优先）
+  const [locale, setLocale] = useState('zh');
   // 默认随机选 5 位大师
   const [selected, setSelected] = useState(() => {
     const shuffled = [...PRESET_MASTERS].sort(() => Math.random() - 0.5);
@@ -240,14 +242,25 @@ export default function Home() {
   const currentLenStreaming = currentTextStreaming.length;
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' && localStorage.getItem('theme');
-    if (stored === 'light' || stored === 'dark') setTheme(stored);
+    const storedTheme = typeof window !== 'undefined' && localStorage.getItem('theme');
+    if (storedTheme === 'light' || storedTheme === 'dark') setTheme(storedTheme);
+    // 首次根据浏览器语言设置 locale
+    if (typeof navigator !== 'undefined') {
+      const lang = navigator.language.toLowerCase();
+      setLocale(lang.startsWith('zh') ? 'zh' : 'en');
+    }
   }, []);
 
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', theme);
     if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const dict = messages[locale] || messages.zh;
+  const t = (key, ...args) => {
+    const v = dict[key];
+    return typeof v === 'function' ? v(...args) : (v ?? key);
+  };
 
   // 预加载模式（追问）：当前条与打字长度（按 revealStepLegacy 推进）
   const currentBlockFromRounds =
@@ -431,12 +444,12 @@ export default function Home() {
   }, [useStreamingMode, currentBlock, typingPhase, typeCharIndex, currentLenStreaming, sequence, result]);
 
   const go = useCallback(async () => {
-    if (!query.trim()) { setError('请输入问题'); return; }
-    if (selected.size === 0) { setError('请至少选择一位大师'); return; }
+    if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
+    if (selected.size === 0) { setError(t('summonErrorNoMaster')); return; }
 
     setError('');
     if (goTimeoutRef.current) clearTimeout(goTimeoutRef.current);
-    setLoading(true); // 先显示加载态，让用户看到「大师们正在打车」文案
+    setLoading(true); // 先显示加载态
     setResult(null);
     setRounds([]);
     setSequence([]);
@@ -474,7 +487,7 @@ export default function Home() {
     const investors = result.investors;
     const prevSummary = result.verdict?.summary || '（无）';
     setError(''); // 清掉旧错误
-    // 先乐观地把「您的追问」插入到对话中，避免长时间空白
+    // 先乐观地把追问插入到对话中，避免长时间空白
     setRounds(prev => [...prev, { type: 'followUp', userMsg: msg, discussion: [], verdict: {} }]);
     // 让追问这一轮也按首轮那样逐条展示：从新一轮的开头开始 reveal
     setRevealStepLegacy(blocksFromRounds.length);
@@ -522,8 +535,8 @@ export default function Home() {
         >
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
-        <h1 className="header-title">大师吵股</h1>
-        <p className="header-desc">汇聚古今投资大师 · 多元视角助力决策</p>
+        <h1 className="header-title">{t('title')}</h1>
+        <p className="header-desc">{t('subtitle')}</p>
       </header>
 
       <div className="main-layout">
@@ -571,34 +584,34 @@ export default function Home() {
               })}
             </div>
           </Card>
-          <p className="sidebar-hint">头像置灰为已故 · 仅供参考，不构成投资建议</p>
+          <p className="sidebar-hint">{t('sidebarHint')}</p>
         </aside>
 
         <main className="main">
-          <Card title="您的投资问题" accent="var(--bull)">
+          <Card title={t('askLabel')} accent="var(--bull)">
             <textarea
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="例如：英伟达（NVDA）的 AI 护城河有多深，值得长期持有吗？&#10;&#10;或：苹果（AAPL）在当前估值下还值得持有吗？"
+              placeholder={t('askPlaceholder')}
               className="question-input"
               disabled={loading}
             />
             {error && <div className="error-msg">⚠ {error}</div>}
             <div className="question-footer">
-              <span>{selected.size} 位大师参与讨论</span>
+              <span>{t('selectedCount', selected.size, allMasters.length)}</span>
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
-                {loading ? `⟳ ${LOADING_MESSAGE}` : '召集智囊团 →'}
+                {loading ? `⟳ ${t('loading')}` : t('btnSummon')}
               </button>
             </div>
           </Card>
 
-          <Card title="智囊团讨论" accent="var(--accent)">
+          <Card title={t('discussionTitle')} accent="var(--accent)">
             {loading && (
               <div className="loading-state">
                 <div className="loading-dots">
                   {[0,1,2,3].map(i => <span key={i} className="dot-anim" style={{ animationDelay: `${i * 0.18}s` }} />)}
                 </div>
-                <div className="loading-text">{LOADING_MESSAGE}</div>
+                <div className="loading-text">{t('loading')}</div>
                 <div className="loading-bar"><div className="loading-bar-inner" /></div>
               </div>
             )}
@@ -616,16 +629,16 @@ export default function Home() {
                   <div key={`done-${bi}`} className="reveal-item">
                     {block.type === 'hostOpening' && (
                       <div className="host-block host-opening">
-                        <span className="host-label">主持人开场</span>
+                        <span className="host-label">{t('hostOpening')}</span>
                         <p>{block.text ?? block.content}</p>
                       </div>
                     )}
                     {block.type === 'userMsg' && (
                       <div className="user-followup">
-                        <span className="user-label">您的追问</span>
+                        <span className="user-label">{t('yourFollowup')}</span>
                         <p>{block.text ?? block.content}</p>
                         {loadingFollowUp && block.roundIndex === rounds.length - 1 && (
-                          <div className="followup-hint-inline">大师们正在就你的追问激烈讨论中，请稍候…</div>
+                          <div className="followup-hint-inline">{t('followupHint')}</div>
                         )}
                       </div>
                     )}
@@ -655,7 +668,7 @@ export default function Home() {
                     })()}
                     {block.type === 'hostClosing' && (
                       <div className="host-block host-closing">
-                        <span className="host-label">主持人散场</span>
+                        <span className="host-label">{t('hostClosing')}</span>
                         <p>{block.text ?? block.content}</p>
                       </div>
                     )}
@@ -664,7 +677,7 @@ export default function Home() {
                       if (!v) return null;
                       return (
                         <div className="verdict-block">
-                          <div className="verdict-title">⚖️ 智囊团综合裁决</div>
+                          <div className="verdict-title">{t('verdictTitle')}</div>
                           <p className="verdict-summary">{v.summary}</p>
                           <div className="verdict-bars">
                             <div className="v-bar v-bull" style={{ width: `${Math.round(((v.bullCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
@@ -708,22 +721,22 @@ export default function Home() {
                     })()}
                     {typingPhase === 'content' && currentBlock.type === 'hostOpening' && (
                       <div className="host-block host-opening">
-                        <span className="host-label">主持人开场</span>
+                        <span className="host-label">{t('hostOpening')}</span>
                         <p>{currentText.slice(0, typeCharIndex)}<span className="caret" /></p>
                       </div>
                     )}
                     {typingPhase === 'content' && currentBlock.type === 'hostClosing' && (
                       <div className="host-block host-closing">
-                        <span className="host-label">主持人散场</span>
+                        <span className="host-label">{t('hostClosing')}</span>
                         <p>{currentText.slice(0, typeCharIndex)}<span className="caret" /></p>
                       </div>
                     )}
                     {typingPhase === 'content' && currentBlock.type === 'userMsg' && (
                       <div className="user-followup">
-                        <span className="user-label">您的追问</span>
+                        <span className="user-label">{t('yourFollowup')}</span>
                         <p>{currentText.slice(0, typeCharIndex)}<span className="caret" /></p>
                         {loadingFollowUp && (
-                          <div className="followup-hint-inline">大师们正在就你的追问激烈讨论中，请稍候…</div>
+                          <div className="followup-hint-inline">{t('followupHint')}</div>
                         )}
                       </div>
                     )}
@@ -757,7 +770,7 @@ export default function Home() {
                       if (!v) return null;
                       return (
                         <div className="verdict-block">
-                          <div className="verdict-title">⚖️ 智囊团综合裁决</div>
+                          <div className="verdict-title">{t('verdictTitle')}</div>
                           <p className="verdict-summary">{currentText.slice(0, typeCharIndex)}{typeCharIndex < currentLen && <span className="caret" />}</p>
                           {typeCharIndex >= currentLen && (
                             <>
@@ -782,19 +795,19 @@ export default function Home() {
                 )}
 
                 <div className="followup-section">
-                  <label className="followup-label">参与互动：追问或补充</label>
+                  <label className="followup-label">{t('followupLabel')}</label>
                   <div className="followup-row">
                     <input
                       type="text"
                       value={followUpInput}
                       onChange={e => setFollowUpInput(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && sendFollowUp()}
-                      placeholder="输入追问，让大师们继续讨论…"
+                      placeholder={t('followupPlaceholder')}
                       className="followup-input"
                       disabled={loadingFollowUp}
                     />
                     <button type="button" className="btn-followup" onClick={sendFollowUp} disabled={loadingFollowUp || !followUpInput.trim()}>
-                      {loadingFollowUp ? '思考中…' : '发送'}
+                      {loadingFollowUp ? t('followupSending') : '发送'}
                     </button>
                   </div>
                 </div>
