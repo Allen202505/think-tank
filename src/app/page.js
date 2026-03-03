@@ -541,13 +541,13 @@ export default function Home() {
 
       <div className="main-layout">
         <aside className="sidebar">
-          <Card title="选择成员" accent="var(--accent)">
+          <Card title={t('membersTitle')} accent="var(--accent)">
             <div className="sidebar-actions">
-              <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>全选</MiniBtn>
-              <MiniBtn onClick={() => setSelected(new Set())}>清空</MiniBtn>
-              <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>随机5人</MiniBtn>
+              <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>{t('membersSelectAll')}</MiniBtn>
+              <MiniBtn onClick={() => setSelected(new Set())}>{t('membersClear')}</MiniBtn>
+              <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>{t('membersRandom5')}</MiniBtn>
             </div>
-            <div className="sidebar-count">已选 {selected.size} / {allMasters.length}</div>
+            <div className="sidebar-count">{t('selectedCount', selected.size, allMasters.length)}</div>
             <div className="master-list">
               {allMasters.map(inv => {
                 const on = selected.has(inv.id);
@@ -619,7 +619,7 @@ export default function Home() {
             {!loading && !result && (
               <div className="empty-state">
                 <div className="empty-icon">⚖️</div>
-                <p>选择成员，输入问题，让顶级思维为您碰撞</p>
+                <p>{t('emptyHint')}</p>
               </div>
             )}
 
