@@ -136,34 +136,35 @@ function MiniBtn({ children, onClick }) {
   );
 }
 
-function MasterProfileModal({ master, onClose }) {
+function MasterProfileModal({ master, onClose, locale }) {
   if (!master) return null;
+  const isEn = locale === 'en';
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="modal-content profile-modal" onClick={e => e.stopPropagation()} style={{ borderColor: master.color }}>
         <div className="profile-header" style={{ borderColor: master.color }}>
           <MasterAvatar master={master} size={56} className="profile-avatar" />
           <div>
-            <h2 className="profile-name">{master.name}</h2>
-            <p className="profile-title">{master.title}</p>
+            <h2 className="profile-name">{isEn && master.nameEn ? master.nameEn : master.name}</h2>
+            <p className="profile-title">{isEn && master.titleEn ? master.titleEn : master.title}</p>
           </div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="关闭">×</button>
+          <button type="button" className="modal-close" onClick={onClose} aria-label={isEn ? 'Close' : '关闭'}>×</button>
         </div>
         <div className="profile-body">
           <section>
-            <h4>投资风格与特点</h4>
-            <p>{master.style}</p>
+            <h4>{isEn ? 'Investment Style' : '投资风格与特点'}</h4>
+            <p>{isEn && master.styleEn ? master.styleEn : master.style}</p>
           </section>
           <section>
-            <h4>性格与发言风格</h4>
+            <h4>{isEn ? 'Personality' : '性格与发言风格'}</h4>
             <p>{master.personality}</p>
           </section>
           <section>
-            <h4>经典理论</h4>
+            <h4>{isEn ? 'Classic Theory' : '经典理论'}</h4>
             <p>{master.classicTheory || master.style}</p>
           </section>
           <section>
-            <h4>经历简介</h4>
+            <h4>{isEn ? 'Biography' : '经历简介'}</h4>
             <p>{master.biography || '—'}</p>
           </section>
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
@@ -566,16 +567,20 @@ export default function Home() {
                   >
                     <MasterAvatar master={inv} size={28} className="master-avatar" />
                     <div className="master-info">
-                      <span className="master-name" style={{ color: on ? 'var(--text)' : 'var(--text-muted)' }}>{inv.name}</span>
-                      <span className="master-style">{inv.style.split('，')[0]}</span>
+                      <span className="master-name" style={{ color: on ? 'var(--text)' : 'var(--text-muted)' }}>
+                        {locale === 'en' && inv.nameEn ? inv.nameEn : inv.name}
+                      </span>
+                      <span className="master-style">
+                        {locale === 'en' && inv.titleEn ? inv.titleEn : (inv.title || inv.style.split('，')[0])}
+                      </span>
                     </div>
                     {on && <span className="master-check" style={{ color: inv.color }}>✓</span>}
                     <button
                       type="button"
                       className="master-profile-btn"
                       onClick={e => { e.stopPropagation(); setProfileMaster(inv); }}
-                      title="查看资料"
-                      aria-label="查看资料"
+                      title={locale === 'en' ? 'View profile' : '查看资料'}
+                      aria-label={locale === 'en' ? 'View profile' : '查看资料'}
                     >
                       📋
                     </button>
@@ -817,7 +822,7 @@ export default function Home() {
         </main>
       </div>
 
-      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} />}
+      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} />}
 
       <style jsx>{`
         .page-root { position: relative; min-height: 100vh; padding-bottom: 2rem; }
