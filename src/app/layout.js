@@ -1,6 +1,8 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/react'
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://think-tank.example.com'
+
 export const metadata = {
   title: '大师吵股 - 世界投资大师智囊团 | AI投资决策辅助工具',
   description: '大师吵股是一个创新的投资决策辅助平台，汇聚巴菲特、芒格、索罗斯等世界顶级投资大师的智慧，通过AI模拟激烈辩论，为您的投资决策提供多角度专业参考。',
@@ -16,7 +18,7 @@ export const metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://think-tank.example.com'),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: '/',
   },
@@ -54,8 +56,12 @@ export const metadata = {
     },
   },
   verification: {
-    // google: 'your-google-verification-code',
-    // baidu: 'your-baidu-verification-code',
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+    other: {
+      'baidu-site-verification':
+        process.env.NEXT_PUBLIC_BAIDU_SITE_VERIFICATION || 'codeva-SZct0NDaHJ',
+      'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || undefined,
+    },
   },
 }
 
