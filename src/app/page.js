@@ -178,6 +178,22 @@ function MasterProfileModal({ master, onClose, locale }) {
 
 // ─── 主组件 ────────────────────────────────────────────────────────────────
 export default function Home() {
+  // 结构化数据 JSON-LD
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: '大师吵股',
+    alternateName: '世界投资大师智囊团',
+    description: '汇聚巴菲特、芒格、索罗斯等世界顶级投资大师的智慧，通过AI模拟激烈辩论，为您的投资决策提供多角度专业参考',
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'CNY',
+    },
+  };
+
   const [theme, setTheme] = useState('light');
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
@@ -525,8 +541,13 @@ export default function Home() {
   }, [followUpInput, result, query, doRequest, loadingFollowUp]);
 
   return (
-    <div className="page-root">
-      <header className="header">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="page-root">
+        <header className="header">
         <button
           type="button"
           className="theme-toggle"
@@ -936,6 +957,7 @@ export default function Home() {
         .btn-secondary { padding: 8px 16px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 3px; cursor: pointer; }
         .btn-primary { padding: 8px 16px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 3px; cursor: pointer; font-weight: 600; }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }
