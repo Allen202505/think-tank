@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.yieldglide.com"
+        }
+      ],
+      "destination": "https://yieldglide.com/:path*",
+      "permanent": true
+    }
+  ]
+}
