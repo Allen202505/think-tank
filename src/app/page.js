@@ -195,6 +195,8 @@ export default function Home() {
   };
 
   const [theme, setTheme] = useState('light');
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrImgError, setQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
   // 默认随机选 5 位大师
@@ -272,6 +274,17 @@ export default function Home() {
     if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', theme);
     if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
+
+  useEffect(() => {
+    if (!qrOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setQrOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [qrOpen]);
 
   const dict = messages[locale] || messages.zh;
   const t = (key, ...args) => {
@@ -548,15 +561,56 @@ export default function Home() {
       />
       <div className="page-root">
         <header className="header">
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-          title={theme === 'dark' ? '切换亮色' : '切换暗色'}
-          aria-label="切换主题"
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="icon-btn theme-toggle"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? '切换亮色' : '切换暗色'}
+            aria-label="切换主题"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+
+          <button
+            type="button"
+            className="icon-btn qr-toggle"
+            onClick={() => { setQrImgError(false); setQrOpen(v => !v); }}
+            title="我的二维码"
+            aria-label="打开二维码"
+            aria-expanded={qrOpen ? 'true' : 'false'}
+          >
+            ⌁
+          </button>
+
+          {qrOpen && (
+            <>
+              <div className="qr-backdrop" onClick={() => setQrOpen(false)} />
+              <div
+                className="qr-popover"
+                role="dialog"
+                aria-label="二维码"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="qr-title">我的二维码</div>
+                {!qrImgError ? (
+                  <img
+                    className="qr-img"
+                    src={qrSrc}
+                    alt="我的二维码"
+                    onError={() => setQrImgError(true)}
+                  />
+                ) : (
+                  <div className="qr-fallback">
+                    <div>未找到二维码图片。</div>
+                    <div className="qr-fallback-hint">把二维码放到 `public/my-qr.jpg`，或设置 `NEXT_PUBLIC_QR_CODE_URL`。</div>
+                  </div>
+                )}
+                <a className="qr-open" href={qrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
+              </div>
+            </>
+          )}
+        </div>
         <h1 className="header-title">{t('title')}</h1>
         <p className="header-desc">{t('subtitle')}</p>
       </header>
@@ -850,8 +904,18 @@ export default function Home() {
         .header { text-align: center; padding: 32px 20px 24px; border-bottom: 1px solid var(--border); position: relative; }
         .header-title { font-size: clamp(26px, 5vw, 44px); font-weight: 800; color: var(--accent); letter-spacing: 0.02em; line-height: 1.2; margin: 0; }
         .header-desc { color: var(--text-muted); font-size: 12px; margin-top: 10px; letter-spacing: 0.12em; font-family: var(--font-mono); }
-        .theme-toggle { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); font-size: 16px; cursor: pointer; border-radius: 50%; transition: color 0.2s, border-color 0.2s; }
-        .theme-toggle:hover { color: var(--accent); border-color: var(--accent-dim); }
+        .header-actions { position: absolute; top: 16px; right: 16px; display: flex; align-items: center; gap: 10px; }
+        .icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); font-size: 16px; cursor: pointer; border-radius: 50%; transition: color 0.2s, border-color 0.2s, background 0.2s; }
+        .icon-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+        .qr-toggle { font-size: 18px; }
+        .qr-backdrop { position: fixed; inset: 0; background: transparent; z-index: 1100; }
+        .qr-popover { position: absolute; top: 44px; right: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 12px; z-index: 1200; text-align: left; }
+        .qr-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 10px; }
+        .qr-img { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--bg-input); display: block; }
+        .qr-fallback { padding: 10px; border-radius: 6px; border: 1px dashed var(--border); color: var(--text-muted); background: var(--bg-input); font-size: 12px; line-height: 1.6; }
+        .qr-fallback-hint { margin-top: 6px; font-family: var(--font-mono); font-size: 10px; opacity: 0.9; }
+        .qr-open { display: inline-block; margin-top: 10px; font-family: var(--font-mono); font-size: 10px; color: var(--accent); text-decoration: none; }
+        .qr-open:hover { text-decoration: underline; }
         .main-layout { max-width: 1300px; margin: 0 auto; padding: 16px 14px; display: grid; grid-template-columns: 280px 1fr; gap: 16px; position: relative; }
         .sidebar { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 14px; align-self: start; max-height: calc(100vh - 120px); overflow-y: auto; }
         .sidebar-actions { display: flex; gap: 4px; margin-bottom: 8px; }
