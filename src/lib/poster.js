@@ -199,13 +199,16 @@ export async function generatePoster(opts) {
   const bullPick = discussion.find((m) => m.stance === 'BULL');
   const bearPick = discussion.find((m) => m.stance === 'BEAR');
   const shown = bullPick && bearPick ? [bullPick, bearPick] : discussion.slice(0, 2);
+  const shownSet = new Set(shown);
+  const unshown = discussion.filter((m) => !shownSet.has(m));
+  const unshownNames = unshown.map((m) => masterMap[m.investorId]?.name).filter(Boolean);
   const avatarCache = {};
   const CARD_W = W - MARGIN * 2;
   const CARD_PAD = 30;
-  const PAD_TOP = 44;
-  const PAD_BOTTOM = 36;
+  const PAD_TOP = 38;
+  const PAD_BOTTOM = 30;
   const LINE_H = 40;
-  const NAME_H = 60;
+  const NAME_H = 56;
   const KP_GAP = 8;
   const BODY_GAP = 30;
 
@@ -304,7 +307,7 @@ export async function generatePoster(opts) {
   ctx.fillText('⚖ 智囊团裁决', MARGIN, y);
   y += 34;
   const barW = W - MARGIN * 2;
-  const barH = 24;
+  const barH = 20;
   ctx.fillStyle = 'rgba(0,0,0,0.06)';
   roundedRect(ctx, MARGIN, y, barW, barH, 12);
   ctx.fill();
@@ -322,7 +325,7 @@ export async function generatePoster(opts) {
       bx += w;
     }
   }
-  y += barH + 20;
+  y += barH + 18;
   ctx.font = `500 24px ${FONT_SANS}`;
   ctx.fillStyle = '#4caf7d';
   ctx.fillText(`看多 ${v.bullCount || 0}`, MARGIN, y);
@@ -330,7 +333,7 @@ export async function generatePoster(opts) {
   ctx.fillText(`中性 ${v.neutralCount || 0}`, MARGIN + 190, y);
   ctx.fillStyle = '#e05555';
   ctx.fillText(`看空 ${v.bearCount || 0}`, MARGIN + 380, y);
-  y += 46;
+  y += 42;
   if (v.consensus) {
     ctx.font = `500 25px ${FONT_SANS}`;
     ctx.fillStyle = INK;
@@ -349,9 +352,34 @@ export async function generatePoster(opts) {
     }
   }
 
+  // ── 悬念引导：还有哪些大师没出场 ──
+  if (unshownNames.length) {
+    y += 16;
+    const teaserH = 98;
+    ctx.fillStyle = 'rgba(154,120,48,0.08)';
+    roundedRect(ctx, MARGIN, y, CARD_W, teaserH, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(154,120,48,0.45)';
+    ctx.lineWidth = 1.5;
+    roundedRect(ctx, MARGIN, y, CARD_W, teaserH, 14);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.font = `600 26px ${FONT_SANS}`;
+    ctx.fillStyle = '#9a7830';
+    ctx.fillText(`还有 ${unshownNames.length} 位大师也想聊聊这个话题`, W / 2, y + 40);
+    ctx.font = `500 24px ${FONT_SANS}`;
+    ctx.fillStyle = INK;
+    const namesText = `想知道 ${unshownNames.slice(0, 3).join('、')} 怎么看？扫码进网站问问他们吧`;
+    for (const ln of wrapLines(ctx, namesText, CARD_W - 60, 1)) {
+      ctx.fillText(ln, W / 2, y + 74);
+    }
+    ctx.textAlign = 'left';
+    y += teaserH + 22;
+  }
+
   // ── 二维码（引导扫码访问网站） ──
   y += 40;
-  const qrSize = 176;
+  const qrSize = 160;
   const qrX = (W - qrSize) / 2;
   const siteUrl = getSiteUrl();
   try {
