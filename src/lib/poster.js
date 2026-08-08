@@ -129,13 +129,67 @@ function loadImage(src) {
  */
 export async function generatePoster(opts) {
   const { question, hostId, masters = [], hostOpening, discussion = [], verdict = {} } = opts;
+  const masterMap = Object.fromEntries(masters.map((m) => [m.id, m]));
+
+  const bullPick = discussion.find((m) => m.stance === 'BULL');
+  const bearPick = discussion.find((m) => m.stance === 'BEAR');
+  const shown = bullPick && bearPick ? [bullPick, bearPick] : discussion.slice(0, 2);
+  const shownSet = new Set(shown);
+  const unshown = discussion.filter((m) => !shownSet.has(m));
+  const unshownNames = unshown.map((m) => masterMap[m.investorId]?.name).filter(Boolean);
+
+  const CARD_W = W - MARGIN * 2;
+  const CARD_PAD = 30;
+  const PAD_TOP = 38;
+  const PAD_BOTTOM = 30;
+  const NAME_H = 56;
+  const KP_GAP = 8;
+  const BODY_GAP = 30;
+  const LINE_H = 40;
+
+  // ── 测量阶段：先按内容算行数，画布高度随内容自适应（不截断） ──
+  const scratch = document.createElement('canvas').getContext('2d');
+  const measureLines = (font, text, maxW, maxLines) => {
+    scratch.font = font;
+    return wrapLines(scratch, text || '', maxW, maxLines);
+  };
+
+  const titleLines = measureLines(`700 52px ${FONT_SERIF}`, question || '（未提供问题）', CARD_W, 2);
+  const hostLines = hostOpening ? measureLines(`400 26px ${FONT_SERIF}`, hostOpening, CARD_W, 6) : [];
+
+  const cards = shown.map((msg) => {
+    const m = masterMap[msg.investorId];
+    const st = STANCE[msg.stance] || STANCE.NEUTRAL;
+    const name = m?.name || '大师';
+    let keyPoint = clean(msg.keyPoint);
+    keyPoint = keyPoint.replace(/^观点[：:]\s*/, '');
+    const kpLines = keyPoint
+      ? measureLines(`700 27px ${FONT_SANS}`, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 2)
+      : [];
+    const contentLines = measureLines(`400 26px ${FONT_SANS}`, msg.content, CARD_W - CARD_PAD * 2 - 14, 6);
+    const kpH = kpLines.length * 40;
+    const contentTop = PAD_TOP + NAME_H + (kpLines.length ? KP_GAP + kpH : 0) + BODY_GAP + 26;
+    const cardH = contentTop + contentLines.length * LINE_H + PAD_BOTTOM - 10;
+    return { msg, m, st, name, kpLines, contentLines, cardH };
+  });
+
+  const verdictH = 8 + 34 + 20 + 18 + 42 + (clean(verdict?.consensus) ? 42 : 0) + (clean(verdict?.mainRisk) ? 38 : 0);
+  const teaserH = unshownNames.length ? 16 + 98 + 22 : 0;
+  const qrBlockH = 40 + 160 + 14 + 44 + 30;
+
+  let H = 96 + 50 + titleLines.length * 66 + 20 + 46;
+  if (hostLines.length) H += 38 + hostLines.length * LINE_H + 42;
+  for (const c of cards) H += c.cardH + 26;
+  H += verdictH + teaserH + qrBlockH + 90;
+  H = Math.max(1600, Math.ceil(H));
+
+  // ── 创建画布 ──
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
-  const masterMap = Object.fromEntries(masters.map((m) => [m.id, m]));
 
-  // ── 背景 ──
+  // 背景
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#fdfbf6');
   bg.addColorStop(1, '#f3eee3');
@@ -149,28 +203,23 @@ export async function generatePoster(opts) {
 
   let y = 0;
 
-  // ── 品牌（弱化） ──
+  // 品牌 + 议题
   ctx.font = `500 20px ${FONT_MONO}`;
   ctx.fillStyle = DIM;
   ctx.fillText('MASTER DEBATE · 大师吵股', MARGIN, 78);
-
-  // ── 议题小标签 ──
   ctx.font = `500 22px ${FONT_MONO}`;
   ctx.fillStyle = GOLD;
   ctx.fillText('本 期 议 题', MARGIN, 128);
 
-  // ── 大标题 = 用户问题 ──
+  // 大标题
   ctx.font = `700 52px ${FONT_SERIF}`;
   ctx.fillStyle = INK;
-  const titleLines = wrapLines(ctx, question || '（未提供问题）', W - MARGIN * 2, 2);
   let ty = 186;
   for (const ln of titleLines) {
     ctx.fillText(ln, MARGIN, ty);
     ty += 66;
   }
   y = ty + 18;
-
-  // 金色分隔线
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -179,8 +228,8 @@ export async function generatePoster(opts) {
   ctx.stroke();
   y += 46;
 
-  // ── 主持人开场 ──
-  if (hostOpening) {
+  // 主持人开场（完整展示，最多 6 行）
+  if (hostLines.length) {
     const host = masterMap[hostId] || masters[0];
     ctx.font = `600 24px ${FONT_SANS}`;
     ctx.fillStyle = GOLD;
@@ -188,46 +237,17 @@ export async function generatePoster(opts) {
     y += 38;
     ctx.font = `400 26px ${FONT_SERIF}`;
     ctx.fillStyle = '#5a564e';
-    for (const ln of wrapLines(ctx, hostOpening, W - MARGIN * 2, 2)) {
+    for (const ln of hostLines) {
       ctx.fillText(ln, MARGIN, y);
-      y += 40;
+      y += LINE_H;
     }
     y += 42;
   }
 
-  // ── 大师观点卡片：精选最多 2 位（优先一多一空，辩论感更强） ──
-  const bullPick = discussion.find((m) => m.stance === 'BULL');
-  const bearPick = discussion.find((m) => m.stance === 'BEAR');
-  const shown = bullPick && bearPick ? [bullPick, bearPick] : discussion.slice(0, 2);
-  const shownSet = new Set(shown);
-  const unshown = discussion.filter((m) => !shownSet.has(m));
-  const unshownNames = unshown.map((m) => masterMap[m.investorId]?.name).filter(Boolean);
+  // 大师观点卡片（正文完整展示，最多 6 行）
   const avatarCache = {};
-  const CARD_W = W - MARGIN * 2;
-  const CARD_PAD = 30;
-  const PAD_TOP = 38;
-  const PAD_BOTTOM = 30;
-  const LINE_H = 40;
-  const NAME_H = 56;
-  const KP_GAP = 8;
-  const BODY_GAP = 30;
-
-  for (const msg of shown) {
-    const m = masterMap[msg.investorId];
-    const st = STANCE[msg.stance] || STANCE.NEUTRAL;
-    const name = m?.name || '大师';
-    let keyPoint = clean(msg.keyPoint);
-    keyPoint = keyPoint.replace(/^观点[：:]\s*/, ''); // 避免重复"观点："前缀
-
-    // 先测量，确定行数与卡片高度（避免内容溢出/空档）
-    ctx.font = `400 26px ${FONT_SANS}`;
-    const contentLines = wrapLines(ctx, msg.content || '', CARD_W - CARD_PAD * 2 - 14, 2);
-    ctx.font = `700 27px ${FONT_SANS}`;
-    const kpLines = keyPoint ? wrapLines(ctx, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 2) : [];
-    const kpH = kpLines.length * 40;
-    const contentTop = PAD_TOP + NAME_H + (kpLines.length ? KP_GAP + kpH : 0) + BODY_GAP + 26;
-    const cardH = contentTop + contentLines.length * LINE_H + PAD_BOTTOM - 10;
-
+  for (const c of cards) {
+    const { m, st, name, kpLines, contentLines, cardH } = c;
     const cardX = MARGIN;
     ctx.fillStyle = hexA(st.color, 0.05);
     roundedRect(ctx, cardX, y, CARD_W, cardH, 18);
@@ -241,8 +261,6 @@ export async function generatePoster(opts) {
     ctx.fill();
 
     let cy = y + PAD_TOP;
-
-    // 头像 + 姓名 + 立场徽章
     let img = null;
     if (m?.avatar) {
       if (!avatarCache[m.id]) {
@@ -274,8 +292,6 @@ export async function generatePoster(opts) {
     ctx.fillText(badge, badgeX + 12, avatarCY + 2);
 
     cy += NAME_H;
-
-    // 观点标签（最多 2 行，正常折行）
     if (kpLines.length) {
       cy += KP_GAP;
       ctx.font = `700 27px ${FONT_SANS}`;
@@ -285,8 +301,6 @@ export async function generatePoster(opts) {
         cy += 40;
       }
     }
-
-    // 发言内容（数字高亮）
     cy += BODY_GAP;
     const bodyX = cardX + CARD_PAD;
     ctx.font = `400 26px ${FONT_SANS}`;
@@ -298,7 +312,7 @@ export async function generatePoster(opts) {
     y += cardH + 26;
   }
 
-  // ── 裁决区 ──
+  // 裁决
   const v = verdict || {};
   const total = (v.bullCount || 0) + (v.bearCount || 0) + (v.neutralCount || 0) || 1;
   y += 8;
@@ -306,62 +320,61 @@ export async function generatePoster(opts) {
   ctx.fillStyle = GOLD;
   ctx.fillText('⚖ 智囊团裁决', MARGIN, y);
   y += 34;
-  const barW = W - MARGIN * 2;
+  const barW = CARD_W;
   const barH = 20;
   ctx.fillStyle = 'rgba(0,0,0,0.06)';
-  roundedRect(ctx, MARGIN, y, barW, barH, 12);
+  roundedRect(ctx, MARGIN, y, barW, barH, 10);
   ctx.fill();
   let bx = MARGIN;
   for (const s of [
-    { c: '#4caf7d', n: v.bullCount || 0 },
-    { c: '#c9a84c', n: v.neutralCount || 0 },
-    { c: '#e05555', n: v.bearCount || 0 },
+    { c: '#2e7d57', n: v.bullCount || 0 },
+    { c: '#9a7830', n: v.neutralCount || 0 },
+    { c: '#c04040', n: v.bearCount || 0 },
   ]) {
     const w = barW * (s.n / total);
     if (w > 2) {
       ctx.fillStyle = s.c;
-      roundedRect(ctx, bx, y, w, barH, 12);
+      roundedRect(ctx, bx, y, w, barH, 10);
       ctx.fill();
       bx += w;
     }
   }
   y += barH + 18;
   ctx.font = `500 24px ${FONT_SANS}`;
-  ctx.fillStyle = '#4caf7d';
+  ctx.fillStyle = '#2e7d57';
   ctx.fillText(`看多 ${v.bullCount || 0}`, MARGIN, y);
-  ctx.fillStyle = '#c9a84c';
+  ctx.fillStyle = '#9a7830';
   ctx.fillText(`中性 ${v.neutralCount || 0}`, MARGIN + 190, y);
-  ctx.fillStyle = '#e05555';
+  ctx.fillStyle = '#c04040';
   ctx.fillText(`看空 ${v.bearCount || 0}`, MARGIN + 380, y);
   y += 42;
-  if (v.consensus) {
+  if (clean(v.consensus)) {
     ctx.font = `500 25px ${FONT_SANS}`;
     ctx.fillStyle = INK;
-    for (const ln of wrapLines(ctx, `共识：${clean(v.consensus)}`, W - MARGIN * 2, 1)) {
+    for (const ln of wrapLines(ctx, `共识：${clean(v.consensus)}`, CARD_W, 1)) {
       ctx.fillText(ln, MARGIN, y);
       y += 38;
     }
     y += 4;
   }
-  if (v.mainRisk) {
+  if (clean(v.mainRisk)) {
     ctx.font = `500 25px ${FONT_SANS}`;
-    ctx.fillStyle = '#e05555';
-    for (const ln of wrapLines(ctx, `风险：${clean(v.mainRisk)}`, W - MARGIN * 2, 1)) {
+    ctx.fillStyle = '#c04040';
+    for (const ln of wrapLines(ctx, `风险：${clean(v.mainRisk)}`, CARD_W, 1)) {
       ctx.fillText(ln, MARGIN, y);
       y += 38;
     }
   }
 
-  // ── 悬念引导：还有哪些大师没出场 ──
+  // 悬念引导
   if (unshownNames.length) {
     y += 16;
-    const teaserH = 98;
     ctx.fillStyle = 'rgba(154,120,48,0.08)';
-    roundedRect(ctx, MARGIN, y, CARD_W, teaserH, 14);
+    roundedRect(ctx, MARGIN, y, CARD_W, 98, 14);
     ctx.fill();
     ctx.strokeStyle = 'rgba(154,120,48,0.45)';
     ctx.lineWidth = 1.5;
-    roundedRect(ctx, MARGIN, y, CARD_W, teaserH, 14);
+    roundedRect(ctx, MARGIN, y, CARD_W, 98, 14);
     ctx.stroke();
     ctx.textAlign = 'center';
     ctx.font = `600 26px ${FONT_SANS}`;
@@ -369,15 +382,14 @@ export async function generatePoster(opts) {
     ctx.fillText(`还有 ${unshownNames.length} 位大师也想聊聊这个话题`, W / 2, y + 40);
     ctx.font = `500 24px ${FONT_SANS}`;
     ctx.fillStyle = INK;
-    const namesText = `想知道 ${unshownNames.slice(0, 3).join('、')} 怎么看？扫码进网站问问他们吧`;
-    for (const ln of wrapLines(ctx, namesText, CARD_W - 60, 1)) {
+    for (const ln of wrapLines(ctx, `想知道 ${unshownNames.slice(0, 3).join('、')} 怎么看？扫码进网站问问他们吧`, CARD_W - 60, 1)) {
       ctx.fillText(ln, W / 2, y + 74);
     }
     ctx.textAlign = 'left';
-    y += teaserH + 22;
+    y += 98 + 22;
   }
 
-  // ── 二维码（引导扫码访问网站） ──
+  // 二维码
   y += 40;
   const qrSize = 160;
   const qrX = (W - qrSize) / 2;
@@ -390,7 +402,6 @@ export async function generatePoster(opts) {
     });
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = qrData; });
-    // 白色二维码卡片 + 金边
     ctx.fillStyle = '#ffffff';
     roundedRect(ctx, qrX - 14, y - 14, qrSize + 28, qrSize + 28, 12);
     ctx.fill();
@@ -399,7 +410,7 @@ export async function generatePoster(opts) {
     roundedRect(ctx, qrX - 14, y - 14, qrSize + 28, qrSize + 28, 12);
     ctx.stroke();
     ctx.drawImage(img, qrX, y, qrSize, qrSize);
-  } catch (e) { /* 二维码生成失败不阻塞 */ }
+  } catch (e) { /* 二维码失败不阻塞 */ }
 
   ctx.textAlign = 'center';
   ctx.font = `600 26px ${FONT_SANS}`;
@@ -410,7 +421,7 @@ export async function generatePoster(opts) {
   ctx.fillText(`${siteUrl.replace(/^https?:\/\//, '')} · 查看完整辩论与最新数据`, W / 2, y + qrSize + 76);
   ctx.textAlign = 'left';
 
-  // ── 页脚 ──
+  // 页脚
   const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
   ctx.font = `400 21px ${FONT_MONO}`;
   ctx.fillStyle = DIM;
