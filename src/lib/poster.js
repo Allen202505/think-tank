@@ -21,25 +21,30 @@ const FONT_MONO = '"SF Mono","Consolas",monospace';
 
 // 按宽度换行；超出 maxLines 时在末行补 "…"
 function wrapLines(ctx, text, maxWidth, maxLines) {
-  const tokens = (text || '').match(/(?:-?\d+(?:\.\d+)?)(?:万亿|亿|万|倍|%|％)?|[^-?\d]+/g) || [text || ''];
+  const s = String(text || '');
   const lines = [];
   let line = '';
   let truncated = false;
-  for (const tk of tokens) {
-    if (ctx.measureText(line + tk).width > maxWidth && line) {
+  // 数字(含单位)聚成原子 token 不拆行；其余按字符逐字折行
+  const chars = [];
+  const re = /-?\d+(?:\.\d+)?(?:万亿|亿|万|倍|%|％)?|[\s\S]/g;
+  let m;
+  while ((m = re.exec(s)) !== null) chars.push(m[0]);
+  for (const ch of chars) {
+    if (line && ctx.measureText(line + ch).width > maxWidth) {
       if (lines.length >= maxLines - 1) { truncated = true; break; }
       lines.push(line);
-      line = tk;
+      line = ch;
     } else {
-      line += tk;
+      line += ch;
     }
   }
+  if (line && lines.length < maxLines) lines.push(line);
   if (truncated) {
-    let last = lines[lines.length - 1] || '';
+    let last = lines.length ? lines[lines.length - 1] : '';
     while (last.length && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
-    lines[lines.length - 1] = last + '…';
-  } else if (line) {
-    lines.push(line);
+    if (lines.length) lines[lines.length - 1] = last + '…';
+    else lines.push('…');
   }
   return lines;
 }
@@ -66,6 +71,13 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// 过滤模型可能输出的脏值（undefined/null/空串）
+function clean(v) {
+  if (v == null) return '';
+  const t = String(v).trim();
+  return (t === 'undefined' || t === 'null') ? '' : t;
 }
 
 function hexA(hex, alpha) {
@@ -180,22 +192,26 @@ export async function generatePoster(opts) {
   const PAD_TOP = 44;
   const PAD_BOTTOM = 36;
   const LINE_H = 40;
+  const NAME_H = 60;
+  const KP_GAP = 8;
+  const BODY_GAP = 30;
 
   for (const msg of shown) {
     const m = masterMap[msg.investorId];
     const st = STANCE[msg.stance] || STANCE.NEUTRAL;
     const name = m?.name || '大师';
-    const keyPoint = msg.keyPoint || '';
+    const keyPoint = clean(msg.keyPoint);
 
+    // 先测量，确定行数与卡片高度（避免内容溢出/空档）
     ctx.font = `400 26px ${FONT_SANS}`;
     const contentLines = wrapLines(ctx, msg.content || '', CARD_W - CARD_PAD * 2 - 14, 3);
-    const nameH = 60;
-    const kpH = keyPoint ? 84 : 0;
-    const gapContent = 30;
-    const cardH = PAD_TOP + nameH + kpH + gapContent + contentLines.length * LINE_H + PAD_BOTTOM;
+    ctx.font = `700 27px ${FONT_SANS}`;
+    const kpLines = keyPoint ? wrapLines(ctx, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 2) : [];
+    const kpH = kpLines.length * 40;
+    const contentTop = PAD_TOP + NAME_H + (kpLines.length ? KP_GAP + kpH : 0) + BODY_GAP + 26;
+    const cardH = contentTop + contentLines.length * LINE_H + PAD_BOTTOM - 10;
 
     const cardX = MARGIN;
-    // 卡片背景 + 边框 + 左侧色条
     ctx.fillStyle = hexA(st.color, 0.07);
     roundedRect(ctx, cardX, y, CARD_W, cardH, 18);
     ctx.fill();
@@ -226,7 +242,6 @@ export async function generatePoster(opts) {
     const nameW = ctx.measureText(name).width;
     ctx.fillText(name, cardX + 90, avatarCY + 10);
 
-    // 立场徽章
     const badge = ` ${st.label} `;
     ctx.font = `500 20px ${FONT_MONO}`;
     const bw = ctx.measureText(badge).width + 24;
@@ -241,23 +256,26 @@ export async function generatePoster(opts) {
     ctx.fillStyle = st.color;
     ctx.fillText(badge, badgeX + 12, avatarCY + 2);
 
-    // 观点标签
-    if (keyPoint) {
-      cy += nameH;
+    cy += NAME_H;
+
+    // 观点标签（最多 2 行，正常折行）
+    if (kpLines.length) {
+      cy += KP_GAP;
       ctx.font = `700 27px ${FONT_SANS}`;
       ctx.fillStyle = GOLD_BRIGHT;
-      const kpLines = wrapLines(ctx, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 1);
-      ctx.fillText(kpLines[0], cardX + CARD_PAD, cy + 26);
+      for (const ln of kpLines) {
+        ctx.fillText(ln, cardX + CARD_PAD, cy + 30);
+        cy += 40;
+      }
     }
 
     // 发言内容（数字高亮）
-    cy += nameH + kpH;
+    cy += BODY_GAP;
     const bodyX = cardX + CARD_PAD;
-    const bodyMax = CARD_W - CARD_PAD * 2 - 14;
-    let bodyY = cy + gapContent + 26;
+    ctx.font = `400 26px ${FONT_SANS}`;
     for (const ln of contentLines) {
-      drawRichLine(ctx, ln, bodyX, bodyY, bodyMax);
-      bodyY += LINE_H;
+      drawRichLine(ctx, ln, bodyX, cy + 26);
+      cy += LINE_H;
     }
 
     y += cardH + 26;
@@ -302,7 +320,7 @@ export async function generatePoster(opts) {
   if (v.consensus) {
     ctx.font = `500 25px ${FONT_SANS}`;
     ctx.fillStyle = INK;
-    for (const ln of wrapLines(ctx, `共识：${v.consensus}`, W - MARGIN * 2, 1)) {
+    for (const ln of wrapLines(ctx, `共识：${clean(v.consensus)}`, W - MARGIN * 2, 1)) {
       ctx.fillText(ln, MARGIN, y);
       y += 38;
     }
@@ -311,7 +329,7 @@ export async function generatePoster(opts) {
   if (v.mainRisk) {
     ctx.font = `500 25px ${FONT_SANS}`;
     ctx.fillStyle = '#e05555';
-    for (const ln of wrapLines(ctx, `风险：${v.mainRisk}`, W - MARGIN * 2, 1)) {
+    for (const ln of wrapLines(ctx, `风险：${clean(v.mainRisk)}`, W - MARGIN * 2, 1)) {
       ctx.fillText(ln, MARGIN, y);
       y += 38;
     }
