@@ -1016,6 +1016,17 @@
 
 **验证**: 浏览器实测——自定义大师底部按钮「💬 与 TA 单聊 →」「从智囊团移除」同一行、右对齐；预置大师「单聊 + 查看主页」同行；全文无「编辑画像」；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-08（第四十六批）
+
+### 氛围背景：固定巴菲特，删除背景人物切换
+**背景**: 用户要求氛围背景默认就用巴菲特，去掉背景人物切换功能。
+
+**实现**:
+- page.js：删除 bgMaster state、BG_KEY、localStorage 恢复逻辑、handleBgMaster 回调、侧栏「氛围背景」下拉控件；渲染水印硬编码使用巴菲特（invMap['buffett'] → /avatars/buffett.jpg）
+- page.css：删除 .bg-control/.bg-label/.bg-select 死样式
+
+**验证**: 浏览器实测——bg-control 已不存在，bg-master-layer 仍渲染 /avatars/buffett.jpg 且加载成功；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

@@ -84,7 +84,6 @@ export default function Home() {
   const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
-  const [bgMaster, setBgMaster] = useState('buffett'); // 背景：'none' 或大师 id（默认用巴菲特肖像营造氛围）
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
   const [rounds, setRounds] = useState([]);
@@ -103,7 +102,6 @@ export default function Home() {
   const allMasters = useMemo(() => [...customMasters, ...PRESET_MASTERS], [customMasters]); // 邀请的大师排在预置大师前面
   const CUSTOM_KEY = 'custom-masters-v1';
   const HISTORY_KEY = 'debate-history-v1';
-  const BG_KEY = 'bg-master-v1';
   const currentSessionIdRef = useRef(null);
 
   // 兼容追问：追问仍用「预加载一整段」再逐条展示，用 rounds 生成 blocks
@@ -178,13 +176,7 @@ export default function Home() {
     if (Array.isArray(customs) && customs.length) setCustomMasters(customs.map((c) => ({ ...c, color: snapColorToPalette(c.color) })));
     const roster = [...(Array.isArray(customs) ? customs : []), ...PRESET_MASTERS];
 
-    // 2) 载入背景大师
-    try {
-      const bg = localStorage.getItem(BG_KEY);
-      if (bg && roster.some((m) => m.id === bg)) setBgMaster(bg);
-    } catch (e) { /* ignore */ }
-
-    // 3) 载入历史列表
+    // 2) 载入历史列表
     try { setHistoryList(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')); } catch (e) { /* ignore */ }
 
     // 4) 恢复上次讨论 / URL 指定大师 / 随机
@@ -382,12 +374,6 @@ export default function Home() {
       const el = document.querySelector('.question-input');
       if (el) el.focus();
     }, 120);
-  }, []);
-
-  // ─── 背景大师 ───
-  const handleBgMaster = useCallback((id) => {
-    setBgMaster(id);
-    try { localStorage.setItem(BG_KEY, id); } catch (e) { /* ignore */ }
   }, []);
 
   // ─── 历史对话 ───
@@ -912,8 +898,8 @@ export default function Home() {
         </div>
       </header>
 
-      {bgMaster !== 'none' && (() => {
-        const bgm = invMap[bgMaster];
+      {(() => {
+        const bgm = invMap['buffett'];
         return bgm?.avatar ? (
           <div className="bg-master-layer" aria-hidden="true">
             <img src={bgm.avatar} alt="" />
@@ -979,19 +965,6 @@ export default function Home() {
               })}
             </div>
           </Card>
-          <div className="bg-control">
-            <span className="bg-label">氛围背景</span>
-            <select
-              className="bg-select"
-              value={bgMaster}
-              onChange={(e) => handleBgMaster(e.target.value)}
-            >
-              <option value="none">简洁 · 无背景</option>
-              {allMasters.filter((m) => m.avatar).map((m) => (
-                <option key={m.id} value={m.id}>以 {m.name} 为背景</option>
-              ))}
-            </select>
-          </div>
           <p className="sidebar-hint">{chatMode === 'group' ? t('sidebarHintGroup') : t('sidebarHintSolo')}</p>
         </aside>
 

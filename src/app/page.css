@@ -193,10 +193,6 @@
 }
 [data-theme="dark"] .bg-master-layer img { opacity: 0.24; }
 .page-root { z-index: 1; }
-.bg-control { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
-.bg-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); white-space: nowrap; }
-.bg-select { flex: 1; min-width: 0; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 11px; padding: 6px 8px; border-radius: 4px; }
-
 /* 虚拟大师删除按钮 */
 
 /* ─── 邀请大师 / 历史弹窗 ─── */
@@ -228,7 +224,7 @@
 
 /* ─── UI 打磨：无衬线系统 UI（按钮/输入/标签用 sans，衬线保留给阅读） ─── */
 .btn-submit, .btn-followup, .btn-poster, .invite-btn, .profile-chat-btn,
-.followup-input, .invite-input, .bg-select,
+.followup-input, .invite-input,
 .master-style, .history-item .history-q { font-family: var(--font-sans); }
 .master-style { font-size: 10px; color: var(--text-muted); }
 
