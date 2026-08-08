@@ -532,11 +532,21 @@ export default function Home() {
     return () => clearInterval(iv);
   }, [useStreamingMode, currentBlockFromRounds, typingPhase, typeCharIndex, currentLenRounds]);
 
-  const toggle = (id) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+  const toggle = (id) => {
+    if (chatMode === 'solo') {
+      // 单聊：只能选 1 位对象，点其他大师即替换
+      setSelected((prev) => (prev.has(id) ? new Set() : new Set([id])));
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+      });
+    }
+  };
+  const soloTarget = chatMode === 'solo' && selected.size === 1
+    ? allMasters.find((m) => m.id === Array.from(selected)[0]) || null
+    : null;
 
   const invMap = Object.fromEntries(allMasters.map(i => [i.id, i]));
 
@@ -895,12 +905,18 @@ export default function Home() {
             <span className="ie-icon">✦</span> 邀请一位大师
           </button>
           <Card title={t('membersTitle')} accent="var(--accent)">
-            <div className="sidebar-actions">
-              <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>{t('membersSelectAll')}</MiniBtn>
-              <MiniBtn onClick={() => setSelected(new Set())}>{t('membersClear')}</MiniBtn>
-              <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>{t('membersRandom5')}</MiniBtn>
+            {chatMode === 'group' && (
+              <div className="sidebar-actions">
+                <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>{t('membersSelectAll')}</MiniBtn>
+                <MiniBtn onClick={() => setSelected(new Set())}>{t('membersClear')}</MiniBtn>
+                <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>{t('membersRandom5')}</MiniBtn>
+              </div>
+            )}
+            <div className="sidebar-count">
+              {chatMode === 'solo'
+                ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
+                : t('selectedCount', selected.size, allMasters.length)}
             </div>
-            <div className="sidebar-count">{t('selectedCount', selected.size, allMasters.length)}</div>
             <div className="master-list">
               {allMasters.map(inv => {
                 const on = selected.has(inv.id);
@@ -983,25 +999,25 @@ export default function Home() {
             {chatMode === 'group' && (
               <div className="group-style">
                 <span className="style-label">风格</span>
-                <div className="mode-switch" role="tablist" aria-label="群聊风格">
+                <select className="style-select" value={mode} onChange={(e) => setMode(e.target.value)} title="群聊风格">
                   {Object.entries(MODES).map(([k, m]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={mode === k}
-                      className={`mode-btn ${mode === k ? 'active' : ''}`}
-                      onClick={() => setMode(k)}
-                      title={m.hint}
-                    >
-                      {m.label}
-                    </button>
+                    <option key={k} value={k}>{m.label} · {m.hint}</option>
                   ))}
-                </div>
+                </select>
               </div>
             )}
             {chatMode === 'solo' && (
-              <p className="solo-hint">与 1 位大师一对一深聊，TA 直接回答你的问题，可连续追问。</p>
+              <div className="solo-target">
+                {soloTarget ? (
+                  <>
+                    <MasterAvatar master={soloTarget} size={28} />
+                    <span className="solo-target-name">{soloTarget.name}</span>
+                    <span className="solo-target-title">{soloTarget.title}</span>
+                  </>
+                ) : (
+                  <span className="solo-target-empty">请从左侧选择 1 位单聊对象</span>
+                )}
+              </div>
             )}
             <textarea
               value={query}
