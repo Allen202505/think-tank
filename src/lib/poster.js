@@ -3,15 +3,17 @@
 const W = 1080;
 const H = 1920;
 
-const GOLD = '#c9a84c';
-const GOLD_BRIGHT = '#e8c766'; // 数字高亮色
-const INK = '#e8e4d8';
-const MUTED = '#9a97a8';
-const DIM = '#6a6878';
+// 浅色（暖白）主题
+const GOLD = '#9a7830';       // 金色点缀/标签（白底可读）
+const GOLD_BRIGHT = '#b56b00'; // 数字高亮色（深琥珀）
+const INK = '#1f1d19';        // 主文字（近黑）
+const MUTED = '#6b675f';      // 次级文字
+const DIM = '#a39d90';        // 弱文字/页脚
+const CONTENT = '#4a463f';    // 正文
 const STANCE = {
-  BULL: { label: '看多 ▲', color: '#4caf7d' },
-  BEAR: { label: '看空 ▼', color: '#e05555' },
-  NEUTRAL: { label: '中性 —', color: '#c9a84c' },
+  BULL: { label: '看多 ▲', color: '#2e7d57' },
+  BEAR: { label: '看空 ▼', color: '#c04040' },
+  NEUTRAL: { label: '中性 —', color: '#9a7830' },
 };
 const MARGIN = 70;
 
@@ -56,7 +58,7 @@ function drawRichLine(ctx, text, x, y, maxWidth) {
   for (const tk of tokens) {
     const isNum = /^-?\d/.test(tk);
     ctx.font = isNum ? `700 26px ${FONT_SANS}` : `400 26px ${FONT_SANS}`;
-    ctx.fillStyle = isNum ? GOLD_BRIGHT : '#cfccd6';
+    ctx.fillStyle = isNum ? GOLD_BRIGHT : CONTENT;
     ctx.fillText(tk, cx, y);
     cx += ctx.measureText(tk).width;
   }
@@ -97,7 +99,7 @@ function drawAvatar(ctx, img, cx, cy, r) {
   ctx.restore();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(201,168,76,0.85)';
+  ctx.strokeStyle = 'rgba(154,120,48,0.8)';
   ctx.lineWidth = 3;
   ctx.stroke();
 }
@@ -126,13 +128,13 @@ export async function generatePoster(opts) {
 
   // ── 背景 ──
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#12121c');
-  bg.addColorStop(1, '#0a0a0f');
+  bg.addColorStop(0, '#fdfbf6');
+  bg.addColorStop(1, '#f3eee3');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   const glow = ctx.createRadialGradient(150, 130, 20, 150, 130, 420);
-  glow.addColorStop(0, 'rgba(201,168,76,0.14)');
-  glow.addColorStop(1, 'rgba(201,168,76,0)');
+  glow.addColorStop(0, 'rgba(154,120,48,0.10)');
+  glow.addColorStop(1, 'rgba(154,120,48,0)');
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
@@ -176,7 +178,7 @@ export async function generatePoster(opts) {
     ctx.fillText(`主持人 · ${host?.name || '大师'}`, MARGIN, y);
     y += 38;
     ctx.font = `400 26px ${FONT_SERIF}`;
-    ctx.fillStyle = '#b9b6c2';
+    ctx.fillStyle = '#5a564e';
     for (const ln of wrapLines(ctx, hostOpening, W - MARGIN * 2, 2)) {
       ctx.fillText(ln, MARGIN, y);
       y += 40;
@@ -212,10 +214,10 @@ export async function generatePoster(opts) {
     const cardH = contentTop + contentLines.length * LINE_H + PAD_BOTTOM - 10;
 
     const cardX = MARGIN;
-    ctx.fillStyle = hexA(st.color, 0.07);
+    ctx.fillStyle = hexA(st.color, 0.05);
     roundedRect(ctx, cardX, y, CARD_W, cardH, 18);
     ctx.fill();
-    ctx.strokeStyle = hexA(st.color, 0.45);
+    ctx.strokeStyle = hexA(st.color, 0.35);
     ctx.lineWidth = 1.5;
     roundedRect(ctx, cardX, y, CARD_W, cardH, 18);
     ctx.stroke();
@@ -246,10 +248,10 @@ export async function generatePoster(opts) {
     ctx.font = `500 20px ${FONT_MONO}`;
     const bw = ctx.measureText(badge).width + 24;
     const badgeX = cardX + 90 + nameW + 16;
-    ctx.fillStyle = hexA(st.color, 0.16);
+    ctx.fillStyle = hexA(st.color, 0.12);
     roundedRect(ctx, badgeX, avatarCY - 24, bw, 34, 17);
     ctx.fill();
-    ctx.strokeStyle = hexA(st.color, 0.6);
+    ctx.strokeStyle = hexA(st.color, 0.5);
     ctx.lineWidth = 1;
     roundedRect(ctx, badgeX, avatarCY - 24, bw, 34, 17);
     ctx.stroke();
@@ -291,7 +293,7 @@ export async function generatePoster(opts) {
   y += 34;
   const barW = W - MARGIN * 2;
   const barH = 24;
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
   roundedRect(ctx, MARGIN, y, barW, barH, 12);
   ctx.fill();
   let bx = MARGIN;
