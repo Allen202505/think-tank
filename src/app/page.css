@@ -35,7 +35,7 @@
 .question-input::placeholder { color: var(--text-muted); }
 .error-msg { margin-top: 8px; padding: 9px 13px; background: rgba(224,85,85,0.08); border: 1px solid #c04040; color: var(--bear); font-size: 12px; border-radius: 4px; font-family: var(--font-mono); }
 .question-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
-.btn-submit { background: linear-gradient(135deg, var(--accent), #9a7830); color: #0a0a0f; border: none; padding: 10px 24px; font-family: var(--font-serif); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+.btn-submit { background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: var(--on-accent); border: none; padding: 10px 24px; font-family: var(--font-serif); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
 .btn-submit:disabled { background: var(--border-subtle); color: var(--text-muted); cursor: not-allowed; }
 .loading-state { display: flex; flex-direction: column; align-items: center; padding: 50px 20px; gap: 16px; }
 .loading-dots { display: flex; gap: 6px; }
@@ -93,7 +93,7 @@
 .followup-row { display: flex; gap: 8px; }
 .followup-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); padding: 10px 12px; font-size: 13px; border-radius: 4px; outline: none; }
 .followup-input:focus { border-color: var(--accent); }
-.btn-followup { padding: 10px 20px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; }
+.btn-followup { padding: 10px 20px; background: var(--accent); color: var(--on-accent); border: none; border-radius: 4px; font-weight: 600; cursor: pointer; }
 .btn-followup:disabled { opacity: 0.5; cursor: not-allowed; }
 .followup-hint-inline { margin-top: 8px; font-size: 15px; color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
 .card-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; position: relative; overflow: hidden; }
@@ -153,7 +153,7 @@
 .poster-img { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); }
 .poster-actions { display: flex; gap: 10px; margin-top: 14px; }
 .poster-btn { flex: 1; padding: 11px; border-radius: 4px; font-weight: 600; text-align: center; cursor: pointer; border: none; text-decoration: none; font-size: 13px; }
-.poster-btn-save { background: var(--accent); color: #0a0a0f; }
+.poster-btn-save { background: var(--accent); color: var(--on-accent); }
 .poster-btn-close { background: transparent; border: 1px solid var(--border); color: var(--text); }
 
 /* 信息层梳理提示 */
@@ -184,7 +184,7 @@
 .invite-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .invite-btn { padding: 9px 18px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
 .invite-btn-ghost { background: transparent; border-color: var(--border); color: var(--text); }
-.invite-btn-primary { background: var(--accent); color: #0a0a0f; }
+.invite-btn-primary { background: var(--accent); color: var(--on-accent); }
 .invite-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .history-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px 0; margin: 0; }
 .history-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
@@ -196,7 +196,7 @@
 
 /* 资料弹窗：操作区（单聊/编辑/主页） */
 .profile-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; align-items: flex-start; }
-.profile-chat-btn { padding: 10px 18px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 4px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.profile-chat-btn { padding: 10px 18px; background: var(--accent); color: var(--on-accent); border: none; border-radius: 4px; font-weight: 700; font-size: 13px; cursor: pointer; }
 .profile-chat-btn:hover { opacity: 0.92; }
 
 /* ─── UI 打磨：无衬线系统 UI（按钮/输入/标签用 sans，衬线保留给阅读） ─── */
@@ -261,7 +261,7 @@
 .chat-mode-switch { display: flex; gap: 6px; margin-bottom: 10px; }
 .chat-mode-btn { flex: 1; padding: 11px 8px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
 .chat-mode-btn:hover:not(.active) { border-color: var(--accent-dim); color: var(--text); }
-.chat-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; }
+.chat-mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .group-style { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .group-style .style-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; color: var(--text-muted); white-space: nowrap; }
 .group-style .mode-switch { flex: 1; margin-bottom: 0; }
@@ -285,4 +285,4 @@
 .invite-error { margin-top: 12px; padding: 9px 12px; background: rgba(224,85,85,0.08); border: 1px solid var(--bear); color: var(--bear); font-size: 12px; border-radius: 6px; font-family: var(--font-sans); }
 
 /* 移除确认（两段式） */
-.profile-remove-btn.confirming { color: #0a0a0f; background: var(--bear); border-radius: 4px; padding: 5px 10px; opacity: 1; }
+.profile-remove-btn.confirming { color: var(--on-accent); background: var(--bear); border-radius: 4px; padding: 5px 10px; opacity: 1; }

@@ -814,6 +814,21 @@
 
 **待办**: NEXT_PUBLIC_SITE_URL 目前是占位 your-domain.com，部署前需改成真实域名（layout.js metadataBase 会跟着生效）；弹窗焦点陷阱（focus trap）未做，属可选增强。
 
+## 2026-08-08（第三十二批）
+
+### 金色按钮/激活 tab 文字色：按主题自适应（--on-accent）
+**背景**: 用户反馈「召集智囊团」等金色按钮文字用近黑色不好看，深金底应配白字；激活 tab（群聊/单聊）同理。
+
+**决策**: 新增设计系统 token `--on-accent`（金色/强调色背景上的文字色）与 `--accent-strong`（金色渐变末端），按主题取反：
+- 亮色：accent #7d5f1f、渐变末端 #6a5218（原 #9a7830 偏浅，白字只有 4.1:1）、on-accent 纯白（5.95–7.4:1 ✅）
+- 暗色：accent #c9a84c（浅金）、渐变末端 #9a7830、on-accent 近黑（8.6/4.8:1 ✅）——暗色下用白字只有 2.3:1 会看不清，所以保持深字
+
+**实现**: globals.css 增 4 个 token；page.css 的 .btn-submit/.btn-followup/.poster-btn-save/.invite-btn-primary/.profile-chat-btn/.chat-mode-btn.active/.profile-remove-btn.confirming 全部由硬编码 #0a0a0f 改为 var(--on-accent)，渐变末端由 #9a7830 改为 var(--accent-strong)。
+
+**验证**: 浏览器实测亮/暗两主题按钮与激活 tab 前景色正确；impeccable detect 0 告警；构建通过。
+
+**影响**: 亮色下金色按钮更醒目（白字+深金底），暗色下保持可读；语义上用「on-color」而非一刀切白色，避免暗色主题白字不可读。
+
 ## 模板（新增记录时使用）
 
 ```markdown

@@ -8,6 +8,8 @@
   --text: #e8e4d8;
   --text-muted: #9b98ad;
   --accent: #c9a84c;
+  --accent-strong: #9a7830; /* 金色渐变末端（暗色主题偏浅，适合深字） */
+  --on-accent: #0a0a0f; /* 金色/强调色背景上的文字（暗色主题用深字） */
   --accent-dim: rgba(201, 168, 76, 0.25);
   --accent-bg: rgba(201, 168, 76, 0.08);
   --bull: #4caf7d;
@@ -29,6 +31,8 @@
   --text: #1a1915;
   --text-muted: #5c5a54;
   --accent: #7d5f1f;
+  --accent-strong: #6a5218; /* 金色渐变末端（亮色主题偏深，适合白字） */
+  --on-accent: #ffffff; /* 金色/强调色背景上的文字（亮色主题用白字） */
   --accent-dim: rgba(125, 95, 31, 0.35);
   --accent-bg: rgba(125, 95, 31, 0.08);
   --bull: #2e7d57;
