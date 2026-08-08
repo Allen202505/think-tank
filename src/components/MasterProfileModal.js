@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
 // 大师资料弹窗
-export default function MasterProfileModal({ master, onClose, locale, onEdit, onStartChat, onRemove }) {
+export default function MasterProfileModal({ master, onClose, locale, onStartChat, onRemove }) {
   const [confirming, setConfirming] = useState(false);
   const confirmTimer = useRef(null);
 
@@ -82,22 +82,15 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit, on
               💬 与 TA 单聊 →
             </button>
             {isCustom ? (
-              <>
-                {onEdit && (
-                  <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
-                    ✏️ {isEn ? '编辑画像' : '编辑画像'}
-                  </button>
-                )}
-                {onRemove && (
-                  <button
-                    type="button"
-                    className={`profile-remove-btn${confirming ? ' confirming' : ''}`}
-                    onClick={handleRemove}
-                  >
-                    {confirming ? (isEn ? '再点一次确认移除' : '再点一次确认移除') : (isEn ? '从智囊团移除' : '从智囊团移除')}
-                  </button>
-                )}
-              </>
+              onRemove && (
+                <button
+                  type="button"
+                  className={`profile-remove-btn${confirming ? ' confirming' : ''}`}
+                  onClick={handleRemove}
+                >
+                  {confirming ? (isEn ? '再点一次确认移除' : '再点一次确认移除') : (isEn ? '从智囊团移除' : '从智囊团移除')}
+                </button>
+              )
             ) : (
               <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
                 {isEn ? '查看大师主页 →' : '查看大师主页 →'}

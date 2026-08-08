@@ -1002,6 +1002,20 @@
 
 **验证**: 浏览器实测——弹窗高 634px 固定，children=[header, body, actions]，actions 父节点为 modal-content（已脱离滚动区），底部间隙 1px、右对齐；impeccable detect 0 告警；构建通过。
 
+## 2026-08-08（第四十五批）
+
+### 大师详情弹窗：删除「编辑画像」+「移除」与「单聊」同行
+**背景**: 用户要求：编辑画像功能删掉；从智囊团移除按钮放到与「与 TA 单聊」同一行。
+
+**实现**:
+- page.js：删除 editMaster/editForm state、openEditMaster/saveEditMaster、Escape 分支、编辑弹窗整段 JSX、邀请预览里的「✏️ 编辑画像」按钮、MasterProfileModal 的 onEdit 传参
+- MasterProfileModal.js：去掉 onEdit prop 与编辑按钮；footer 按钮改为行布局
+- page.css：.profile-actions 改 flex-row + justify-content flex-end（单聊+移除/查看主页同一行右下角）；.profile-remove-btn 由裸文字升级为红色描边按钮（与单聊按钮同高配平），confirming 保持实心红
+
+**坑**: 删 JSX 时残留一个 `</>` 闭合标签导致编译报错（dev 日志暴露），已修复；期间误在 dev 运行时执行 next build（项目记忆明确禁止），按规范 rm -rf .next 重建通过。
+
+**验证**: 浏览器实测——自定义大师底部按钮「💬 与 TA 单聊 →」「从智囊团移除」同一行、右对齐；预置大师「单聊 + 查看主页」同行；全文无「编辑画像」；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
