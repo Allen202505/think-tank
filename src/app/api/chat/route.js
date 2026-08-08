@@ -19,21 +19,16 @@ export async function POST(request) {
 
     let messages = Array.isArray(body.messages) ? [...body.messages] : [];
 
-    // 若前端传入用户问题，拉取最新行情并注入首条前，供模型引用
+    // 信息层梳理：优先使用前端已生成的最新数据快照；否则按 query 现拉
     const userQuery = body.query || body.userQuery || '';
-    if (userQuery && messages.length > 0) {
-      try {
-        const quoteText = await getQuoteContext(userQuery);
-        if (quoteText) {
-          messages = [
-            { role: 'user', content: quoteText },
-            { role: 'assistant', content: '我已收到参考数据，将基于这些最新数据参与讨论。' },
-            ...messages,
-          ];
-        }
-      } catch (e) {
-        // 行情拉取失败不影响对话，继续用原 messages
-      }
+    const providedSnapshot = typeof body.snapshot === 'string' ? body.snapshot : '';
+    const quoteText = providedSnapshot || (await getQuoteContext(userQuery).catch(() => ''));
+    if (quoteText && messages.length > 0) {
+      messages = [
+        { role: 'user', content: quoteText },
+        { role: 'assistant', content: '我已收到参考数据，将基于这些最新数据参与讨论。' },
+        ...messages,
+      ];
     }
 
     // 网络偶发抖动时重试一次（fetch 抛错而非 HTTP 错误码）

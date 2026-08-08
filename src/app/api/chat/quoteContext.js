@@ -7,7 +7,7 @@
  *
  * 依赖：marketData.js（统一数据层）
  */
-import { resolveSymbols, getQuote, getFinancials } from './marketData.js';
+import { resolveSymbols, getQuote, getFinancials, STOCK_QUESTION_RE } from './marketData.js';
 
 // ─── 格式化工具 ──────────────────────────────────────────
 function fmtMoney(v) {
@@ -124,20 +124,31 @@ function formatEntry(info, quote, fin) {
 
 // ─── 主入口 ──────────────────────────────────────────────
 /**
- * 根据用户问题生成最新市场数据快照文本；无法解析出任何公司时返回空字符串。
+ * 信息层梳理：解析公司 → 拉最新行情/财务 → 生成快照文本
  * @param {string} userQuery 用户问题
- * @returns {Promise<string>}
+ * @returns {Promise<{snapshot: string, notice: string}>}
  */
-export async function getQuoteContext(userQuery) {
-  if (!userQuery || typeof userQuery !== 'string') return '';
+export async function getQuoteContextInfo(userQuery) {
+  if (!userQuery || typeof userQuery !== 'string') {
+    return { snapshot: '', notice: '' };
+  }
 
   let symbols = [];
   try {
     symbols = await resolveSymbols(userQuery);
   } catch (e) {
-    return '';
+    // 解析失败不致命
   }
-  if (!symbols.length) return '';
+
+  if (!symbols.length) {
+    const looksLikeStock = STOCK_QUESTION_RE.test(userQuery);
+    return {
+      snapshot: '',
+      notice: looksLikeStock
+        ? '未识别到具体公司：请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。'
+        : '',
+    };
+  }
 
   const entries = await Promise.all(
     symbols.slice(0, 5).map(async (info) => {
@@ -153,7 +164,9 @@ export async function getQuoteContext(userQuery) {
     }),
   );
   const valid = entries.filter(Boolean);
-  if (!valid.length) return '';
+  if (!valid.length) {
+    return { snapshot: '', notice: '未能获取到所选公司的实时数据，请稍后重试或换一家公司。' };
+  }
 
   const today = new Date().toLocaleDateString('zh-CN', {
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -168,5 +181,13 @@ export async function getQuoteContext(userQuery) {
     '',
     ...valid.map((e, i) => `${i + 1}) ${formatEntry(e.info, e.quote, e.fin)}`),
   ];
-  return lines.join('\n');
+  return { snapshot: lines.join('\n'), notice: '' };
+}
+
+/**
+ * 兼容旧接口：只返回快照文本
+ */
+export async function getQuoteContext(userQuery) {
+  const info = await getQuoteContextInfo(userQuery);
+  return info.snapshot;
 }

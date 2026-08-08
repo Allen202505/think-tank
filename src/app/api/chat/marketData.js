@@ -20,6 +20,7 @@ const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
 const EM_QUOTE = 'https://push2.eastmoney.com/api/qt/stock/get';
 const EM_F10 = 'https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew';
 const EM_DATACENTER = 'https://datacenter.eastmoney.com/securities/api/data/v1/get';
+const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 // 东方财富网页版搜索框公开使用的固定 token（无需申请）
 const EM_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8';
 const REQUEST_TIMEOUT_MS = 8000;
@@ -218,6 +219,42 @@ const COMPANY_SUFFIXES = [
   '啤酒', '白酒', '水泥', '玻璃', '家电', '农牧', '种业', '电梯', '电气', '仪表',
 ];
 
+// ─── AI 信息层梳理：用 DeepSeek 提取问题里的公司名（比启发式更稳） ───
+async function extractCompaniesViaLLM(query) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return null;
+  const prompt = `你是股票信息解析器。只做一件事：从用户问题中提取所有明确提到的公司/股票（A股/港股/美股，可以是中文名、英文代码或数字代码）。规则：只提取明确提到的具体公司，不要猜测、不要联想、不要补充；没有提到任何公司就返回空数组；同一家公司只保留一次。\n只输出一个 JSON 数组，不要任何其他内容，例如：["贵州茅台","英伟达"]\n\n用户问题：${query}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const res = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+        max_tokens: 200,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const m = text.match(/\[[\s\S]*\]/);
+    if (!m) return null;
+    const arr = JSON.parse(m[0]);
+    return Array.isArray(arr) ? arr.map((x) => String(x).trim()).filter(Boolean) : null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 判断问题是否像"涉及某只股票"（用于提示补全公司名）
+export const STOCK_QUESTION_RE = /股票|买|卖|持有|仓位|估值|财报|涨|跌|公司|重仓|建仓|加仓|减仓|解套|套牢|亏|赚|分红|走势|股价|大盘|投资|买入|卖出|值得|还能|可以|基本面|护城河|业绩|季报|年报|持仓|补仓|抄底|清仓|换股|选股|推荐|分析/;
+
 // 从问题文本中提取可能的公司名：
 // 1) 按后缀启发式（词典外但带"股份/集团/科技"等后缀的公司）
 // 2) 按分隔符分段 + 剥离问法/噪音词（覆盖无后缀公司名，如"中国中车""东方雨虹"）
@@ -332,6 +369,25 @@ async function resolveTicker(t) {
 export async function resolveSymbols(query) {
   if (!query || typeof query !== 'string') return [];
   const found = new Map(); // secid -> info
+
+  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）
+  let llmNames = null;
+  try {
+    llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
+  } catch (e) { /* 忽略，走启发式兜底 */ }
+  if (llmNames && llmNames.length) {
+    for (const raw of llmNames.slice(0, 5)) {
+      const n = String(raw).trim();
+      if (!n) continue;
+      try {
+        let info = null;
+        if (/^\d{6}$/.test(n)) info = await resolveTicker(n);
+        else if (/^[A-Za-z][A-Za-z0-9.-]{0,4}$/.test(n)) info = await resolveTicker(n.toUpperCase());
+        else info = await resolveName(n);
+        if (info && !found.has(info.secid)) found.set(info.secid, { ...info, name: n, source: 'llm' });
+      } catch (e) { /* 单个失败不影响其他 */ }
+    }
+  }
 
   // 1) 中文名/别名词典匹配（按长度倒序，避免短名先命中）
   const names = Object.keys(COMMON_SYMBOLS).sort((a, b) => b.length - a.length);

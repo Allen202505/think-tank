@@ -48,6 +48,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [profileMaster, setProfileMaster] = useState(null);
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterUrl, setPosterUrl] = useState('');
@@ -65,6 +66,7 @@ export default function Home() {
   const [revealStepLegacy, setRevealStepLegacy] = useState(0);
   const fetchInProgressRef = useRef(false);
   const goTimeoutRef = useRef(null);
+  const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
 
   const allMasters = PRESET_MASTERS;
 
@@ -277,11 +279,11 @@ export default function Home() {
 
   const invMap = Object.fromEntries(allMasters.map(i => [i.id, i]));
 
-  const getResponseText = useCallback(async (messages, userQuery) => {
+  const getResponseText = useCallback(async (messages, userQuery, snapshot) => {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, query: userQuery || undefined }),
+      body: JSON.stringify({ messages, query: userQuery || undefined, snapshot: snapshot || undefined }),
     });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
@@ -291,8 +293,8 @@ export default function Home() {
     return (data.content || []).map(c => c.text || '').join('').trim();
   }, []);
 
-  const doRequest = useCallback(async (messages, userQuery) => {
-    const text = await getResponseText(messages, userQuery);
+  const doRequest = useCallback(async (messages, userQuery, snapshot) => {
+    const text = await getResponseText(messages, userQuery, snapshot);
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
       // 如果没严格返回 JSON，就把整段文本当成一次总结性发言兜底返回，避免完全没回应
@@ -325,7 +327,7 @@ export default function Home() {
       try {
         if (step.type === 'hostOpening') {
           const prompt = buildOpeningOnlyPrompt(query, host, investors);
-          const text = await getResponseText([{ role: 'user', content: prompt }], query);
+          const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'speech') {
           const previousParts = completedBlocks.map(b => {
@@ -334,7 +336,7 @@ export default function Home() {
             return null;
           }).filter(Boolean);
           const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
-          const text = await getResponseText([{ role: 'user', content: prompt }], query);
+          const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
           setCurrentBlock(c => c ? { ...c, content: parsed } : c);
@@ -342,14 +344,14 @@ export default function Home() {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const discussionSummary = completedBlocks.filter(b => b.type === 'speech').map(b => `${invMapLocal[b.speakerId]?.name}: ${b.content?.content?.slice(0, 50)}...`).join('；');
           const prompt = buildClosingOnlyPrompt(query, host?.name || '主持人', opening, discussionSummary);
-          const text = await getResponseText([{ role: 'user', content: prompt }], query);
+          const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'verdict') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const closing = completedBlocks.find(b => b.type === 'hostClosing')?.content || '';
           const discussionText = completedBlocks.filter(b => b.type === 'speech').map(b => b.content?.content).join('\n');
           const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing);
-          const text = await getResponseText([{ role: 'user', content: prompt }], query);
+          const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : {};
           setCurrentBlock(b => b ? { ...b, content: parsed } : b);
@@ -420,6 +422,8 @@ export default function Home() {
     if (selected.size === 0) { setError(t('summonErrorNoMaster')); return; }
 
     setError('');
+    setNotice('');
+    snapshotRef.current = '';
     if (goTimeoutRef.current) clearTimeout(goTimeoutRef.current);
     setLoading(true); // 先显示加载态
     setResult(null);
@@ -432,6 +436,20 @@ export default function Home() {
     setTypeCharIndex(0);
     setRevealStepLegacy(0);
     fetchInProgressRef.current = false;
+
+    // 信息层梳理：先解析公司并生成最新数据快照（失败不阻断辩论）
+    try {
+      const ctxRes = await fetch('/api/context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const ctx = await ctxRes.json();
+      snapshotRef.current = ctx?.snapshot || '';
+      setNotice(ctx?.notice || '');
+    } catch (e) {
+      snapshotRef.current = '';
+    }
 
     const investors = allMasters.filter(i => selected.has(i.id));
     const host = investors[Math.floor(Math.random() * investors.length)];
@@ -467,8 +485,19 @@ export default function Home() {
     setTypeCharIndex(0);
     setLoadingFollowUp(true);
     try {
+      // 追问也可能提到新公司：再做一次信息层梳理并合并快照
+      let mergedSnapshot = snapshotRef.current || '';
+      try {
+        const ctxRes = await fetch('/api/context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: msg }),
+        });
+        const ctx = await ctxRes.json();
+        if (ctx?.snapshot) mergedSnapshot = [mergedSnapshot, ctx.snapshot].filter(Boolean).join('\n');
+      } catch (e) { /* 忽略 */ }
       const payload = buildFollowUpPrompt(prevSummary, msg, investors);
-      const parsed = await doRequest([{ role: 'user', content: payload }], query);
+      const parsed = await doRequest([{ role: 'user', content: payload }], query, mergedSnapshot);
       const parsedDiscussion = parsed.discussion || [];
       const parsedVerdict = parsed.verdict || {};
       // 将刚才插入的那条 followUp 补全大师发言和裁决；如果没找到，就追加一条
@@ -621,6 +650,7 @@ export default function Home() {
               disabled={loading}
             />
             {error && <div className="error-msg">⚠ {error}</div>}
+            {notice && <div className="context-notice">ℹ️ {notice}</div>}
             <div className="question-footer">
               <span>{t('selectedCount', selected.size, allMasters.length)}</span>
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
