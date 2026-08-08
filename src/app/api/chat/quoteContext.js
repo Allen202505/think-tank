@@ -7,7 +7,7 @@
  *
  * 依赖：marketData.js（统一数据层）
  */
-import { resolveSymbols, getQuote, getFinancials, getForecast, STOCK_QUESTION_RE } from './marketData.js';
+import { resolveSymbols, getQuote, getFinancials, getForecast, needsCompanyData } from './marketData.js';
 
 // ─── 格式化工具 ──────────────────────────────────────────
 function fmtMoney(v) {
@@ -186,13 +186,18 @@ export async function getQuoteContextInfo(userQuery) {
   }
 
   if (!symbols.length) {
-    const looksLikeStock = STOCK_QUESTION_RE.test(userQuery);
-    return {
-      snapshot: '',
-      notice: looksLikeStock
-        ? '未识别到具体公司：请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。'
-        : '',
-    };
+    // 概念/方法论/风格/大盘宏观类问题不需要具体公司数据，不提示
+    let notice = '';
+    const conceptLike = /什么是|怎么理解|介绍一下|讲解|解释|方法论|投资风格|投资体系|如何|怎样|怎么看懂|术语|概念|仓位管理|怎么做|应该怎么做/.test(userQuery);
+    if (!conceptLike) {
+      try {
+        const need = await needsCompanyData(userQuery);
+        if (need) {
+          notice = '未识别到具体公司：如果这个问题涉及某只股票，请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。';
+        }
+      } catch (e) { /* 判定失败不提示 */ }
+    }
+    return { snapshot: '', notice };
   }
 
   const entries = await Promise.all(

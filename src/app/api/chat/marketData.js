@@ -253,8 +253,45 @@ async function extractCompaniesViaLLM(query) {
   }
 }
 
+// 用 LLM 判断：这个问题是否真的需要某只具体公司的数据才能回答
+// （概念/方法论/投资风格/大盘宏观类问题不需要，避免误提示）
+async function needsCompanyDataRaw(query) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return false;
+  const prompt = `判断下面这个问题，是否必须引用某一只具体股票/公司的实时行情或财务数据，才能很好地回答。\n规则：\n- 概念/术语/方法论/投资风格/体系/仓位管理/大盘宏观/行业整体类问题 → false\n- 问"某只具体股票该不该买/卖/持有、它的估值/财报/行情"但没给公司名 → true\n- 用户提到自己持有的某只票/持仓/重仓/套牢/深套，但没有说明是哪只 → true\n- 问题里已提到具体公司名或代码（如"茅台""英伟达""NVDA"）→ false（这种情况由其他流程处理）\n只输出一个 JSON：{"need": true或false}\n\n问题：${query}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+        max_tokens: 40,
+        temperature: 0,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const m = text.match(/\{\"need\"\s*:\s*(true|false)\}/);
+    return m ? m[1] === 'true' : false;
+  } catch (e) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // 判断问题是否像"涉及某只股票"（用于提示补全公司名）
 export const STOCK_QUESTION_RE = /股票|买|卖|持有|仓位|估值|财报|涨|跌|公司|重仓|建仓|加仓|减仓|解套|套牢|亏|赚|分红|走势|股价|大盘|投资|买入|卖出|值得|还能|可以|基本面|护城河|业绩|季报|年报|持仓|补仓|抄底|清仓|换股|选股|推荐|分析/;
+
+export async function needsCompanyData(query) {
+  return cached(`needco:${query}`, 3600000, () => needsCompanyDataRaw(query)).catch(() => false);
+}
+
 
 // 从问题文本中提取可能的公司名：
 // 1) 按后缀启发式（词典外但带"股份/集团/科技"等后缀的公司）
