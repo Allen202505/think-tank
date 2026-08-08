@@ -20,6 +20,7 @@ const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
 const EM_QUOTE = 'https://push2.eastmoney.com/api/qt/stock/get';
 const EM_F10 = 'https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew';
 const EM_DATACENTER = 'https://datacenter.eastmoney.com/securities/api/data/v1/get';
+const EM_DATACENTER_WEB = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 // 东方财富网页版搜索框公开使用的固定 token（无需申请）
 const EM_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8';
@@ -495,12 +496,23 @@ async function fetchQuoteYahoo(symbol) {
 async function fetchFinancialsYahoo(symbol) {
   const yf = await getYahoo();
   const s = await yf.quoteSummary(symbol, {
-    modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail', 'recommendationTrend'],
+    modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail', 'recommendationTrend', 'earningsTrend'],
   });
   const fd = s?.financialData || {};
   const dk = s?.defaultKeyStatistics || {};
   const sd = s?.summaryDetail || {};
   const rt = s?.recommendationTrend?.[0] || {};
+  const et = s?.earningsTrend || [];
+  const etPick = (p) => et.find((x) => x.period === p) || null;
+  const fy = etPick('0y');
+  const ny = etPick('+1y') || etPick('1y');
+  const forecast = {};
+  if (fy?.earningsEstimate?.avg != null) {
+    forecast.thisYear = { eps: fy.earningsEstimate.avg, growth: fy.earningsEstimate.growth ?? null, analysts: fy.earningsEstimate.numberOfAnalysts ?? null };
+  }
+  if (ny?.earningsEstimate?.avg != null) {
+    forecast.nextYear = { eps: ny.earningsEstimate.avg, growth: ny.earningsEstimate.growth ?? null, analysts: ny.earningsEstimate.numberOfAnalysts ?? null };
+  }
   return {
     source: 'yahoo',
     currency: sd.currency || fd.currency || 'USD',
@@ -523,6 +535,7 @@ async function fetchFinancialsYahoo(symbol) {
     targetMeanPrice: fd.targetMeanPrice ?? null,
     recommendationKey: fd.recommendationKey ?? null,
     numberOfAnalystOpinions: fd.numberOfAnalystOpinions ?? null,
+    forecast,
   };
 }
 
@@ -607,10 +620,12 @@ async function fetchFinancialsUS(symbol) {
   const json = await fetchJson(`${EM_DATACENTER}?${params}`);
   const rows = json?.result?.data || [];
   if (!rows.length) throw new Error('美股无财务数据');
+  const QUARTER_CODES = ['003', '006', '007', '008']; // 单季报
+  const latestRow = rows.find((r) => QUARTER_CODES.includes(String(r.DATE_TYPE_CODE))) || rows[0];
   return {
     source: 'eastmoney-us',
     currency: rows[0].CURRENCY_ABBR || 'USD',
-    latest: pickUSRow(rows[0]),
+    latest: pickUSRow(latestRow),
     annual: pickUSRow(rows.find((r) => String(r.DATE_TYPE_CODE) === '001') || null),
   };
 }
@@ -646,12 +661,83 @@ async function fetchFinancialsHK(symbol) {
   const json = await fetchJson(`${EM_DATACENTER}?${params}`);
   const rows = json?.result?.data || [];
   if (!rows.length) throw new Error('港股无财务数据');
+  const QUARTER_CODES = ['003', '006', '007', '008'];
+  const latestRow = rows.find((r) => QUARTER_CODES.includes(String(r.DATE_TYPE_CODE))) || rows[0];
   return {
     source: 'eastmoney-hk',
     currency: 'HKD',
-    latest: pickHKRow(rows[0]),
+    latest: pickHKRow(latestRow),
     annual: pickHKRow(rows.find((r) => String(r.DATE_TYPE_CODE) === '001') || null),
   };
+}
+
+// ─── A股 业绩预告（如已披露） ───
+async function fetchPreannouncementCN(secid) {
+  const code = String(secid).split('.')[1];
+  const params = new URLSearchParams({
+    reportName: 'RPT_PUBLIC_OP_NEWPREDICT',
+    columns: 'ALL',
+    filter: `(SECURITY_CODE="${code}")`,
+    pageNumber: '1', pageSize: '6', sortTypes: '-1', sortColumns: 'REPORT_DATE',
+    source: 'WEB', client: 'PC',
+  });
+  const json = await fetchJson(`${EM_DATACENTER_WEB}?${params}`);
+  const rows = json?.result?.data || [];
+  if (!rows.length) return null;
+  const latest = rows[0]; // 已按报告期倒序
+  return {
+    reportPeriod: latest.REPORT_DATE ? String(latest.REPORT_DATE).slice(0, 10) : null,
+    noticeDate: latest.NOTICE_DATE ? String(latest.NOTICE_DATE).slice(0, 10) : null,
+    type: latest.PREDICT_TYPE || null,
+    finance: latest.PREDICT_FINANCE || null,
+    content: latest.PREDICT_CONTENT || null,
+    amtLow: latest.PREDICT_AMT_LOWER ?? null,
+    amtHigh: latest.PREDICT_AMT_UPPER ?? null,
+    ampLow: latest.ADD_AMP_LOWER ?? null,
+    ampHigh: latest.ADD_AMP_UPPER ?? null,
+  };
+}
+
+// ─── A股 机构一致预期（未来 1-3 年盈利预测 + 综合评级） ───
+async function fetchConsensusCN(secid) {
+  const code = secidToF10Code(secid);
+  if (!code) return null;
+  const url = `https://emweb.securities.eastmoney.com/PC_HSF10/ProfitForecast/PageAjax?code=${code}`;
+  const json = await fetchJson(url, 10000);
+  const chart = json?.yctj_chart || [];
+  const pjtj = json?.pjtj?.[0] || null;
+  if (!chart.length && !pjtj) return null;
+  return {
+    rating: pjtj?.COMPRE_RATING || null,
+    orgCount: pjtj?.RATING_ORG_NUM ?? null,
+    buyCount: pjtj?.RATING_BUY_NUM ?? null,
+    forecasts: chart.map((r) => ({
+      year: r.YEAR,
+      mark: r.YEAR_MARK,
+      eps: r.EPS ?? null,
+      epsGrowth: r.EPS_RATIO ?? null,
+      pe: r.PE ?? null,
+      roe: r.ROE ?? null,
+      netProfit: r.PARENT_NETPROFIT ?? null,
+      netProfitGrowth: r.PARENT_NETPROFIT_RATIO ?? null,
+      revenue: r.TOTAL_OPERATE_INCOME ?? null,
+      revenueGrowth: r.TOTAL_OPERATE_INCOME_RATIO ?? null,
+    })),
+  };
+}
+
+/**
+ * 未来/前瞻数据：A股=业绩预告+机构一致预期；美股/港股=Yahoo earningsTrend（生产环境）
+ */
+export async function getForecast(info) {
+  if (info.market === 'CN') {
+    const [pre, consensus] = await Promise.all([
+      cached(`pre:${info.secid}`, 3600000, () => fetchPreannouncementCN(info.secid)).catch(() => null),
+      cached(`consensus:${info.secid}`, 3600000, () => fetchConsensusCN(info.secid)).catch(() => null),
+    ]);
+    return { preannouncement: pre, consensus };
+  }
+  return null;
 }
 
 // ─── 对外主入口：行情 + 财务 ─────────────────────────────

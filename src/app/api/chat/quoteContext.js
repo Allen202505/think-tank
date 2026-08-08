@@ -7,7 +7,7 @@
  *
  * 依赖：marketData.js（统一数据层）
  */
-import { resolveSymbols, getQuote, getFinancials, STOCK_QUESTION_RE } from './marketData.js';
+import { resolveSymbols, getQuote, getFinancials, getForecast, STOCK_QUESTION_RE } from './marketData.js';
 
 // ─── 格式化工具 ──────────────────────────────────────────
 function fmtMoney(v) {
@@ -109,7 +109,50 @@ function formatFinancialLines(fin) {
   return lines;
 }
 
-function formatEntry(info, quote, fin) {
+function formatForecastLines(info, fin, forecast) {
+  const lines = [];
+  if (info.market === 'CN' && forecast) {
+    // 业绩预告：仅当预告的报告期比已披露实际报表更新时才展示
+    const pre = forecast.preannouncement;
+    if (pre && pre.content && (!fin?.latest?.reportDate || String(pre.reportPeriod || '') > String(fin.latest.reportDate))) {
+      const bits = [`业绩预告（${pre.reportPeriod}，公告 ${pre.noticeDate}）`];
+      if (pre.type) bits.push(`类型：${pre.type}`);
+      lines.push(bits.join(' | '));
+      lines.push(`  ${pre.content}`);
+    }
+    // 机构一致预期（未来年度）
+    const con = forecast.consensus;
+    if (con && con.forecasts && con.forecasts.length) {
+      const headBits = ['机构一致预期'];
+      if (con.rating) headBits.push(`综合评级 ${con.rating}`);
+      if (con.orgCount) headBits.push(`${con.orgCount} 家机构`);
+      lines.push(headBits.join('｜'));
+      for (const f of con.forecasts) {
+        if (String(f.mark || '').toUpperCase() === 'A') continue; // 只展示预测年份
+        const bits = [];
+        if (f.year) bits.push(`${f.year}E`);
+        if (f.revenue != null) bits.push(`营收 ${fmtMoney(f.revenue)}${f.revenueGrowth != null ? `（${fmtPct(f.revenueGrowth)}）` : ''}`);
+        if (f.netProfit != null) bits.push(`净利 ${fmtMoney(f.netProfit)}${f.netProfitGrowth != null ? `（${fmtPct(f.netProfitGrowth)}）` : ''}`);
+        if (f.eps != null) bits.push(`EPS ${Number(f.eps).toFixed(2)}`);
+        if (f.roe != null) bits.push(`ROE ${fmtPct(f.roe)}`);
+        if (f.pe != null) bits.push(`PE ${Number(f.pe).toFixed(1)}`);
+        if (bits.length > 1) lines.push(bits.join(' | '));
+      }
+    }
+  } else if (fin?.forecast) {
+    const fy = fin.forecast.thisYear;
+    const ny = fin.forecast.nextYear;
+    if (fy || ny) {
+      const bits = ['机构预测'];
+      if (fy) bits.push(`本财年 EPS ≈${Number(fy.eps).toFixed(2)}${fy.growth != null ? `（${fmtPct(fy.growth * 100)}）` : ''}`);
+      if (ny) bits.push(`下财年 EPS ≈${Number(ny.eps).toFixed(2)}${ny.growth != null ? `（${fmtPct(ny.growth * 100)}）` : ''}`);
+      lines.push(bits.join('｜'));
+    }
+  }
+  return lines;
+}
+
+function formatEntry(info, quote, fin, forecast) {
   const headParts = [];
   const displayName = quote?.name || info.name || info.symbol;
   const mktLabel = info.market === 'CN' ? 'A股' : info.market === 'HK' ? '港股' : '美股';
@@ -119,6 +162,8 @@ function formatEntry(info, quote, fin) {
   const lines = [headParts.join('\n   ')];
   const finLines = formatFinancialLines(fin);
   if (finLines.length) lines.push(...finLines.map((l) => `  ${l}`));
+  const fcLines = formatForecastLines(info, fin, forecast);
+  if (fcLines.length) lines.push(...fcLines.map((l) => `  ${l}`));
   return lines.join('\n');
 }
 
@@ -153,11 +198,12 @@ export async function getQuoteContextInfo(userQuery) {
   const entries = await Promise.all(
     symbols.slice(0, 5).map(async (info) => {
       try {
-        const [quote, fin] = await Promise.all([
+        const [quote, fin, forecast] = await Promise.all([
           getQuote(info).catch(() => null),
           getFinancials(info).catch(() => null),
+          getForecast(info).catch(() => null),
         ]);
-        return { info, quote, fin };
+        return { info, quote, fin, forecast };
       } catch (e) {
         return null;
       }
@@ -177,9 +223,10 @@ export async function getQuoteContextInfo(userQuery) {
     '- 你在后续发言、分析、给出结论时，如需引用「股价、市值、估值倍数、财务数据（营收/净利/增速/利润率/ROE 等）」等具体数字，**必须以上述快照数据为准**，不要使用你记忆中的旧数据或自行编造数字。',
     '- **快照里没有的精确数字（例如某家公司的 PE、营收、净利、增速），一律不允许引用具体数值**，只能用「大约」「约」「可能」「区间」等模糊表述；宁可说「我没有这家公司的最新精确数据」，也不能用训练记忆里的旧数字冒充最新。',
     '- 各公司数据以快照标注的报告期为准（例如 2026 年一季报），不要自行假设有更新的报告期。',
+    '- 【业绩预告】与【机构预测/一致预期】属于预测、预估数据：引用时**必须明确标注为"预测/预计/约"**，不得当作已披露的实际数据，也不要用机构预测反推"实际业绩已公布"。',
     '- 如需引用历史情况，可以用「过去几年」「上一轮周期」等整体描述；不要给出快照之外的具体年份精确数字。',
     '',
-    ...valid.map((e, i) => `${i + 1}) ${formatEntry(e.info, e.quote, e.fin)}`),
+    ...valid.map((e, i) => `${i + 1}) ${formatEntry(e.info, e.quote, e.fin, e.forecast)}`),
   ];
   return { snapshot: lines.join('\n'), notice: '' };
 }
