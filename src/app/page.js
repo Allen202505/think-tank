@@ -305,6 +305,27 @@ export default function Home() {
     });
   }, []);
 
+  // 一键进入与某位大师的一对一单聊
+  const startSoloChat = useCallback((master) => {
+    setSelected(new Set([master.id]));
+    setProfileMaster(null);
+    setQuery('');
+    setRounds([]);
+    setResult(null);
+    setSequence([]);
+    setCompletedBlocks([]);
+    setStepIndex(0);
+    setCurrentBlock(null);
+    setTypingPhase('typing');
+    setTypeCharIndex(0);
+    setRevealStepLegacy(0);
+    setError('');
+    setTimeout(() => {
+      const el = document.querySelector('.question-input');
+      if (el) el.focus();
+    }, 120);
+  }, []);
+
   const saveEditMaster = useCallback(() => {
     if (!editMaster) return;
     setCustomMasters((prev) => {
@@ -1130,7 +1151,7 @@ export default function Home() {
         </main>
       </div>
 
-      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} />}
+      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} onStartChat={startSoloChat} />}
 
       {inviteOpen && (
         <div className="modal-overlay" onClick={() => setInviteOpen(false)} role="dialog" aria-modal="true">

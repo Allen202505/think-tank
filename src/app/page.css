@@ -204,3 +204,9 @@
 .history-item:hover { border-color: var(--accent-dim); }
 .history-q { font-size: 13px; color: var(--text); line-height: 1.5; }
 .history-meta { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; }
+
+
+/* 资料弹窗：操作区（单聊/编辑/主页） */
+.profile-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; align-items: flex-start; }
+.profile-chat-btn { padding: 10px 18px; background: var(--accent); color: #0a0a0f; border: none; border-radius: 4px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.profile-chat-btn:hover { opacity: 0.92; }

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
 // 大师资料弹窗（从 page.js 拆出）
-export default function MasterProfileModal({ master, onClose, locale, onEdit }) {
+export default function MasterProfileModal({ master, onClose, locale, onEdit, onStartChat }) {
   if (!master) return null;
   const isEn = locale === 'en';
   const isCustom = master.source === 'custom';
@@ -39,17 +39,22 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit }) 
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
             「{master.quote}」
           </blockquote>
-          {isCustom ? (
-            onEdit && (
-              <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
-                ✏️ {isEn ? '编辑画像' : '编辑画像'}
-              </button>
-            )
-          ) : (
-            <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
-              {isEn ? '查看大师主页 →' : '查看大师主页 →'}
-            </Link>
-          )}
+          <div className="profile-actions">
+            <button type="button" className="profile-chat-btn" onClick={() => onStartChat && onStartChat(master)}>
+              💬 与 TA 单聊 →
+            </button>
+            {isCustom ? (
+              onEdit && (
+                <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
+                  ✏️ {isEn ? '编辑画像' : '编辑画像'}
+                </button>
+              )
+            ) : (
+              <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
+                {isEn ? '查看大师主页 →' : '查看大师主页 →'}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </div>
