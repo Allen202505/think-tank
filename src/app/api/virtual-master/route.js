@@ -12,6 +12,27 @@ function slugify(s) {
     .slice(0, 24);
 }
 
+// 尽力而为的公开资料检索（维基百科），失败不影响画像生成
+async function fetchPublicContext(name) {
+  for (const lang of ['zh', 'en']) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2500);
+      const r = await fetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(name)}&prop=extracts&exintro&explaintext&format=json&redirects=1`,
+        { headers: { 'User-Agent': 'MasterDebate/1.0' }, signal: ctrl.signal },
+      );
+      clearTimeout(timer);
+      if (r.ok) {
+        const j = await r.json();
+        const p = Object.values(j?.query?.pages || {})[0];
+        if (p?.extract) return `【维基百科·${lang}】${p.extract.slice(0, 500)}`;
+      }
+    } catch (e) { /* 忽略，继续走 LLM 知识 */ }
+  }
+  return '';
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -26,7 +47,11 @@ export async function POST(request) {
       return Response.json({ error: '未配置 DEEPSEEK_API_KEY' }, { status: 500 });
     }
 
+    const publicCtx = await fetchPublicContext(name);
+
     const prompt = `你是人物画像建模师。请根据人物「${name}」的公开言行、观点与网络评价，构建一份用于 AI 模拟的"投资大师画像"。他可以是投资大V、游资、基金经理、企业家等公众人物；请基于你对该人物的了解来创作，如果了解有限，就基于其公开形象合理构建。
+
+${publicCtx ? `以下为检索到的公开资料（供参考，可能不完整）：\n${publicCtx}\n\n` : ''}
 
 ${hint ? `用户补充信息：${hint}` : ''}
 
