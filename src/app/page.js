@@ -103,7 +103,7 @@ export default function Home() {
   const goTimeoutRef = useRef(null);
   const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
 
-  const allMasters = useMemo(() => [...PRESET_MASTERS, ...customMasters], [customMasters]);
+  const allMasters = useMemo(() => [...customMasters, ...PRESET_MASTERS], [customMasters]); // 邀请的大师排在预置大师前面
   const CUSTOM_KEY = 'custom-masters-v1';
   const HISTORY_KEY = 'debate-history-v1';
   const BG_KEY = 'bg-master-v1';
@@ -179,7 +179,7 @@ export default function Home() {
     let customs = [];
     try { customs = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch (e) { /* ignore */ }
     if (Array.isArray(customs) && customs.length) setCustomMasters(customs);
-    const roster = [...PRESET_MASTERS, ...(Array.isArray(customs) ? customs : [])];
+    const roster = [...(Array.isArray(customs) ? customs : []), ...PRESET_MASTERS];
 
     // 2) 载入背景大师
     try {
@@ -323,7 +323,7 @@ export default function Home() {
   // 确认加入智囊团（持久化 + 选中）
   const confirmInvite = useCallback(() => {
     if (!inviteMaster) return;
-    const next = [...customMasters, inviteMaster];
+    const next = [inviteMaster, ...customMasters]; // 最新邀请的大师排最前
     setCustomMasters(next);
     persistCustoms(next);
     setSelected((prev) => new Set([...prev, inviteMaster.id]));
