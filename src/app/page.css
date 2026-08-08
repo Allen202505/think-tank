@@ -23,14 +23,25 @@
 .main-layout { max-width: 1300px; margin: 0 auto; padding: 12px 18px 40px; display: grid; grid-template-columns: 280px 1fr; gap: 26px; position: relative; }
 .sidebar { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 14px; align-self: start; max-height: calc(100vh - 120px); overflow-y: auto; padding-right: 20px; border-right: 1px solid var(--border-subtle); }
 .sidebar-actions { display: flex; gap: 4px; margin-bottom: 8px; }
-.sidebar-count { font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); margin-bottom: 6px; }
+.sidebar-count { font-family: var(--font-mono); font-size: 11px; color: var(--accent); margin: 2px 0 8px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--accent-bg); border: 1px solid var(--accent-dim); font-weight: 700; letter-spacing: 0.5px; }
 .master-list { display: flex; flex-direction: column; gap: 3px; }
-.master-row { display: flex; align-items: center; gap: 10px; padding: 8px 9px; border: 1px solid transparent; cursor: pointer; transition: all 0.12s; border-radius: 4px; }
+.master-row { display: flex; align-items: center; gap: 10px; padding: 8px 9px; border: 1px solid transparent; border-left-width: 3px; cursor: pointer; transition: all 0.12s; border-radius: 6px; } /* impeccable-disable-line side-tab -- 选中态立场色条，语义色非装饰 */
+.master-row:hover { background: var(--accent-bg); }
+.master-row:hover .master-check { border-color: var(--accent); }
 .master-avatar { flex-shrink: 0; }
 .master-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .master-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .master-style { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); }
-.master-check { font-size: 9px; font-family: var(--font-mono); }
+.master-check {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--on-accent);
+  flex-shrink: 0; margin-left: auto; margin-right: 2px;
+  transition: all 0.15s;
+}
+.master-check.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .sidebar-hint { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
 .question-input { width: 100%; box-sizing: border-box; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-family: var(--font-serif); font-size: 14px; padding: 12px; resize: vertical; min-height: 90px; outline: none; line-height: 1.75; border-radius: 4px; transition: border-color 0.2s; }
 .question-input:focus { border-color: var(--accent); }
@@ -104,7 +115,7 @@
 .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
 .card-title { font-family: var(--font-mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 .card-title-line { flex: 1; height: 1px; background: var(--border-subtle); }
-.mini-btn { flex: 1; padding: 5px 2px; border: 1px solid; font-size: 10px; cursor: pointer; font-family: var(--font-mono); border-radius: 4px; transition: all 0.15s; }
+.mini-btn { flex: 1; padding: 6px 4px; border: 1px solid; font-size: 11px; cursor: pointer; font-family: var(--font-mono); border-radius: 6px; transition: all 0.15s; }
 .modal-overlay { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
 .profile-modal { max-width: 420px; }

@@ -984,8 +984,8 @@ export default function Home() {
                     onKeyDown={e => e.key === 'Enter' && toggle(inv.id)}
                     className="master-row"
                     style={{
-                      borderColor: on ? `${inv.color}55` : 'transparent',
-                      background: on ? `${inv.color}0b` : 'transparent',
+                      borderLeft: on ? `3px solid ${inv.color}` : '3px solid transparent',
+                      background: on ? `${inv.color}12` : 'transparent',
                     }}
                   >
                     <MasterAvatar master={inv} size={28} className="master-avatar" />
@@ -997,7 +997,7 @@ export default function Home() {
                         {locale === 'en' && inv.titleEn ? inv.titleEn : (inv.title || inv.style.split('，')[0])}
                       </span>
                     </div>
-                    {on && <span className="master-check" style={{ color: inv.color }}>✓</span>}
+                    <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>
                     {inv.source === 'custom' && <span className="master-custom-badge">AI·全网画像</span>}
                     <button
                       type="button"
