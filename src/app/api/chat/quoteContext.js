@@ -186,16 +186,22 @@ export async function getQuoteContextInfo(userQuery) {
   }
 
   if (!symbols.length) {
+    // 快速规则：用户明显在说自己持有的某只股票/持仓，但没点名 → 需要公司
+    const NEEDS_COMPANY_RE = /(?:我|自己).{0,8}(?:有|买|持|重仓|套牢|亏|被套).{0,10}(?:股票|股|票|仓位|持仓)|(?:重仓|套牢|深套|满仓|被套).{0,8}(?:股票|股|票)/;
     // 概念/方法论/风格/大盘宏观类问题不需要具体公司数据，不提示
     let notice = '';
-    const conceptLike = /什么是|怎么理解|介绍一下|讲解|解释|方法论|投资风格|投资体系|如何|怎样|怎么看懂|术语|概念|仓位管理|怎么做|应该怎么做/.test(userQuery);
-    if (!conceptLike) {
-      try {
-        const need = await needsCompanyData(userQuery);
-        if (need) {
-          notice = '未识别到具体公司：如果这个问题涉及某只股票，请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。';
-        }
-      } catch (e) { /* 判定失败不提示 */ }
+    if (NEEDS_COMPANY_RE.test(userQuery)) {
+      notice = '未识别到具体公司：如果这个问题涉及某只股票，请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。';
+    } else {
+      const conceptLike = /什么是|怎么理解|介绍一下|讲解|解释|方法论|投资风格|投资体系|如何|怎样|怎么看懂|术语|概念|仓位管理|怎么做|应该怎么做/.test(userQuery);
+      if (!conceptLike) {
+        try {
+          const need = await needsCompanyData(userQuery);
+          if (need) {
+            notice = '未识别到具体公司：如果这个问题涉及某只股票，请补充公司名称或代码（如：贵州茅台 / 600519 / NVDA），大师们才能引用最新行情与财务数据。';
+          }
+        } catch (e) { /* 判定失败不提示 */ }
+      }
     }
     return { snapshot: '', notice };
   }

@@ -82,6 +82,8 @@ export default function Home() {
   const [inviteStage, setInviteStage] = useState('');      // search | research | build
   const [inviteMaster, setInviteMaster] = useState(null); // 生成的画像（预览）
   const [inviteSources, setInviteSources] = useState([]); // 检索资料来源标题
+  const [supplementOpen, setSupplementOpen] = useState(false); // 需要补充公司信息弹窗
+  const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [bgMaster, setBgMaster] = useState('buffett'); // 背景：'none' 或大师 id（默认用巴菲特肖像营造氛围）
@@ -688,7 +690,7 @@ export default function Home() {
     return () => clearInterval(iv);
   }, [useStreamingMode, currentBlock, typingPhase, typeCharIndex, currentLenStreaming, sequence, result]);
 
-  const go = useCallback(async () => {
+  const go = useCallback(async (force = false) => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
     if (selected.size === 0) { setError(t('summonErrorNoMaster')); return; }
     const soloRequested = chatMode === 'solo';
@@ -722,6 +724,13 @@ export default function Home() {
       const ctx = await ctxRes.json();
       snapshotRef.current = ctx?.snapshot || '';
       setNotice(ctx?.notice || '');
+      if (ctx?.notice && !force) {
+        // AI 判定这个问题需要具体公司数据：弹窗让用户补充，暂停发起
+        setLoading(false);
+        setSupplementValue('');
+        setSupplementOpen(true);
+        return;
+      }
     } catch (e) {
       snapshotRef.current = '';
     }
@@ -748,6 +757,25 @@ export default function Home() {
       setLoading(false);
     }, showLoadingMinMs);
   }, [query, selected, allMasters, chatMode]);
+  const goRef = useRef(null);
+  goRef.current = go;
+
+  // 弹窗：补充公司后带数据继续
+  const confirmSupplement = useCallback(() => {
+    const add = supplementValue.trim();
+    if (!add) return;
+    const newQuery = `${add} ${query}`.trim();
+    setQuery(newQuery);
+    setSupplementOpen(false);
+    setNotice('');
+    setTimeout(() => goRef.current(), 80); // 等 query 状态更新后再发起
+  }, [supplementValue, query]);
+
+  // 弹窗：不带数据继续
+  const skipSupplement = useCallback(() => {
+    setSupplementOpen(false);
+    setTimeout(() => goRef.current(true), 80);
+  }, []);
 
   const sendFollowUp = useCallback(async () => {
     const msg = followUpInput.trim();
@@ -1365,6 +1393,30 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {supplementOpen && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invite-head">
+              <h3 className="invite-title">需要补充公司信息</h3>
+              <button type="button" className="modal-close" onClick={skipSupplement} aria-label="关闭">×</button>
+            </div>
+            <p className="invite-desc">这个问题可能需要某只具体公司的行情或财务数据，大师们才能引用最新数据。请补充公司名称或代码：</p>
+            <input
+              className="invite-input"
+              value={supplementValue}
+              onChange={(e) => setSupplementValue(e.target.value)}
+              placeholder="如：贵州茅台 / 600519 / NVDA"
+              onKeyDown={(e) => e.key === 'Enter' && confirmSupplement()}
+              autoFocus
+            />
+            <div className="invite-actions">
+              <button type="button" className="invite-btn invite-btn-ghost" onClick={skipSupplement}>不带数据继续</button>
+              <button type="button" className="invite-btn invite-btn-primary" onClick={confirmSupplement} disabled={!supplementValue.trim()}>补充并继续</button>
+            </div>
           </div>
         </div>
       )}

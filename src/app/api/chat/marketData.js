@@ -258,7 +258,7 @@ async function extractCompaniesViaLLM(query) {
 async function needsCompanyDataRaw(query) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return false;
-  const prompt = `判断下面这个问题，是否必须引用某一只具体股票/公司的实时行情或财务数据，才能很好地回答。\n规则：\n- 概念/术语/方法论/投资风格/体系/仓位管理/大盘宏观/行业整体类问题 → false\n- 问"某只具体股票该不该买/卖/持有、它的估值/财报/行情"但没给公司名 → true\n- 用户提到自己持有的某只票/持仓/重仓/套牢/深套，但没有说明是哪只 → true\n- 问题里已提到具体公司名或代码（如"茅台""英伟达""NVDA"）→ false（这种情况由其他流程处理）\n只输出一个 JSON：{"need": true或false}\n\n问题：${query}`;
+  const prompt = `判断下面这个问题，是否必须引用某一只具体股票/公司的实时行情或财务数据，才能很好地回答。\n规则：\n- 概念/术语/方法论/投资风格/体系/仓位管理/大盘宏观/行业整体类问题 → false\n- 问"某只具体股票该不该买/卖/持有、它的估值/财报/行情"但没给公司名 → true\n- 用户提到自己持有的某只票/持仓/重仓/套牢/深套，但没有说明是哪只 → true（例如"我有只股票亏了20%""我套牢了""我的票跌惨了"，即使语气像倾诉也要 true）\n- 问题里已提到具体公司名或代码（如"茅台""英伟达""NVDA"）→ false（这种情况由其他流程处理）\n只输出一个 JSON：{"need": true或false}\n\n问题：${query}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
