@@ -1202,6 +1202,15 @@
 
 **验证**: 浏览器实测暗色——accentToken #a5832a，activeTab 与 btn-submit 背景均 rgb(165,131,42)、深字（对比 ~5.6:1 可读）；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十四批）
+
+### 删除卡片顶部亮黄色渐变线（card-accent）
+**背景**: 用户反馈「选择成员」「您的投资问题」标题正上方有亮黄色辐条，要求删除。
+
+**实现**: Card 组件（ui.js）删除 .card-accent 顶部渐变线 div；page.css 删除 .card-accent 规则。三个区块（选择成员/您的投资问题/智囊团讨论）顶部亮线全部移除。
+
+**验证**: 浏览器实测 .card-accent 数量 0、标题正常；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

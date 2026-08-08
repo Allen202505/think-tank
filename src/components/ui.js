@@ -7,7 +7,6 @@ import { useState } from 'react';
 export function Card({ title, accent, children }) {
   return (
     <div className="card-panel">
-      <div className="card-accent" style={{ background: `linear-gradient(90deg,transparent,${accent},transparent)` }} />
       <div className="card-title" style={{ color: accent }}>
         {title}<span className="card-title-line" />
       </div>
