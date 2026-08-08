@@ -68,7 +68,7 @@ export function MiniBtn({ children, onClick }) {
       onMouseLeave={() => setH(false)}
       className="mini-btn"
       style={{
-        background: h ? 'var(--accent-bg)' : 'var(--bg-input)',
+        background: h ? 'var(--accent-bg)' : 'transparent',
         borderColor: h ? 'var(--accent)' : 'var(--border)',
         color: h ? 'var(--accent)' : 'var(--text)',
       }}

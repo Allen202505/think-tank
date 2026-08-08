@@ -1129,6 +1129,15 @@
 
 **待办**: 无。
 
+## 2026-08-09（第五十七批）
+
+### 成员操作按钮（随机5人/全选/清空）：底色透明，与背景一致
+**背景**: 延续暗色「融背景」方向，用户要求这三个按钮未选中时底色不要黑色，与背景一致。
+
+**实现** (src/components/ui.js MiniBtn)：resting background 由 var(--bg-input) 改为 transparent（亮/暗统一），hover 仍为 accent-bg；边框与文字保留，靠边框+图标+文字区分。
+
+**验证**: 浏览器实测暗色——mini-btn 背景 rgba(0,0,0,0)、边框 #2a2a3e、文字浅色；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
