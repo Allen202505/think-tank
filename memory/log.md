@@ -1180,6 +1180,19 @@
 
 **验证**: 浏览器实测加载即 data-theme=dark、切换按钮显示☀️；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十二批）
+
+### 背景图更换：巴菲特头像 → 巴菲特+芒格授课场景
+**背景**: 用户提供一张百度图片（新浪源图 1080×603 PNG，巴菲特+芒格授课）要求替换当前巴菲特头像背景。
+
+**实现**:
+- 下载图片到 public/bg-debate.png（1080×603，400KB）
+- page.js：bg-master-layer 由 invMap['buffett'] 头像改为直接引用 /bg-debate.png；水印滤镜/透明度/遮罩不变
+
+**验证**: 浏览器实测——bg 层 src=/bg-debate.png、natural 1080×603、滤镜/透明度正常；impeccable detect 0 告警；干净构建通过。
+
+**待办**: 若用户希望调整新图的清晰度/位置，可再调。
+
 ## 模板（新增记录时使用）
 
 ```markdown

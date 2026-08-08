@@ -898,14 +898,9 @@ export default function Home() {
         </div>
       </header>
 
-      {(() => {
-        const bgm = invMap['buffett'];
-        return bgm?.avatar ? (
-          <div className="bg-master-layer" aria-hidden="true">
-            <img src={bgm.avatar} alt="" />
-          </div>
-        ) : null;
-      })()}
+      <div className="bg-master-layer" aria-hidden="true">
+        <img src="/bg-debate.png" alt="" />
+      </div>
 
       <div className="main-layout">
         <aside className="sidebar">
