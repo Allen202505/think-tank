@@ -955,6 +955,21 @@
 
 **验证**: 浏览器实测——本地自定义「段永平」头像现为圆形填充 rgb(30,77,140)+白色「段」，预置大师仍用照片；impeccable detect 0 告警；构建通过。
 
+## 2026-08-08（第四十一批）
+
+### 细节优化：去掉「AI·全网画像」徽章 + 自定义大师颜色约束到预置色板
+**背景**: ① 列表页的「AI·全网画像」徽章用户觉得多余；② 自定义大师头像填充色是邀请时 AI 随手给的十六进制（段永平=深蓝 #1e4d8c），与预置大师风格不够接近。
+
+**决策**: ① 删除徽章（仅列表页用，CSS 一并清理）② 新增 `CUSTOM_COLOR_PALETTE`（=预置大师全部 26 个颜色的去重集合）+ `snapColorToPalette()` 最近色吸附，邀请生成与存量加载都统一走该色板。
+
+**实现**:
+- src/data/masters.js：导出 CUSTOM_COLOR_PALETTE、snapColorToPalette（RGB 平方距离最近色，无效色回退 #c9a84c）
+- src/app/api/virtual-master/route.js：color 由 LLM 任意 hex → snapColorToPalette(p.color)
+- src/app/page.js：删除 master-custom-badge JSX；加载 localStorage 自定义大师时 color 统一吸附到色板（存量数据即时生效）
+- src/app/page.css：删除 .master-custom-badge 规则
+
+**验证**: 浏览器实测——列表页徽章 0 个；段永平头像色由 #1e4d8c 吸附为 #34495e（深蓝灰，预置大师沃萨同款色系），仍显示「段」；impeccable detect 0 告警；构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

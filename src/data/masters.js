@@ -47,6 +47,27 @@ export const PRESET_MASTERS = [
 
 
 /** 自定义大师的默认结构（用户可虚构） */
+// 自定义大师取色板：与预置大师同一套色系，保证头像/标识风格统一
+export const CUSTOM_COLOR_PALETTE = [...new Set(PRESET_MASTERS.map((m) => m.color))];
+
+// 把任意颜色吸附到预置色板里最近的一个（无效色回退金色）
+export function snapColorToPalette(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex || '')) return '#c9a84c';
+  const r1 = parseInt(hex.slice(1, 3), 16);
+  const g1 = parseInt(hex.slice(3, 5), 16);
+  const b1 = parseInt(hex.slice(5, 7), 16);
+  let best = CUSTOM_COLOR_PALETTE[0];
+  let bestD = Infinity;
+  for (const c of CUSTOM_COLOR_PALETTE) {
+    const r2 = parseInt(c.slice(1, 3), 16);
+    const g2 = parseInt(c.slice(3, 5), 16);
+    const b2 = parseInt(c.slice(5, 7), 16);
+    const d = (r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best;
+}
+
 export function createCustomMaster(overrides = {}) {
   const name = overrides.name || '自定义大师';
   const color = overrides.color || '#95a5a6';

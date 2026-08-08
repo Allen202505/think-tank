@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { PRESET_MASTERS } from '../data/masters';
+import { PRESET_MASTERS, snapColorToPalette } from '../data/masters';
 import { messages } from '../i18n/messages';
 import { Card, MasterAvatar, MiniBtn } from '../components/ui';
 import MasterProfileModal from '../components/MasterProfileModal';
@@ -178,7 +178,7 @@ export default function Home() {
     // 1) 载入邀请的虚拟大师
     let customs = [];
     try { customs = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch (e) { /* ignore */ }
-    if (Array.isArray(customs) && customs.length) setCustomMasters(customs);
+    if (Array.isArray(customs) && customs.length) setCustomMasters(customs.map((c) => ({ ...c, color: snapColorToPalette(c.color) })));
     const roster = [...(Array.isArray(customs) ? customs : []), ...PRESET_MASTERS];
 
     // 2) 载入背景大师
@@ -998,7 +998,6 @@ export default function Home() {
                       </span>
                     </div>
                     <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>
-                    {inv.source === 'custom' && <span className="master-custom-badge">AI·全网画像</span>}
                     <button
                       type="button"
                       className="master-more-btn"

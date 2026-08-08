@@ -2,6 +2,7 @@
 // 邀请大师：根据昵称"全网检索"该人物的公开内容与评价，构建"虚拟大师画像"
 // 返回流式（NDJSON）事件：search → research → build → done/error，前端可展示阶段进度
 import { ReadableStream } from 'node:stream/web';
+import { snapColorToPalette } from '../../../data/masters';
 
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
@@ -190,7 +191,7 @@ ${research.slice(0, 5000)}
           name: p.name || name,
           nameEn: p.nameEn || '',
           emoji: p.emoji || '🧙',
-          color: /^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : '#9a7830',
+          color: snapColorToPalette(p.color),
           avatar: '',
           status: 'alive',
           title: p.title || '民间高手',

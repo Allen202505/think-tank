@@ -261,9 +261,6 @@
 .persona-sources .src-rank { color: var(--accent); font-family: var(--font-mono); flex-shrink: 0; }
 .persona-style-sample { font-size: 12px; line-height: 1.8; color: var(--text); border-left: 2px solid var(--neutral); padding-left: 12px; background: var(--bg-card); margin-top: 8px; } /* impeccable-disable-line side-tab -- stance bar */
 
-/* 虚拟大师徽章 */
-.master-custom-badge { font-size: 8px; font-family: var(--font-mono); color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 8px; padding: 1px 5px; flex-shrink: 0; letter-spacing: 0.5px; }
-
 /* 档案卡操作 */
 .persona-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .persona-actions .invite-btn { flex: 1; }
