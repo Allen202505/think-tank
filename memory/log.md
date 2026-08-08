@@ -1167,6 +1167,19 @@
 
 **验证**: 浏览器实测——暗色占位 rgb(180,176,196)、亮色 rgb(74,70,63)；header::after content=none（已移除）；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十一批）
+
+### 默认主题改为暗色
+**背景**: 用户要求把暗色作为默认背景（此前默认亮色）。
+
+**实现**:
+- src/app/layout.js 首帧内联脚本：无存储偏好/异常时 t='light'→'dark'
+- src/app/page.js：useState('light')→useState('dark')（SSR 与首帧一致，挂载后仍会读 localStorage 覆盖）
+
+**注意**: CSS 的 :root 本就是暗色定义，无需改；若用户浏览器里存过 'light' 偏好，会覆盖默认仍显示亮色（可在站点设置里切一次暗色即可覆盖存储）。
+
+**验证**: 浏览器实测加载即 data-theme=dark、切换按钮显示☀️；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
