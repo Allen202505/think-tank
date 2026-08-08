@@ -10,11 +10,13 @@ import {
   TYPEWRITER_DELAY_MS,
   AFTER_TYPE_PAUSE_MS,
   STANCES,
+  MODES,
   buildFollowUpPrompt,
   buildOpeningOnlyPrompt,
   buildOneSpeechPrompt,
   buildClosingOnlyPrompt,
   buildVerdictOnlyPrompt,
+  buildChatPrompt,
 } from '../lib/prompts';
 import { generatePoster } from '../lib/poster';
 import './page.css';
@@ -66,6 +68,15 @@ export default function Home() {
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterUrl, setPosterUrl] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
+  const [mode, setMode] = useState('debate'); // 对话模式：debate/explore/teach
+  const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteHint, setInviteHint] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyList, setHistoryList] = useState([]);
+  const [bgMaster, setBgMaster] = useState('buffett'); // 背景：'none' 或大师 id（默认用巴菲特肖像营造氛围）
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
   const [rounds, setRounds] = useState([]);
@@ -81,7 +92,11 @@ export default function Home() {
   const goTimeoutRef = useRef(null);
   const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
 
-  const allMasters = PRESET_MASTERS;
+  const allMasters = useMemo(() => [...PRESET_MASTERS, ...customMasters], [customMasters]);
+  const CUSTOM_KEY = 'custom-masters-v1';
+  const HISTORY_KEY = 'debate-history-v1';
+  const BG_KEY = 'bg-master-v1';
+  const currentSessionIdRef = useRef(null);
 
   // 兼容追问：追问仍用「预加载一整段」再逐条展示，用 rounds 生成 blocks
   const blocksFromRounds = useMemo(() => {
@@ -139,13 +154,28 @@ export default function Home() {
   // 恢复上次讨论（仅首次挂载）：URL 指定大师 > 本地历史 > 随机 5 位
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    let selectedSet = null;
+    // 1) 载入邀请的虚拟大师
+    let customs = [];
+    try { customs = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch (e) { /* ignore */ }
+    if (Array.isArray(customs) && customs.length) setCustomMasters(customs);
+    const roster = [...PRESET_MASTERS, ...(Array.isArray(customs) ? customs : [])];
 
+    // 2) 载入背景大师
+    try {
+      const bg = localStorage.getItem(BG_KEY);
+      if (bg && roster.some((m) => m.id === bg)) setBgMaster(bg);
+    } catch (e) { /* ignore */ }
+
+    // 3) 载入历史列表
+    try { setHistoryList(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')); } catch (e) { /* ignore */ }
+
+    // 4) 恢复上次讨论 / URL 指定大师 / 随机
+    let selectedSet = null;
     try {
       const params = new URLSearchParams(window.location.search);
       const ids = (params.get('masters') || '').split(',').map((s) => s.trim()).filter(Boolean);
       if (ids.length) {
-        const valid = new Set(ids.filter((id) => allMasters.some((m) => m.id === id)));
+        const valid = new Set(ids.filter((id) => roster.some((m) => m.id === id)));
         if (valid.size) {
           selectedSet = valid;
           setQuery('');
@@ -173,7 +203,7 @@ export default function Home() {
     }
 
     if (!selectedSet) {
-      const shuffled = [...allMasters].sort(() => Math.random() - 0.5);
+      const shuffled = [...roster].sort(() => Math.random() - 0.5);
       selectedSet = new Set(shuffled.slice(0, 5).map((i) => i.id));
     }
     setSelected(selectedSet);
@@ -208,6 +238,93 @@ export default function Home() {
     setRevealStepLegacy(0);
     setFollowUpInput('');
     setError('');
+  }, []);
+
+  // ─── 邀请大师（虚拟大师） ───
+  const persistCustoms = useCallback((masters) => {
+    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(masters)); } catch (e) { /* ignore */ }
+  }, []);
+
+  const handleInvite = useCallback(async () => {
+    const name = inviteName.trim();
+    if (!name || inviteBusy) return;
+    setInviteBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/virtual-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, hint: inviteHint.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || '生成失败，请重试');
+      const master = data.master;
+      const next = [...customMasters, master];
+      setCustomMasters(next);
+      persistCustoms(next);
+      setSelected((prev) => new Set([...prev, master.id])); // 自动选中
+      setInviteOpen(false);
+      setInviteName('');
+      setInviteHint('');
+    } catch (e) {
+      setError(e.message || '邀请失败，请重试');
+    }
+    setInviteBusy(false);
+  }, [inviteName, inviteHint, inviteBusy, customMasters, persistCustoms]);
+
+  const removeCustomMaster = useCallback((id) => {
+    setCustomMasters((prev) => {
+      const next = prev.filter((m) => m.id !== id);
+      persistCustoms(next);
+      return next;
+    });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, [persistCustoms]);
+
+  // ─── 背景大师 ───
+  const handleBgMaster = useCallback((id) => {
+    setBgMaster(id);
+    try { localStorage.setItem(BG_KEY, id); } catch (e) { /* ignore */ }
+  }, []);
+
+  // ─── 历史对话 ───
+  const saveHistory = useCallback((roundsData, queryText, selectedIds) => {
+    if (!Array.isArray(roundsData) || !roundsData.length) return;
+    const sessionId = currentSessionIdRef.current || Date.now();
+    const entry = {
+      id: sessionId,
+      ts: Date.now(),
+      query: queryText,
+      selected: selectedIds,
+      rounds: roundsData,
+    };
+    setHistoryList((prev) => {
+      const others = prev.filter((h) => h.id !== sessionId);
+      const next = [entry, ...others].slice(0, 30);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch (e) { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  // 讨论结束后（rounds 稳定）自动存入历史
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!rounds.length || loading || loadingFollowUp) return;
+    const t = setTimeout(() => saveHistory(rounds, query, Array.from(selected)), 1200);
+    return () => clearTimeout(t);
+  }, [rounds, loading, loadingFollowUp, query, selected, saveHistory]);
+
+  const restoreHistory = useCallback((entry) => {
+    setQuery(entry.query || '');
+    setSelected(new Set(entry.selected || []));
+    setRounds(entry.rounds || []);
+    setResult(entry.rounds?.[0]?.result || null);
+    setRevealStepLegacy(9999);
+    setHistoryOpen(false);
   }, []);
 
   // 分享海报（#10）
@@ -345,7 +462,7 @@ export default function Home() {
     const run = async () => {
       try {
         if (step.type === 'hostOpening') {
-          const prompt = buildOpeningOnlyPrompt(query, host, investors);
+          const prompt = buildOpeningOnlyPrompt(query, host, investors, mode);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'speech') {
@@ -354,7 +471,7 @@ export default function Home() {
             if (b.type === 'speech') return { type: 'speech', investorId: b.speakerId, content: b.content?.content };
             return null;
           }).filter(Boolean);
-          const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
+          const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId, mode);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
@@ -362,14 +479,14 @@ export default function Home() {
         } else if (step.type === 'hostClosing') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const discussionSummary = completedBlocks.filter(b => b.type === 'speech').map(b => `${invMapLocal[b.speakerId]?.name}: ${b.content?.content?.slice(0, 50)}...`).join('；');
-          const prompt = buildClosingOnlyPrompt(query, host?.name || '主持人', opening, discussionSummary);
+          const prompt = buildClosingOnlyPrompt(query, host?.name || '主持人', opening, discussionSummary, mode);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'verdict') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const closing = completedBlocks.find(b => b.type === 'hostClosing')?.content || '';
           const discussionText = completedBlocks.filter(b => b.type === 'speech').map(b => b.content?.content).join('\n');
-          const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing);
+          const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing, mode);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : {};
@@ -385,7 +502,7 @@ export default function Home() {
       fetchInProgressRef.current = false;
     };
     run();
-  }, [useStreamingMode, stepIndex, sequence, currentBlock, result, query, completedBlocks, getResponseText]);
+  }, [useStreamingMode, stepIndex, sequence, currentBlock, result, query, completedBlocks, getResponseText, mode]);
 
   // 逐条模式：收到内容后先「正在输入」再打字
   useEffect(() => {
@@ -443,6 +560,7 @@ export default function Home() {
     setError('');
     setNotice('');
     snapshotRef.current = '';
+    currentSessionIdRef.current = Date.now();
     if (goTimeoutRef.current) clearTimeout(goTimeoutRef.current);
     setLoading(true); // 先显示加载态
     setResult(null);
@@ -471,21 +589,24 @@ export default function Home() {
     }
 
     const investors = allMasters.filter(i => selected.has(i.id));
-    const host = investors[Math.floor(Math.random() * investors.length)];
+    const isSolo = investors.length === 1; // 点对点深聊
+    const host = isSolo ? investors[0] : investors[Math.floor(Math.random() * investors.length)];
     const speechOrder = [...investors].sort(() => Math.random() - 0.5);
-    const seq = [
-      { type: 'hostOpening', speakerId: host.id },
-      ...speechOrder.map(i => ({ type: 'speech', speakerId: i.id })),
-      { type: 'hostClosing', speakerId: host.id },
-      { type: 'verdict' },
-    ];
+    const seq = isSolo
+      ? [{ type: 'speech', speakerId: investors[0].id }]
+      : [
+          { type: 'hostOpening', speakerId: host.id },
+          ...speechOrder.map(i => ({ type: 'speech', speakerId: i.id })),
+          { type: 'hostClosing', speakerId: host.id },
+          { type: 'verdict' },
+        ];
     // 延迟再进入讨论区，确保加载文案「大师们正在打车」至少显示一会儿
     const showLoadingMinMs = 600;
     goTimeoutRef.current = setTimeout(() => {
       goTimeoutRef.current = null;
       setResult({ hostId: host.id, investors, hostOpening: '', discussion: [], hostClosing: '', verdict: {} });
       setSequence(seq);
-      setCurrentBlock({ type: 'hostOpening', speakerId: host.id });
+      setCurrentBlock({ type: isSolo ? 'speech' : 'hostOpening', speakerId: host.id });
       setLoading(false);
     }, showLoadingMinMs);
   }, [query, selected, allMasters]);
@@ -515,10 +636,22 @@ export default function Home() {
         const ctx = await ctxRes.json();
         if (ctx?.snapshot) mergedSnapshot = [mergedSnapshot, ctx.snapshot].filter(Boolean).join('\n');
       } catch (e) { /* 忽略 */ }
-      const payload = buildFollowUpPrompt(prevSummary, msg, investors);
-      const parsed = await doRequest([{ role: 'user', content: payload }], query, mergedSnapshot);
-      const parsedDiscussion = parsed.discussion || [];
-      const parsedVerdict = parsed.verdict || {};
+      let parsedDiscussion;
+      let parsedVerdict = {};
+      if (investors.length === 1) {
+        // 点对点深聊：直接问答，不输出裁决
+        const text = await getResponseText(
+          [{ role: 'user', content: buildChatPrompt(msg, investors[0], mode) }],
+          query,
+          mergedSnapshot,
+        );
+        parsedDiscussion = [{ investorId: investors[0].id, stance: 'NEUTRAL', content: text, keyPoint: '' }];
+      } else {
+        const payload = buildFollowUpPrompt(prevSummary, msg, investors, mode);
+        const parsed = await doRequest([{ role: 'user', content: payload }], query, mergedSnapshot);
+        parsedDiscussion = parsed.discussion || [];
+        parsedVerdict = parsed.verdict || {};
+      }
       // 将刚才插入的那条 followUp 补全大师发言和裁决；如果没找到，就追加一条
       setRounds(prev => {
         const next = [...prev];
@@ -541,7 +674,7 @@ export default function Home() {
       setError(e.message || '追问失败，请重试');
     }
     setLoadingFollowUp(false);
-  }, [followUpInput, result, query, doRequest, loadingFollowUp]);
+  }, [followUpInput, result, query, doRequest, loadingFollowUp, getResponseText, mode]);
 
   return (
     <>
@@ -551,6 +684,10 @@ export default function Home() {
       />
       <div className="page-root">
         <header className="header">
+          <div className="header-main">
+            <h1 className="header-title">{t('title')}</h1>
+            <p className="header-desc">{t('subtitle')}</p>
+          </div>
         <div className="header-actions">
           <button
             type="button"
@@ -560,6 +697,16 @@ export default function Home() {
             aria-label="切换主题"
           >
             {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setHistoryOpen(true)}
+            title="历史对话"
+            aria-label="历史对话"
+          >
+            🕘
           </button>
 
           <button
@@ -603,9 +750,16 @@ export default function Home() {
             </>
           )}
         </div>
-        <h1 className="header-title">{t('title')}</h1>
-        <p className="header-desc">{t('subtitle')}</p>
       </header>
+
+      {bgMaster !== 'none' && (() => {
+        const bgm = invMap[bgMaster];
+        return bgm?.avatar ? (
+          <div className="bg-master-layer" aria-hidden="true">
+            <img src={bgm.avatar} alt="" />
+          </div>
+        ) : null;
+      })()}
 
       <div className="main-layout">
         <aside className="sidebar">
@@ -614,6 +768,7 @@ export default function Home() {
               <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>{t('membersSelectAll')}</MiniBtn>
               <MiniBtn onClick={() => setSelected(new Set())}>{t('membersClear')}</MiniBtn>
               <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>{t('membersRandom5')}</MiniBtn>
+              <MiniBtn onClick={() => setInviteOpen(true)}>＋ 邀请</MiniBtn>
             </div>
             <div className="sidebar-count">{t('selectedCount', selected.size, allMasters.length)}</div>
             <div className="master-list">
@@ -642,6 +797,17 @@ export default function Home() {
                       </span>
                     </div>
                     {on && <span className="master-check" style={{ color: inv.color }}>✓</span>}
+                    {inv.source === 'custom' && (
+                      <button
+                        type="button"
+                        className="master-del-btn"
+                        onClick={(e) => { e.stopPropagation(); removeCustomMaster(inv.id); }}
+                        title="移除该虚拟大师"
+                        aria-label="移除"
+                      >
+                        ✕
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="master-profile-btn"
@@ -656,11 +822,39 @@ export default function Home() {
               })}
             </div>
           </Card>
+          <div className="bg-control">
+            <span className="bg-label">氛围背景</span>
+            <select
+              className="bg-select"
+              value={bgMaster}
+              onChange={(e) => handleBgMaster(e.target.value)}
+            >
+              <option value="none">简洁 · 无背景</option>
+              {allMasters.filter((m) => m.avatar).map((m) => (
+                <option key={m.id} value={m.id}>以 {m.name} 为背景</option>
+              ))}
+            </select>
+          </div>
           <p className="sidebar-hint">{t('sidebarHint')}</p>
         </aside>
 
         <main className="main">
           <Card title={t('askLabel')} accent="var(--bull)">
+            <div className="mode-switch" role="tablist" aria-label="对话模式">
+              {Object.entries(MODES).map(([k, m]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === k}
+                  className={`mode-btn ${mode === k ? 'active' : ''}`}
+                  onClick={() => setMode(k)}
+                  title={m.hint}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <textarea
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -698,7 +892,8 @@ export default function Home() {
 
             {!loading && result && (
               <div className="discussion-container">
-                {blocks.slice(0, revealStep).map((block, bi) => (
+                {blocks.slice(0, revealStep).map((block, bi) => {
+                  return (
                   <div key={`done-${bi}`} className="reveal-item">
                     {block.type === 'hostOpening' && (
                       <div className="host-block host-opening">
@@ -769,7 +964,8 @@ export default function Home() {
                       );
                     })()}
                   </div>
-                ))}
+                  );
+                })}
 
                 {/* 当前条：先「正在输入」再逐字打出 */}
                 {currentBlock && (
@@ -905,6 +1101,61 @@ export default function Home() {
       </div>
 
       {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} />}
+
+      {inviteOpen && (
+        <div className="modal-overlay" onClick={() => setInviteOpen(false)} role="dialog" aria-modal="true">
+          <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invite-head">
+              <h3 className="invite-title">邀请大师辩论</h3>
+              <button type="button" className="modal-close" onClick={() => setInviteOpen(false)} aria-label="关闭">×</button>
+            </div>
+            <p className="invite-desc">输入你感兴趣的人物（投资大V、游资、企业家…），AI 会基于其公开言行画像，构建一位虚拟大师与现役大师同台竞技，并在本地持久化保存。</p>
+            <label className="invite-label">人物名字 / 昵称</label>
+            <input
+              className="invite-input"
+              value={inviteName}
+              onChange={(e) => setInviteName(e.target.value)}
+              placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
+            />
+            <label className="invite-label">补充说明（可选）</label>
+            <textarea
+              className="invite-input invite-textarea"
+              value={inviteHint}
+              onChange={(e) => setInviteHint(e.target.value)}
+              placeholder="例如：喜欢用简单的话讲道理，强调安全边际"
+            />
+            <div className="invite-actions">
+              <button type="button" className="invite-btn invite-btn-ghost" onClick={() => setInviteOpen(false)}>取消</button>
+              <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>
+                {inviteBusy ? '生成中…' : '生成并加入'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {historyOpen && (
+        <div className="modal-overlay" onClick={() => setHistoryOpen(false)} role="dialog" aria-modal="true">
+          <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invite-head">
+              <h3 className="invite-title">历史对话</h3>
+              <button type="button" className="modal-close" onClick={() => setHistoryOpen(false)} aria-label="关闭">×</button>
+            </div>
+            {historyList.length === 0 ? (
+              <p className="history-empty">还没有历史记录，去发起一场辩论吧。</p>
+            ) : (
+              <div className="history-list">
+                {historyList.map((h) => (
+                  <button key={h.id} type="button" className="history-item" onClick={() => restoreHistory(h)}>
+                    <div className="history-q">{h.query || '（无问题）'}</div>
+                    <div className="history-meta">{new Date(h.ts).toLocaleString('zh-CN')} · {h.selected?.length || 0} 位大师</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {posterOpen && (
         <div className="modal-overlay" onClick={() => setPosterOpen(false)} role="dialog" aria-modal="true">

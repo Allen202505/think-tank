@@ -158,3 +158,49 @@
 
 /* 修复：侧边栏成员卡不被 flex 压缩，保证列表完整可滚动 */
 .sidebar > .card-panel { flex-shrink: 0; }
+
+/* ─── 头部紧凑化（标题区瘦身，提升内容屏效） ─── */
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; padding: 14px 18px 12px; border-bottom: 1px solid var(--border); position: relative; flex-wrap: wrap; }
+.header-main { min-width: 0; }
+.header-title { font-size: clamp(20px, 3.4vw, 30px) !important; margin: 0 !important; }
+.header-desc { margin-top: 5px !important; font-size: 11px !important; }
+.header-actions { position: static !important; display: flex; align-items: center; gap: 8px; }
+
+/* ─── 对话模式切换 ─── */
+.mode-switch { display: flex; gap: 6px; margin-bottom: 10px; }
+.mode-btn { flex: 1; padding: 8px 6px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; cursor: pointer; border-radius: 4px; transition: all 0.15s; }
+.mode-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.mode-btn:hover:not(.active) { border-color: var(--accent-dim); }
+
+/* ─── 氛围背景（大师肖像） ─── */
+.bg-master-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.bg-master-layer img { width: 100%; height: 100%; object-fit: cover; filter: blur(16px) saturate(1.05); opacity: 0.3; transform: scale(1.1); }
+.page-root { z-index: 1; }
+.bg-control { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
+.bg-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); white-space: nowrap; }
+.bg-select { flex: 1; min-width: 0; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 11px; padding: 6px 8px; border-radius: 4px; }
+
+/* 虚拟大师删除按钮 */
+.master-del-btn { background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 11px; color: var(--bear); opacity: 0.6; }
+.master-del-btn:hover { opacity: 1; }
+
+/* ─── 邀请大师 / 历史弹窗 ─── */
+.invite-modal, .history-modal { max-width: 440px; padding: 22px; }
+.invite-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.invite-title { margin: 0; font-size: 17px; }
+.invite-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin: 0 0 14px; }
+.invite-label { display: block; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin: 12px 0 5px; }
+.invite-input { width: 100%; box-sizing: border-box; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); padding: 9px 11px; border-radius: 4px; font-size: 13px; }
+.invite-input:focus { outline: none; border-color: var(--accent); }
+.invite-textarea { min-height: 64px; resize: vertical; }
+.invite-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.invite-btn { padding: 9px 18px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+.invite-btn-ghost { background: transparent; border-color: var(--border); color: var(--text); }
+.invite-btn-primary { background: var(--accent); color: #0a0a0f; }
+.invite-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.history-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px 0; margin: 0; }
+.history-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.history-item { text-align: left; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px 12px; cursor: pointer; }
+.history-item:hover { border-color: var(--accent-dim); }
+.history-q { font-size: 13px; color: var(--text); line-height: 1.5; }
+.history-meta { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; }

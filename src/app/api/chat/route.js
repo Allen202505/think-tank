@@ -31,34 +31,29 @@ export async function POST(request) {
       ];
     }
 
-    // 网络偶发抖动时重试一次（fetch 抛错而非 HTTP 错误码）
+    // 网络偶发抖动时重试一次；带 60s 超时，避免挂死
+    const callDeepSeek = () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 60000);
+      return fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+          max_tokens: 8192,
+          messages,
+        }),
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(timer));
+    };
     let response;
     try {
-      response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-          max_tokens: 8192,
-          messages,
-        }),
-      });
+      response = await callDeepSeek();
     } catch (e) {
-      response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-          max_tokens: 8192,
-          messages,
-        }),
-      });
+      response = await callDeepSeek();
     }
 
     if (!response.ok) {
