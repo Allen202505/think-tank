@@ -982,6 +982,15 @@
 
 **验证**: 浏览器实测——邀请弹窗 label 只剩「人物名字/昵称」「补充说明（可选）」，textarea 仅 1 个；impeccable detect 0 告警；构建通过。
 
+## 2026-08-08（第四十三批）
+
+### 大师行「⋯」更多按钮：45% 透明 → 常显圆形描边按钮
+**背景**: 用户反馈三个点的更多按钮太弱、看不到。原为无边框、opacity 0.45 的裸字符。
+
+**实现** (page.css .master-more-btn)：22×22px 圆形、1px border-subtle 描边、opacity 1 常显、13px ⋯、hover 变金+淡金底；删除触屏 hover:none 的 0.8 覆盖（已常显无需）。
+
+**验证**: 浏览器实测——22px 圆形、描边、opacity 1、title「资料与操作」；impeccable detect 0 告警；构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

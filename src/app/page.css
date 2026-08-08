@@ -265,9 +265,15 @@
 .persona-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .persona-actions .invite-btn { flex: 1; }
 
-/* 侧栏行：⋯ 操作按钮（hover 显现） */
-.master-more-btn { background: none; border: none; cursor: pointer; padding: 2px 5px; font-size: 14px; color: var(--text-muted); opacity: 0.45; line-height: 1; }
-.master-more-btn:hover { opacity: 1; color: var(--accent); }
+/* 侧栏行：⋯ 操作按钮（圆形小按钮，常显可点） */
+.master-more-btn {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--border-subtle); border-radius: 50%;
+  color: var(--text-muted); font-size: 13px; line-height: 1; padding: 0; cursor: pointer;
+  opacity: 1; flex-shrink: 0; transition: all 0.15s;
+}
+.master-more-btn:hover { opacity: 1; color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
 
 /* 资料弹窗：风格示范 / 资料来源 / 移除 */
 .profile-extra { margin-bottom: 14px; }
@@ -299,10 +305,6 @@
 .solo-target-empty { font-size: 12px; color: var(--text-muted); font-family: var(--font-sans); }
 
 /* 触屏：⋯ 操作按钮常显 */
-@media (hover: none) {
-  .master-more-btn { opacity: 0.8; }
-}
-
 /* 邀请弹窗内错误（就近显示，不再被遮罩盖住） */
 .invite-error { margin-top: 12px; padding: 9px 12px; background: rgba(224,85,85,0.08); border: 1px solid var(--bear); color: var(--bear); font-size: 12px; border-radius: 6px; font-family: var(--font-sans); }
 
