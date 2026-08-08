@@ -34,6 +34,10 @@ function masterProfileLine(i) {
   if (i.biography) line += ` | 经历:${i.biography}`;
   if (i.classicTheory) line += ` | 经典理论:${i.classicTheory}`;
   if (i.knowledge) line += ` | 知识域与思维框架:${i.knowledge}`;
+  if (i.coreViews) line += ` | 核心观点:${i.coreViews}`;
+  if (i.phrases) line += ` | 常用话术:${i.phrases}`;
+  if (i.decisionHabits) line += ` | 决策习惯:${i.decisionHabits}`;
+  if (i.riskPref) line += ` | 风险偏好:${i.riskPref}`;
   return line;
 }
 

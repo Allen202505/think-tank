@@ -31,7 +31,7 @@ export async function POST(request) {
 ${hint ? `用户补充信息：${hint}` : ''}
 
 只输出一个 JSON，不要任何其他内容：
-{"name":"姓名或别名","nameEn":"英文名或拼音（没有就留空）","emoji":"一个表情符号","color":"一个十六进制颜色","title":"称号（4-10字）","style":"投资与发言风格，逗号分隔（30字内）","personality":"性格与发言风格（30-60字）","quote":"一句代表性金句（可基于其公开言论风格创作）","biography":"简介（30-60字）","classicTheory":"标志性方法论/框架（20-50字）","knowledge":"知识域、思维框架、思考习惯与偏好（50-100字，用于让AI模拟其思考）"}`;
+{"name":"姓名或别名","nameEn":"英文名或拼音（没有就留空）","emoji":"一个表情符号","color":"一个十六进制颜色","title":"称号（4-10字）","style":"投资与发言风格，逗号分隔（30字内）","personality":"性格与发言风格（30-60字）","quote":"一句代表性金句（可基于其公开言论风格创作）","biography":"简介（30-60字）","classicTheory":"标志性方法论/框架（20-50字）","knowledge":"知识域、思维框架、思考习惯与偏好（50-100字，用于让AI模拟其思考）","coreViews":"核心观点，2-4 条，用分号分隔（基于其公开言论提炼）","phrases":"常用话术/口头禅，1-2 句（模仿其说话风格）","decisionHabits":"决策习惯与偏好，1-2 句（如：喜欢重仓、等待极端价格、看商业模式）","riskPref":"风险偏好（保守/激进/均衡，1 句说明）"}`;
 
     const response = await fetch(DEEPSEEK_URL, {
       method: 'POST',
@@ -77,6 +77,10 @@ ${hint ? `用户补充信息：${hint}` : ''}
       biography: p.biography || `「${name}」是用户邀请的民间投资高手。`,
       classicTheory: p.classicTheory || '独立思考、知行合一',
       knowledge: p.knowledge || '',
+      coreViews: p.coreViews || '',
+      phrases: p.phrases || '',
+      decisionHabits: p.decisionHabits || '',
+      riskPref: p.riskPref || '',
       source: 'custom',
     };
 
