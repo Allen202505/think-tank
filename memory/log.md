@@ -387,6 +387,16 @@
 
 ---
 
+## 2026-08-08（第九批）
+
+### 修复：左侧大师成员区无法滚动查看
+**背景**: 用户反馈左侧成员列表滑不动。
+**原因**: 侧边栏本身有 `max-height + overflow-y:auto`，但成员卡片在 flex 列布局里被压缩到容器高度（flex-shrink 默认 1），且卡片 `overflow:hidden`，导致超出部分被裁掉、scrollHeight==clientHeight，无内容可滚。
+**修复** (`page.css`)：`.sidebar > .card-panel { flex-shrink: 0; }`，卡片保持完整内容高度，侧边栏正常内部滚动。
+**验证**: 浏览器实测 scrollHeight 1717 > clientHeight 600，scrollTo 正常。
+
+---
+
 ## 模板（新增记录时使用）
 
 ```markdown
