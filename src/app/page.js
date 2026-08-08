@@ -990,6 +990,16 @@ export default function Home() {
                 单聊
               </button>
             </div>
+            {chatMode === 'group' && (
+              <div className="group-style">
+                <span className="style-label">风格</span>
+                <select className="style-select" value={mode} onChange={(e) => setMode(e.target.value)} title="群聊风格">
+                  {Object.entries(MODES).map(([k, m]) => (
+                    <option key={k} value={k}>{m.label} · {m.hint}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {chatMode === 'solo' && (
               <div className="solo-target">
                 {soloTarget ? (
@@ -1013,16 +1023,6 @@ export default function Home() {
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             <div className="question-footer">
-              {chatMode === 'group' && (
-                <label className="style-pick" title="群聊风格">
-                  <span className="style-pick-label">风格</span>
-                  <select className="style-select" value={mode} onChange={(e) => setMode(e.target.value)}>
-                    {Object.entries(MODES).map(([k, m]) => (
-                      <option key={k} value={k}>{m.label} · {m.hint}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
                 {loading ? `⟳ ${t('summoning')}` : t('btnSummon')}
               </button>

@@ -1082,6 +1082,15 @@
 
 **验证**: 浏览器实测——群聊下「风格」下拉与按钮同一行、位于按钮左侧（p.right<=b.left），选项 辩论/探讨/教学 正常；单聊下不显示风格下拉、按钮仍在；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十二批）
+
+### 群聊风格切换：复位回群聊 tab 下方
+**背景**: 用户实测后觉得风格下拉放「召集智囊团」按钮旁很奇怪，要求放回群聊 tab 下方（撤销第五十一批的移动）。
+
+**实现**: page.js 移除 footer 内 style-pick，恢复 tab 下方的 .group-style 下拉块；page.css 恢复 .group-style/.style-select 原样式、删除 .style-pick。
+
+**验证**: 浏览器实测——group-style 在 tab 下方，footer 仅剩 btn-submit；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
