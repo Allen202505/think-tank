@@ -4,8 +4,10 @@
  */
 const AVATAR_SIZE = 200;
 function avatarUrl(initials, color) {
-  const bg = (color || '#5a5a7a').replace('#', '');
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=${bg}&color=fff&size=${AVATAR_SIZE}`;
+  const bg = color || '#5a5a7a';
+  const safeText = (initials || '?').slice(0, 24);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${AVATAR_SIZE}" height="${AVATAR_SIZE}" viewBox="0 0 ${AVATAR_SIZE} ${AVATAR_SIZE}"><rect width="100%" height="100%" fill="${bg}"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif" font-size="72" font-weight="700">${safeText}</text></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 export const PRESET_MASTERS = [

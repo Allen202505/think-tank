@@ -3,10 +3,10 @@
   --bg-page: #0a0a0f;
   --bg-card: #10101a;
   --bg-input: #0d0d18;
-  --border: #1e1e30;
-  --border-subtle: #252535;
+  --border: #2a2a3e;
+  --border-subtle: #34344c;
   --text: #e8e4d8;
-  --text-muted: #3a3a5a;
+  --text-muted: #9b98ad;
   --accent: #c9a84c;
   --accent-dim: rgba(201, 168, 76, 0.25);
   --accent-bg: rgba(201, 168, 76, 0.08);
@@ -28,12 +28,12 @@
   --border-subtle: #e8e4dc;
   --text: #1a1915;
   --text-muted: #5c5a54;
-  --accent: #9a7830;
-  --accent-dim: rgba(154, 120, 48, 0.35);
-  --accent-bg: rgba(154, 120, 48, 0.08);
+  --accent: #7d5f1f;
+  --accent-dim: rgba(125, 95, 31, 0.35);
+  --accent-bg: rgba(125, 95, 31, 0.08);
   --bull: #2e7d57;
   --bear: #c04040;
-  --neutral: #9a7830;
+  --neutral: #7d5f1f;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   --overlay: rgba(0, 0, 0, 0.35);
 }
@@ -92,4 +92,13 @@ body::before {
 @keyframes prog {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(350%); }
+}
+
+/* 动效偏好：减少动态 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
 }

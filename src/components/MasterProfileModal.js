@@ -1,20 +1,41 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
 // 大师资料弹窗
 export default function MasterProfileModal({ master, onClose, locale, onEdit, onStartChat, onRemove }) {
+  const [confirming, setConfirming] = useState(false);
+  const confirmTimer = useRef(null);
+
+  // 卸载时清掉确认倒计时
+  useEffect(() => () => {
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+  }, []);
+
   if (!master) return null;
   const isEn = locale === 'en';
   const isCustom = master.source === 'custom';
+
+  const handleRemove = () => {
+    if (!confirming) {
+      setConfirming(true);
+      confirmTimer.current = setTimeout(() => setConfirming(false), 3000);
+      return;
+    }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    onRemove && onRemove(master.id);
+    onClose();
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="profileName">
       <div className="modal-content profile-modal" onClick={e => e.stopPropagation()} style={{ borderColor: master.color }}>
         <div className="profile-header" style={{ borderColor: master.color }}>
           <MasterAvatar master={master} size={56} className="profile-avatar" />
           <div>
-            <h2 className="profile-name">{isEn && master.nameEn ? master.nameEn : master.name}</h2>
+            <h2 className="profile-name" id="profileName">{isEn && master.nameEn ? master.nameEn : master.name}</h2>
             <p className="profile-title">{isEn && master.titleEn ? master.titleEn : master.title}</p>
           </div>
           <button type="button" className="modal-close" onClick={onClose} aria-label={isEn ? 'Close' : '关闭'}>×</button>
@@ -67,8 +88,12 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit, on
                   </button>
                 )}
                 {onRemove && (
-                  <button type="button" className="profile-remove-btn" onClick={() => { onRemove(master.id); onClose(); }}>
-                    {isEn ? '从智囊团移除' : '从智囊团移除'}
+                  <button
+                    type="button"
+                    className={`profile-remove-btn${confirming ? ' confirming' : ''}`}
+                    onClick={handleRemove}
+                  >
+                    {confirming ? (isEn ? '再点一次确认移除' : '再点一次确认移除') : (isEn ? '从智囊团移除' : '从智囊团移除')}
                   </button>
                 )}
               </>

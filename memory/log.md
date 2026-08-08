@@ -793,6 +793,27 @@
 
 ---
 
+## 2026-08-08（第三十一批）
+
+### UI 全面优化：按 impeccable 审查报告落实（30/40 → 已清零检测器告警）
+**背景**: 用户要求用 impeccable skill 审查首页 UI 并落地优化。审查报告（.impeccable/critique/2026-08-08T14-22-31Z__src-app-page-js.md）指出 P0 深色次级文字不可读、P1 亮色 accent 对比不足/双金色主按钮/邀请失败错误被遮罩盖住/master-row 焦点不可见、P2 移动端提问卡被压到首屏外/弹窗焦点管理/性能、P3 死 CSS/重复 header/无 reduced-motion 等。
+
+**决策**: 保持「金色+学院风+纸感」既有品牌语言，只做层级收敛与可读性达标；立场色条（speech/裁决/引用块的语义色）作为品牌方言保留并注释说明。
+
+**实现**:
+- globals.css：深色 `--text-muted` #3a3a5a→#9b98ad（对比 1.8:1→6.7:1）、`--border`/`--border-subtle` 提亮；亮色 `--accent` #9a7830→#7d5f1f（4.1:1→5.9:1），neutral/accent-dim/bg 同步；追加 `prefers-reduced-motion` 全局降级
+- page.css：合并两份 `.header`（去 !important）；删死 CSS（.mode-switch/.mode-btn/.master-profile-btn/.master-del-btn/.solo-hint）；`.invite-entry` 金色渐变主按钮→幽灵按钮（透明底+金描边+金字），金色渐变只留 `.btn-submit`；全局 `:focus-visible` + `.master-row:focus-visible`；裁决条硬编码色改 var()；≤900px `.main{order:-1}` 提问卡先行；`@media(hover:none)` 触屏 ⋯ 常显；新增 `.invite-error`、`.profile-remove-btn.confirming`；立场色条 3px→2px 并加 impeccable-disable-line 注释；打字点动画 bounce→柔和呼吸淡入；裁决条 width transition→scaleX 生长动画
+- page.js：新增 `inviteError` 状态（邀请失败就近显示在弹窗内）；弹窗 Escape 统一关闭（invite/edit/history/supplement/poster/profile）；按钮加载文案「⟳ 召集中…」（i18n 新增 summoning）；🕘 emoji→内联 SVG 时钟；删除提问卡 footer 重复「已选 X/Y」；讨论容器点击跳过打字机；邀请弹窗输入框 autoFocus + aria-labelledby；各弹窗补 aria-labelledby/label
+- MasterProfileModal.js：移除虚拟大师两段式确认（点一次变「再点一次确认移除」，3 秒未点自动复位）；hooks 移到 early return 前 + 卸载清计时器（修 Rules of Hooks 违规）
+- favicon：PIL 重新生成 favicon.ico 445B / favicon.png 5KB（原各 1.67MB，首页多下 3.3MB）
+- 补提交此前遗漏的 28 张真实大师头像（public/avatars/*，masters.js 已引用，不提交线上会 404）
+
+**关键坑**: 新加的 Escape useEffect 依赖数组直接引用后置的 `skipSupplement`/`closeInvite` → 渲染期 TDZ 报错「Cannot access 'skipSupplement' before initialization」，整页水合失败（build 不报，浏览器才报）。已把该 effect 移到 skipSupplement 定义之后。教训：useEffect 依赖数组里的函数若声明在 effect 之后，渲染期求值会踩 TDZ。
+
+**验证**: npm run build 通过；impeccable detect 对 page.css/globals.css/page.js/组件 0 告警；应用内浏览器实测——暗色/亮色变量与对比度达标、邀请按钮幽灵样式生效、主按钮保留金色渐变、「已选 X/Y」仅一处、历史图标为 SVG、头像弹窗 aria 齐全、Escape 可关弹窗、邀请弹窗 autoFocus 生效、移动端媒体查询 `.main{order:-1}` 生效。
+
+**待办**: NEXT_PUBLIC_SITE_URL 目前是占位 your-domain.com，部署前需改成真实域名（layout.js metadataBase 会跟着生效）；弹窗焦点陷阱（focus trap）未做，属可选增强。
+
 ## 模板（新增记录时使用）
 
 ```markdown

@@ -82,6 +82,7 @@ export default function Home() {
   const [inviteStage, setInviteStage] = useState('');      // search | research | build
   const [inviteMaster, setInviteMaster] = useState(null); // 生成的画像（预览）
   const [inviteSources, setInviteSources] = useState([]); // 检索资料来源标题
+  const [inviteError, setInviteError] = useState(''); // 邀请弹窗内错误
   const [supplementOpen, setSupplementOpen] = useState(false); // 需要补充公司信息弹窗
   const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -270,6 +271,7 @@ export default function Home() {
     if (!nm || inviteBusy) return;
     setInviteBusy(true);
     setError('');
+    setInviteError('');
     setInvitePhase('building');
     setInviteStage('search');
     setInviteMaster(null);
@@ -303,16 +305,16 @@ export default function Home() {
               setInvitePhase('preview');
               finished = true;
             } else if (ev.stage === 'error') {
-              setError(ev.error || '生成失败，请重试');
+              setInviteError(ev.error || '生成失败，请重试');
               setInvitePhase('form');
               finished = true;
             }
           } catch (e) { /* 忽略半行 */ }
         }
       }
-      if (!finished) { setError('生成中断，请重试'); setInvitePhase('form'); }
+      if (!finished) { setInviteError('生成中断，请重试'); setInvitePhase('form'); }
     } catch (e) {
-      setError(e.message || '生成失败，请重试');
+      setInviteError(e.message || '生成失败，请重试');
       setInvitePhase('form');
     }
     setInviteBusy(false);
@@ -334,6 +336,7 @@ export default function Home() {
     setInviteMaster(null);
     setInviteSources([]);
     setError('');
+    setInviteError('');
     setInviteOpen(true);
   }, []);
 
@@ -347,6 +350,7 @@ export default function Home() {
     setInviteHint('');
     setInviteMaterials('');
     setError('');
+    setInviteError('');
   }, []);
 
   const removeCustomMaster = useCallback((id) => {
@@ -482,6 +486,7 @@ export default function Home() {
     }
     setPosterBusy(false);
   }, [result, query, selected, allMasters, posterBusy]);
+
 
   const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
 
@@ -779,6 +784,23 @@ export default function Home() {
     setTimeout(() => goRef.current(true), 80);
   }, []);
 
+  // 弹窗 Escape 关闭（除二维码外统一处理）
+  useEffect(() => {
+    const open = inviteOpen || editMaster || historyOpen || supplementOpen || posterOpen || profileMaster;
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (supplementOpen) skipSupplement();
+      else if (inviteOpen) closeInvite();
+      else if (editMaster) setEditMaster(null);
+      else if (historyOpen) setHistoryOpen(false);
+      else if (posterOpen) setPosterOpen(false);
+      else if (profileMaster) setProfileMaster(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inviteOpen, editMaster, historyOpen, supplementOpen, posterOpen, profileMaster, skipSupplement, closeInvite]);
+
   const sendFollowUp = useCallback(async () => {
     const msg = followUpInput.trim();
     if (!msg || !result || loadingFollowUp) return;
@@ -874,7 +896,10 @@ export default function Home() {
             title="历史对话"
             aria-label="历史对话"
           >
-            🕘
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 15 14" />
+            </svg>
           </button>
 
           <button
@@ -1059,9 +1084,8 @@ export default function Home() {
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             <div className="question-footer">
-              <span>{t('selectedCount', selected.size, allMasters.length)}</span>
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
-                {loading ? `⟳ ${t('loading')}` : t('btnSummon')}
+                {loading ? `⟳ ${t('summoning')}` : t('btnSummon')}
               </button>
             </div>
           </Card>
@@ -1085,7 +1109,12 @@ export default function Home() {
             )}
 
             {!loading && result && (
-              <div className="discussion-container">
+              <div
+                className="discussion-container"
+                onClick={() => {
+                  if (currentBlock && typingPhase === 'content' && typeCharIndex < currentLen) setTypeCharIndex(currentLen);
+                }}
+              >
                 {blocks.slice(0, revealStep).map((block, bi) => {
                   return (
                   <div key={`done-${bi}`} className="reveal-item">
@@ -1297,12 +1326,13 @@ export default function Home() {
       {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} onStartChat={startSoloChat} onRemove={removeCustomMaster} />}
 
       {inviteOpen && (
-        <div className="modal-overlay" onClick={closeInvite} role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={closeInvite} role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
           <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invite-head">
-              <h3 className="invite-title">{invitePhase === 'preview' || invitePhase === 'added' ? '大师档案卡' : '邀请一位大师'}</h3>
+              <h3 className="invite-title" id="inviteTitle">{invitePhase === 'preview' || invitePhase === 'added' ? '大师档案卡' : '邀请一位大师'}</h3>
               <button type="button" className="modal-close" onClick={closeInvite} aria-label="关闭">×</button>
             </div>
+            {inviteError && <div className="invite-error">⚠ {inviteError}</div>}
 
             {invitePhase === 'form' && (
               <>
@@ -1314,6 +1344,7 @@ export default function Home() {
                   onChange={(e) => setInviteName(e.target.value)}
                   placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                  autoFocus
                 />
                 <label className="invite-label">真实语录 / 资料（可选，强烈建议）</label>
                 <textarea
@@ -1400,10 +1431,10 @@ export default function Home() {
       )}
 
       {supplementOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="supplementTitle">
           <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invite-head">
-              <h3 className="invite-title">需要补充公司信息</h3>
+              <h3 className="invite-title" id="supplementTitle">需要补充公司信息</h3>
               <button type="button" className="modal-close" onClick={skipSupplement} aria-label="关闭">×</button>
             </div>
             <p className="invite-desc">这个问题可能需要某只具体公司的行情或财务数据，大师们才能引用最新数据。请补充公司名称或代码：</p>
@@ -1424,10 +1455,10 @@ export default function Home() {
       )}
 
       {editMaster && (
-        <div className="modal-overlay" onClick={() => setEditMaster(null)} role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={() => setEditMaster(null)} role="dialog" aria-modal="true" aria-labelledby="editTitle">
           <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invite-head">
-              <h3 className="invite-title">编辑画像 · {editMaster.name}</h3>
+              <h3 className="invite-title" id="editTitle">编辑画像 · {editMaster.name}</h3>
               <button type="button" className="modal-close" onClick={() => setEditMaster(null)} aria-label="关闭">×</button>
             </div>
             <p className="invite-desc">AI 生成的内容对网上资料少的人物可能不准确。请按真实情况修改，保存后辩论即生效。</p>
@@ -1458,10 +1489,10 @@ export default function Home() {
       )}
 
       {historyOpen && (
-        <div className="modal-overlay" onClick={() => setHistoryOpen(false)} role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={() => setHistoryOpen(false)} role="dialog" aria-modal="true" aria-labelledby="historyTitle">
           <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invite-head">
-              <h3 className="invite-title">历史对话</h3>
+              <h3 className="invite-title" id="historyTitle">历史对话</h3>
               <button type="button" className="modal-close" onClick={() => setHistoryOpen(false)} aria-label="关闭">×</button>
             </div>
             {historyList.length === 0 ? (
@@ -1481,7 +1512,7 @@ export default function Home() {
       )}
 
       {posterOpen && (
-        <div className="modal-overlay" onClick={() => setPosterOpen(false)} role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={() => setPosterOpen(false)} role="dialog" aria-modal="true" aria-label="分享海报">
           <div className="modal-content poster-modal" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="modal-close" onClick={() => setPosterOpen(false)} aria-label="关闭">×</button>
             {posterUrl && <img src={posterUrl} alt={t('sharePoster')} className="poster-img" />}
