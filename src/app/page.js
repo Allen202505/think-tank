@@ -969,7 +969,7 @@ export default function Home() {
         </aside>
 
         <main className="main">
-          <Card title={t('askLabel')} accent="var(--bull)">
+          <Card title={t('askLabel')} accent="var(--accent)">
             <div className="chat-mode-switch" role="tablist" aria-label="聊天方式">
               <button
                 type="button"
