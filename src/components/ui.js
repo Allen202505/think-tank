@@ -60,17 +60,21 @@ export function MasterAvatar({ master, size = 44, className = '' }) {
 
 export function MiniBtn({ children, onClick }) {
   const [h, setH] = useState(false);
+  const [pressed, setPressed] = useState(false);
   return (
     <button
       type="button"
       onClick={onClick}
       onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
+      onMouseLeave={() => { setH(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
       className="mini-btn"
       style={{
-        background: h ? 'var(--accent-bg)' : 'transparent',
+        background: h ? 'var(--accent)' : 'transparent',
         borderColor: h ? 'var(--accent)' : 'var(--border)',
-        color: h ? 'var(--accent)' : 'var(--text)',
+        color: h ? 'var(--on-accent)' : 'var(--text)',
+        transform: pressed ? 'translateY(1px)' : 'none',
       }}
     >
       {children}

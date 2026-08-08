@@ -1138,6 +1138,15 @@
 
 **验证**: 浏览器实测暗色——mini-btn 背景 rgba(0,0,0,0)、边框 #2a2a3e、文字浅色；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十八批）
+
+### 成员操作按钮：悬停/按下时金色实底
+**背景**: 用户反馈三个按钮（随机5人/全选/清空）「选中的时候」仍是透明不好，希望用金色填充。
+
+**实现** (src/components/ui.js MiniBtn)：hover 由淡金底 var(--accent-bg) 改为金色实底 var(--accent)+var(--on-accent) 文字+金描边；新增 pressed 状态（mousedown 时 translateY(1px) 按压反馈，mouseup/mouseleave 复位）。
+
+**验证**: 浏览器实测（鼠标移动模拟悬停）——hover 背景 rgb(125,95,31) 金、文字白、描边金；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
