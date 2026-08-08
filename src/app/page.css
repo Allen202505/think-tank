@@ -284,15 +284,15 @@
 .profile-remove-btn:hover { opacity: 1; background: rgba(224, 85, 85, 0.1); }
 
 /* ─── 两级交互：群聊/单聊 + 群聊风格 ─── */
-.chat-mode-switch { display: flex; gap: 6px; margin-bottom: 10px; }
-.chat-mode-btn { flex: 1; padding: 11px 8px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+.chat-mode-switch { display: flex; gap: 6px; margin-bottom: 10px; justify-content: flex-start; }
+.chat-mode-btn { flex: 0 1 auto; min-width: 92px; padding: 11px 20px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
 .chat-mode-btn:hover:not(.active) { border-color: var(--accent-dim); color: var(--text); }
 .chat-mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .group-style { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .group-style .style-label { font-family: var(--font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: var(--text); white-space: nowrap; }
 
 /* 群聊风格下拉 */
-.style-select { flex: 1; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 12px; padding: 9px 10px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer; }
+.style-select { flex: 0 1 auto; width: auto; max-width: 340px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 12px; padding: 9px 10px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer; }
 .style-select:focus { outline: none; border-color: var(--accent); }
 
 /* 单聊对象 chips */

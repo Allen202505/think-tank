@@ -1100,6 +1100,15 @@
 
 **验证**: 浏览器实测标签 12px/600/深色；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十四批）
+
+### 群聊/单聊 tab 与风格下拉宽度优化（去 flex:1 撑满）
+**背景**: 用户反馈 tab 太宽、风格下拉选项也很宽。
+
+**实现** (page.css)：.chat-mode-btn flex:1→flex:0 1 auto + min-width 92px + padding 20px；.style-select flex:1→flex:0 1 auto + max-width 340px；.chat-mode-switch justify-content flex-start。
+
+**验证**: 浏览器实测——tab 92px×2（原各~466px）、风格下拉 183px（原 932px 整行）；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
