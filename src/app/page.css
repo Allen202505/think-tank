@@ -113,7 +113,7 @@
 .followup-hint-inline { margin-top: 8px; font-size: 15px; color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
 .card-panel { background: transparent; border: none; border-radius: 0; padding: 4px 0 12px; position: relative; }
 .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
-.card-title { font-family: var(--font-mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.card-title { font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 .card-title-line { flex: 1; height: 1px; background: var(--border-subtle); }
 .mini-btn { flex: 1; padding: 8px 4px; border: 1px solid; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); border-radius: 8px; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 .mini-btn span { font-size: 12px; line-height: 1; }
@@ -231,7 +231,7 @@
 .master-style { font-size: 10px; color: var(--text-muted); }
 
 /* ─── 邀请大师：醒目入口 ─── */
-.invite-entry { width: 100%; padding: 11px 14px; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-sans); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
+.invite-entry { width: 100%; padding: 11px 14px; margin: 2px 0 10px; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: var(--font-sans); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
 .invite-entry:hover { background: var(--accent-bg); border-color: var(--accent); }
 .invite-entry .ie-icon { font-size: 16px; }
 

@@ -956,9 +956,6 @@ export default function Home() {
 
       <div className="main-layout">
         <aside className="sidebar">
-          <button type="button" className="invite-entry" onClick={openInvite}>
-            <span className="ie-icon">✦</span> 邀请一位大师
-          </button>
           <Card title={t('membersTitle')} accent="var(--accent)">
             {chatMode === 'group' && (
               <div className="sidebar-actions">
@@ -972,6 +969,9 @@ export default function Home() {
                 ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
                 : t('selectedCount', selected.size, allMasters.length)}
             </div>
+            <button type="button" className="invite-entry" onClick={openInvite}>
+              <span className="ie-icon">✦</span> 邀请一位大师
+            </button>
             <div className="master-list">
               {allMasters.map(inv => {
                 const on = selected.has(inv.id);
