@@ -443,6 +443,23 @@
 
 ---
 
+## 2026-08-08（第十二批）
+
+### ⚠️ 事故修复：本地网站 500 打不开（.next 缓存损坏）
+**背景**: 用户反馈网站打不开。根因：**开发服务器运行时我执行了 `npm run build`**——dev 与 build 共用 `.next` 目录，生产构建清理/覆盖了 dev 的构建产物，导致 dev 引用不存在的 chunk（`Cannot find module './948.js'`），页面/静态资源全 500。
+
+**修复**:
+1. 停止 dev 服务器
+2. `rm -rf .next`（构建缓存，可安全清除）
+3. 重新 `npm run dev` → 首页/大师页/接口全部 200 恢复正常
+
+**教训（重要）**:
+- ⚠️ **不要在 `npm run dev` 运行期间执行 `npm run build`**；需要构建时必须先停 dev。
+- 若本地出现 `Cannot find module './NNN.js'` 或整站 500：先停 dev → 清 `.next` → 重启 dev。
+- 验证本地页面用：`curl http://localhost:3000/` 状态码 200 + HTML 开头正常。
+
+---
+
 ## 模板（新增记录时使用）
 
 ```markdown
