@@ -74,7 +74,6 @@ export default function Home() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteHint, setInviteHint] = useState('');
-  const [inviteMaterials, setInviteMaterials] = useState('');
   const [editMaster, setEditMaster] = useState(null); // 正在编辑画像的虚拟大师
   const [editForm, setEditForm] = useState({});
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -280,7 +279,7 @@ export default function Home() {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nm, hint: inviteHint.trim(), materials: inviteMaterials.trim() }),
+        body: JSON.stringify({ name: nm, hint: inviteHint.trim() }),
       });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -318,7 +317,7 @@ export default function Home() {
       setInvitePhase('form');
     }
     setInviteBusy(false);
-  }, [inviteName, inviteHint, inviteMaterials, inviteBusy]);
+  }, [inviteName, inviteHint, inviteBusy]);
 
   // 确认加入智囊团（持久化 + 选中）
   const confirmInvite = useCallback(() => {
@@ -348,7 +347,6 @@ export default function Home() {
     setInviteSources([]);
     setInviteName('');
     setInviteHint('');
-    setInviteMaterials('');
     setError('');
     setInviteError('');
   }, []);
@@ -1344,13 +1342,6 @@ export default function Home() {
                   placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   autoFocus
-                />
-                <label className="invite-label">真实语录 / 资料（可选，强烈建议）</label>
-                <textarea
-                  className="invite-input invite-textarea"
-                  value={inviteMaterials}
-                  onChange={(e) => setInviteMaterials(e.target.value)}
-                  placeholder="粘贴这个人的公开语录、采访片段或你的补充描述，AI 会按真人资料建模，风格更像本人"
                 />
                 <label className="invite-label">补充说明（可选）</label>
                 <textarea
