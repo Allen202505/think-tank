@@ -162,9 +162,18 @@
 /* 修复：侧边栏成员卡不被 flex 压缩，保证列表完整可滚动 */
 .sidebar > .card-panel { flex-shrink: 0; }
 
-/* ─── 氛围背景（大师肖像） ─── */
+/* ─── 氛围背景（大师肖像 → 金色双色调水印，藏书票质感） ─── */
 .bg-master-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.bg-master-layer img { width: 100%; height: 100%; object-fit: cover; filter: blur(16px) saturate(1.05); opacity: 0.3; transform: scale(1.1); }
+.bg-master-layer img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: grayscale(1) sepia(0.6) saturate(1.5) brightness(1.02) contrast(1.02) blur(1.6px);
+  opacity: 0.17;
+  transform: scale(1.03);
+  /* 右侧大面积淡入，向内容区渐隐（旧书藏书票/铜版画水印质感） */
+  -webkit-mask-image: radial-gradient(ellipse 100% 90% at 78% 8%, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.5) 42%, transparent 74%);
+  mask-image: radial-gradient(ellipse 100% 90% at 78% 8%, rgba(0, 0, 0, 0.95) 10%, rgba(0, 0, 0, 0.5) 42%, transparent 74%);
+}
+[data-theme="dark"] .bg-master-layer img { opacity: 0.24; }
 .page-root { z-index: 1; }
 .bg-control { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
 .bg-label { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); white-space: nowrap; }

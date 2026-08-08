@@ -60,16 +60,25 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* 学院风背景：暗色为书房/羊皮纸纹理感，亮色为浅色羊皮纸 */
+/* 学院风背景：亮色=陈年羊皮纸（颗粒+金色光晕+边缘晕影），暗色=书房琥珀光（暖色灯晕+压暗四角） */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: 
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E") repeat,
+    radial-gradient(ellipse 90% 72% at 50% 0%, transparent 55%, rgba(74, 58, 28, 0.07) 100%),
     radial-gradient(ellipse 80% 50% at 20% 10%, var(--accent-bg), transparent 45%),
     radial-gradient(ellipse 60% 40% at 85% 85%, var(--accent-bg), transparent 40%);
   z-index: 0;
+}
+[data-theme="dark"] body::before {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E") repeat,
+    radial-gradient(ellipse 90% 72% at 50% 0%, transparent 42%, rgba(0, 0, 0, 0.42) 100%),
+    radial-gradient(ellipse 70% 46% at 22% 12%, rgba(201, 168, 76, 0.10), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 80% 88%, rgba(201, 168, 76, 0.07), transparent 50%);
 }
 
 /* 滚动条 */
