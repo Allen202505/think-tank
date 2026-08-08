@@ -268,3 +268,13 @@
 .profile-sources li:last-child { border-bottom: none; }
 .profile-remove-btn { background: none; border: none; cursor: pointer; padding: 2px 0; font-size: 11px; color: var(--bear); font-family: var(--font-sans); opacity: 0.75; }
 .profile-remove-btn:hover { opacity: 1; }
+
+/* ─── 两级交互：群聊/单聊 + 群聊风格 ─── */
+.chat-mode-switch { display: flex; gap: 6px; margin-bottom: 10px; }
+.chat-mode-btn { flex: 1; padding: 11px 8px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+.chat-mode-btn:hover:not(.active) { border-color: var(--accent-dim); color: var(--text); }
+.chat-mode-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; }
+.group-style { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.group-style .style-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; color: var(--text-muted); white-space: nowrap; }
+.group-style .mode-switch { flex: 1; margin-bottom: 0; }
+.solo-hint { margin: -2px 0 10px; font-size: 11px; color: var(--text-muted); font-family: var(--font-sans); }

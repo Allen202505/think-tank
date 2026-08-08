@@ -68,7 +68,8 @@ export default function Home() {
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterUrl, setPosterUrl] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
-  const [mode, setMode] = useState('debate'); // 对话模式：debate/explore/teach
+  const [chatMode, setChatMode] = useState('group'); // 群聊 / 单聊
+  const [mode, setMode] = useState('debate'); // 群聊风格：debate/explore/teach
   const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -153,7 +154,17 @@ export default function Home() {
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', theme);
     if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
+    // 恢复聊天方式
+    try {
+      const cm = localStorage.getItem('chat-mode-v1');
+      if (cm === 'group' || cm === 'solo') setChatMode(cm);
+    } catch (e) { /* ignore */ }
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem('chat-mode-v1', chatMode); } catch (e) { /* ignore */ }
+  }, [chatMode]);
 
   // ─── 讨论持久化（#6）：刷新/重开页面可恢复最近一场 ───
   const STORAGE_KEY = 'master-debate-state-v1';
@@ -367,6 +378,7 @@ export default function Home() {
 
   // 一键进入与某位大师的一对一单聊
   const startSoloChat = useCallback((master) => {
+    setChatMode('solo');
     setSelected(new Set([master.id]));
     setProfileMaster(null);
     setQuery('');
@@ -669,6 +681,9 @@ export default function Home() {
   const go = useCallback(async () => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
     if (selected.size === 0) { setError(t('summonErrorNoMaster')); return; }
+    const soloRequested = chatMode === 'solo';
+    if (soloRequested && selected.size !== 1) { setError(t('summonErrorSoloCount')); return; }
+    if (!soloRequested && selected.size < 2) { setError(t('summonErrorGroupCount')); return; }
 
     setError('');
     setNotice('');
@@ -702,7 +717,7 @@ export default function Home() {
     }
 
     const investors = allMasters.filter(i => selected.has(i.id));
-    const isSolo = investors.length === 1; // 点对点深聊
+    const isSolo = soloRequested; // 单聊：一对一深聊
     const host = isSolo ? investors[0] : investors[Math.floor(Math.random() * investors.length)];
     const speechOrder = [...investors].sort(() => Math.random() - 0.5);
     const seq = isSolo
@@ -722,7 +737,7 @@ export default function Home() {
       setCurrentBlock({ type: isSolo ? 'speech' : 'hostOpening', speakerId: host.id });
       setLoading(false);
     }, showLoadingMinMs);
-  }, [query, selected, allMasters]);
+  }, [query, selected, allMasters, chatMode]);
 
   const sendFollowUp = useCallback(async () => {
     const msg = followUpInput.trim();
@@ -940,26 +955,54 @@ export default function Home() {
               ))}
             </select>
           </div>
-          <p className="sidebar-hint">{t('sidebarHint')}</p>
+          <p className="sidebar-hint">{chatMode === 'group' ? t('sidebarHintGroup') : t('sidebarHintSolo')}</p>
         </aside>
 
         <main className="main">
           <Card title={t('askLabel')} accent="var(--bull)">
-            <div className="mode-switch" role="tablist" aria-label="对话模式">
-              {Object.entries(MODES).map(([k, m]) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === k}
-                  className={`mode-btn ${mode === k ? 'active' : ''}`}
-                  onClick={() => setMode(k)}
-                  title={m.hint}
-                >
-                  {m.label}
-                </button>
-              ))}
+            <div className="chat-mode-switch" role="tablist" aria-label="聊天方式">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chatMode === 'group'}
+                className={`chat-mode-btn ${chatMode === 'group' ? 'active' : ''}`}
+                onClick={() => setChatMode('group')}
+              >
+                群聊
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chatMode === 'solo'}
+                className={`chat-mode-btn ${chatMode === 'solo' ? 'active' : ''}`}
+                onClick={() => setChatMode('solo')}
+              >
+                单聊
+              </button>
             </div>
+            {chatMode === 'group' && (
+              <div className="group-style">
+                <span className="style-label">风格</span>
+                <div className="mode-switch" role="tablist" aria-label="群聊风格">
+                  {Object.entries(MODES).map(([k, m]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="tab"
+                      aria-selected={mode === k}
+                      className={`mode-btn ${mode === k ? 'active' : ''}`}
+                      onClick={() => setMode(k)}
+                      title={m.hint}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {chatMode === 'solo' && (
+              <p className="solo-hint">与 1 位大师一对一深聊，TA 直接回答你的问题，可连续追问。</p>
+            )}
             <textarea
               value={query}
               onChange={e => setQuery(e.target.value)}
