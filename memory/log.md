@@ -1156,6 +1156,17 @@
 
 **验证**: 浏览器实测浅色占位颜色 rgb(92,90,84)、opacity 1，清晰可读；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十批）
+
+### 占位文字再强化 + 去掉标题区分割线
+**背景**: 用户反馈占位文字还是有点弱；标题区与内容区之间的分割线可以拿掉。
+
+**实现** (page.css)：
+- 占位文字由 var(--text-muted) 再强化：暗色 #b4b0c4（更亮）、亮色 #4a463f（更深）；并清理一条残留的旧 `.question-input::placeholder{color:var(--text-muted)}` 覆盖规则（此前导致提问框占位没生效）
+- 删除 `.header::after` 渐隐金线（标题与内容之间不再有分割线）
+
+**验证**: 浏览器实测——暗色占位 rgb(180,176,196)、亮色 rgb(74,70,63)；header::after content=none（已移除）；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

@@ -3,8 +3,6 @@
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .master-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; padding: 26px 18px 14px; position: relative; flex-wrap: wrap; background: transparent; }
-/* 标题区与内容区之间：一条渐隐的细金线，柔和过渡而非硬切 */
-.header::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--accent), rgba(0, 0, 0, 0) 72%); opacity: 0.3; pointer-events: none; }
 .header-main { min-width: 0; }
 .header-title { font-size: clamp(20px, 3.4vw, 30px); font-weight: 800; color: var(--accent); letter-spacing: 0.02em; line-height: 1.2; margin: 0; }
 .header-desc { color: var(--text-muted); font-size: 11px; margin-top: 5px; letter-spacing: 0.12em; font-family: var(--font-mono); }
@@ -45,11 +43,13 @@
 .sidebar-hint { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted); }
 .question-input { width: 100%; box-sizing: border-box; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-family: var(--font-serif); font-size: 14px; padding: 12px; resize: vertical; min-height: 90px; outline: none; line-height: 1.75; border-radius: 4px; transition: border-color 0.2s; }
 .question-input:focus { border-color: var(--accent); }
-/* 输入框占位文字：比浏览器默认更清晰 */
+/* 输入框占位文字：清晰可读（暗色更亮 / 亮色更深，与正文区分但不再发虚） */
 .question-input::placeholder,
 .followup-input::placeholder,
-.invite-input::placeholder { color: var(--text-muted); opacity: 1; }
-.question-input::placeholder { color: var(--text-muted); }
+.invite-input::placeholder { color: #b4b0c4; opacity: 1; }
+[data-theme="light"] .question-input::placeholder,
+[data-theme="light"] .followup-input::placeholder,
+[data-theme="light"] .invite-input::placeholder { color: #4a463f; }
 .error-msg { margin-top: 8px; padding: 9px 13px; background: rgba(224,85,85,0.08); border: 1px solid #c04040; color: var(--bear); font-size: 12px; border-radius: 4px; font-family: var(--font-mono); }
 .question-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
 .btn-submit { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); padding: 10px 24px; font-family: var(--font-serif); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: transform 0.15s, box-shadow 0.15s, filter 0.15s; }
