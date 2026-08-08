@@ -12,14 +12,14 @@
   --border-subtle: #34344c;
   --text: #e8e4d8;
   --text-muted: #9b98ad;
-  --accent: #c9a84c;
+  --accent: #a5832a; /* 暗色主题：暗金（原亮黄 #c9a84c 过亮） */
   --accent-strong: #9a7830; /* 金色渐变末端（暗色主题偏浅，适合深字） */
   --on-accent: #0a0a0f; /* 金色/强调色背景上的文字（暗色主题用深字） */
-  --accent-dim: rgba(201, 168, 76, 0.25);
-  --accent-bg: rgba(201, 168, 76, 0.08);
+  --accent-dim: rgba(165, 131, 42, 0.30);
+  --accent-bg: rgba(165, 131, 42, 0.10);
   --bull: #4caf7d;
   --bear: #e05555;
-  --neutral: #c9a84c;
+  --neutral: #a5832a;
   --font-serif: Georgia, "Songti SC", "SimSun", serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: "SF Mono", "Consolas", monospace;
