@@ -912,9 +912,9 @@ export default function Home() {
           <Card title={t('membersTitle')} accent="var(--accent)">
             {chatMode === 'group' && (
               <div className="sidebar-actions">
+                <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}><span aria-hidden="true">🎲</span>{t('membersRandom5')}</MiniBtn>
                 <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}><span aria-hidden="true">✓</span>{t('membersSelectAll')}</MiniBtn>
                 <MiniBtn onClick={() => setSelected(new Set())}><span aria-hidden="true">✕</span>{t('membersClear')}</MiniBtn>
-                <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}><span aria-hidden="true">🎲</span>{t('membersRandom5')}</MiniBtn>
               </div>
             )}
             <div className="sidebar-count">
