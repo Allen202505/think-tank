@@ -230,9 +230,16 @@ const NOISE_SUFFIXES = [
   '重仓', '浮亏', '怎么', '吗', '呢', '吧', '啊', '了', '的', '更', '还', '再',
 ];
 const LEADING_NOISE = [
-  '我觉得', '我认为', '请问一下', '请问', '想问一下', '想问', '我想问', '我想',
-  '大家', '各位', '老师们', '老师', '朋友们', '帮我', '给我', '分析一下', '分析下',
-  '分析', '看看', '看一下', '看下', '现在',
+  '能不能给我讲讲', '能不能给我', '能不能聊聊', '能不能讲一下', '能不能说说',
+  '可不可以给我', '可不可以', '能不能', '解读一下', '解读', '分析一下', '分析下',
+  '分析', '介绍一下', '介绍', '评价一下', '评价', '聊一下', '聊一聊', '谈谈',
+  '谈一下', '说说', '讲一下', '讲讲', '看看', '看一下', '看下', '请问一下',
+  '请问', '想问一下', '想问', '我想问', '我想', '大家', '各位', '老师们', '老师',
+  '朋友们', '帮我', '给我', '我觉得', '我认为', '现在', '目前',
+];
+const TAIL_NOISE = [
+  '这家公司', '那家公司', '这个公司', '这只股票', '这只票', '这只股', '这只',
+  '这个', '那个', '该公司', '该股', '个股', '公司', '股票', '怎么样', '怎么样啊',
 ];
 
 // 循环剥离问法/噪音词，直到稳定（防止"还值得持有吗"剥完还留个"还"字）
@@ -246,6 +253,9 @@ function stripNoise(seg) {
     }
     for (const n of LEADING_NOISE) {
       if (seg.startsWith(n)) { seg = seg.slice(n.length); break; }
+    }
+    for (const n of TAIL_NOISE) {
+      if (seg.endsWith(n)) { seg = seg.slice(0, -n.length); break; }
     }
     guard += 1;
   } while (seg !== prev && guard < 8 && seg.length > 0);
@@ -263,17 +273,17 @@ function extractCompanyCandidates(query) {
     let idx = query.indexOf(suf);
     while (idx !== -1) {
       let start = idx;
-      while (start > 0 && /[\u4e00-\u9fa5]/.test(query[start - 1]) && idx - start < 8) start -= 1;
+      while (start > 0 && /[\u4e00-\u9fa5]/.test(query[start - 1]) && idx - start < 10) start -= 1;
       const name = query.slice(start, idx + suf.length);
-      if (name.length >= 2 && name.length <= 8 && name !== suf) found.add(name);
+      if (name.length >= 2 && name.length <= 10 && name !== suf) found.add(name);
       idx = query.indexOf(suf, idx + suf.length);
     }
   }
 
-  // 2) 分段 + 剥离问法词
+  // 2) 分段 + 剥离问法词（先允许较长片段，剥完再检查长度）
   for (let seg of query.split(SEGMENT_SPLIT)) {
     seg = seg.replace(/[^\u4e00-\u9fa5]/g, '');
-    if (seg.length < 2 || seg.length > 10) continue;
+    if (seg.length < 2 || seg.length > 20) continue;
     seg = stripNoise(seg);
     for (const n of ['哪个', '什么', '为什么', '如何', '是否']) {
       const i = seg.indexOf(n);
@@ -283,8 +293,9 @@ function extractCompanyCandidates(query) {
     if (seg.length >= 2 && seg.length <= 8) found.add(seg);
   }
 
+  // 不按子串去重（避免"解读一下双环科技"挤掉"双环科技"），由解析结果按 secid 去重
   const arr = Array.from(found).sort((a, b) => b.length - a.length);
-  return arr.filter((n, i) => !arr.some((m, j) => j !== i && m.includes(n) && m.length > n.length)).slice(0, 4);
+  return arr.slice(0, 5);
 }
 
 // 用东财搜索解析任意公司名（优先 A 股，其次港股/美股）

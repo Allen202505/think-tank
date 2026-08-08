@@ -36,18 +36,35 @@ export async function POST(request) {
       }
     }
 
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        max_tokens: 8192,
-        messages,
-      }),
-    });
+    // 网络偶发抖动时重试一次（fetch 抛错而非 HTTP 错误码）
+    let response;
+    try {
+      response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+          max_tokens: 8192,
+          messages,
+        }),
+      });
+    } catch (e) {
+      response = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+          max_tokens: 8192,
+          messages,
+        }),
+      });
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -61,6 +78,10 @@ export async function POST(request) {
     // 返回与前端约定格式一致：content 数组，每项含 text
     return Response.json({ content: [{ text: content }] });
   } catch (e) {
-    return Response.json({ error: e.message || '服务器内部错误' }, { status: 500 });
+    const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
+    return Response.json(
+      { error: isNet ? '连接 AI 服务失败（网络异常），请稍后重试' : (e.message || '服务器内部错误') },
+      { status: 500 },
+    );
   }
 }
