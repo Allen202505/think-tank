@@ -1045,6 +1045,17 @@
 
 **验证**: 浏览器实测 DOM 顺序为 🎲随机5人 → ✓全选 → ✕清空；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第四十九批）
+
+### 「召集智囊团」按钮：移到右下角 + 配色与群聊激活 tab 一致
+**背景**: 用户要求按钮放右下角（当前左下角），配色改成与群聊 tab 切换一致（金色背景+白色前景）。
+
+**实现**:
+- page.css：.question-footer justify-content space-between→flex-end（单子元素时按钮贴右）；.btn-submit 由「墨底金字」改回「var(--accent) 底 + var(--on-accent) 字」（浅色=金底白字，深色=浅金底深字，与 .chat-mode-btn.active 完全一致），hover 保留上浮+增亮
+- globals.css：删除已无用的 --btn-primary-bg / --btn-primary-text token
+
+**验证**: 浏览器实测——按钮右间隙 0（贴右下角）、justify flex-end；按钮 bg/color 与 chat-mode-btn.active 完全一致（rgb(125,95,31) 底 + 白字）；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

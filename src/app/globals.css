@@ -6,8 +6,6 @@
   --bg-card-main: #0e0e18;
   --bg-input: #0d0d18;
   --header-bg: rgba(16, 16, 26, 0.72);
-  --btn-primary-bg: #1c1b23;
-  --btn-primary-text: #c9a84c;
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px -16px rgba(0, 0, 0, 0.5);
   --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.3);
   --border: #2a2a3e;
@@ -36,8 +34,6 @@
   --bg-card-main: #fbf6ea;
   --bg-input: #faf8f3;
   --header-bg: rgba(255, 254, 249, 0.72);
-  --btn-primary-bg: #201f26;
-  --btn-primary-text: #c9a84c;
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05), 0 10px 26px -18px rgba(0, 0, 0, 0.16);
   --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.05);
   --border: #d4cfc4;
