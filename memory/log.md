@@ -1147,6 +1147,15 @@
 
 **验证**: 浏览器实测（鼠标移动模拟悬停）——hover 背景 rgb(125,95,31) 金、文字白、描边金；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十九批）
+
+### 输入框占位文字增强
+**背景**: 用户反馈输入框内容太弱。此前未设 ::placeholder 样式，浏览器默认半透明占位文字很淡。
+
+**实现** (page.css)：.question-input/.followup-input/.invite-input 的 ::placeholder 显式设为 color var(--text-muted) + opacity 1（浅色 #5c5a54 / 深色 #9b98ad）。
+
+**验证**: 浏览器实测浅色占位颜色 rgb(92,90,84)、opacity 1，清晰可读；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
