@@ -74,6 +74,8 @@ export default function Home() {
   const [inviteName, setInviteName] = useState('');
   const [inviteHint, setInviteHint] = useState('');
   const [inviteMaterials, setInviteMaterials] = useState('');
+  const [editMaster, setEditMaster] = useState(null); // 正在编辑画像的虚拟大师
+  const [editForm, setEditForm] = useState({});
   const [inviteBusy, setInviteBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
@@ -286,6 +288,32 @@ export default function Home() {
       return next;
     });
   }, [persistCustoms]);
+
+  // ─── 编辑虚拟大师画像（AI 生成可能不准，用户可修正） ───
+  const openEditMaster = useCallback((master) => {
+    setEditMaster(master);
+    setEditForm({
+      title: master.title || '',
+      style: master.style || '',
+      personality: master.personality || '',
+      quote: master.quote || '',
+      biography: master.biography || '',
+      classicTheory: master.classicTheory || '',
+      knowledge: master.knowledge || '',
+      coreViews: master.coreViews || '',
+      phrases: master.phrases || '',
+    });
+  }, []);
+
+  const saveEditMaster = useCallback(() => {
+    if (!editMaster) return;
+    setCustomMasters((prev) => {
+      const next = prev.map((m) => (m.id === editMaster.id ? { ...m, ...editForm } : m));
+      persistCustoms(next);
+      return next;
+    });
+    setEditMaster(null);
+  }, [editMaster, editForm, persistCustoms]);
 
   // ─── 背景大师 ───
   const handleBgMaster = useCallback((id) => {
@@ -1102,7 +1130,7 @@ export default function Home() {
         </main>
       </div>
 
-      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} />}
+      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} />}
 
       {inviteOpen && (
         <div className="modal-overlay" onClick={() => setInviteOpen(false)} role="dialog" aria-modal="true">
@@ -1138,6 +1166,40 @@ export default function Home() {
               <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>
                 {inviteBusy ? '生成中…' : '生成并加入'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editMaster && (
+        <div className="modal-overlay" onClick={() => setEditMaster(null)} role="dialog" aria-modal="true">
+          <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invite-head">
+              <h3 className="invite-title">编辑画像 · {editMaster.name}</h3>
+              <button type="button" className="modal-close" onClick={() => setEditMaster(null)} aria-label="关闭">×</button>
+            </div>
+            <p className="invite-desc">AI 生成的内容对网上资料少的人物可能不准确。请按真实情况修改，保存后辩论即生效。</p>
+            <label className="invite-label">称号</label>
+            <input className="invite-input" value={editForm.title || ''} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
+            <label className="invite-label">投资风格与特点</label>
+            <textarea className="invite-input invite-textarea" value={editForm.style || ''} onChange={(e) => setEditForm((f) => ({ ...f, style: e.target.value }))} />
+            <label className="invite-label">性格与发言风格</label>
+            <textarea className="invite-input invite-textarea" value={editForm.personality || ''} onChange={(e) => setEditForm((f) => ({ ...f, personality: e.target.value }))} />
+            <label className="invite-label">金句</label>
+            <input className="invite-input" value={editForm.quote || ''} onChange={(e) => setEditForm((f) => ({ ...f, quote: e.target.value }))} />
+            <label className="invite-label">经历简介</label>
+            <textarea className="invite-input invite-textarea" value={editForm.biography || ''} onChange={(e) => setEditForm((f) => ({ ...f, biography: e.target.value }))} />
+            <label className="invite-label">经典理论 / 方法论</label>
+            <textarea className="invite-input invite-textarea" value={editForm.classicTheory || ''} onChange={(e) => setEditForm((f) => ({ ...f, classicTheory: e.target.value }))} />
+            <label className="invite-label">知识域 / 思维框架（可选）</label>
+            <textarea className="invite-input invite-textarea" value={editForm.knowledge || ''} onChange={(e) => setEditForm((f) => ({ ...f, knowledge: e.target.value }))} />
+            <label className="invite-label">核心观点（可选，分号分隔）</label>
+            <textarea className="invite-input invite-textarea" value={editForm.coreViews || ''} onChange={(e) => setEditForm((f) => ({ ...f, coreViews: e.target.value }))} />
+            <label className="invite-label">常用话术（可选）</label>
+            <input className="invite-input" value={editForm.phrases || ''} onChange={(e) => setEditForm((f) => ({ ...f, phrases: e.target.value }))} />
+            <div className="invite-actions">
+              <button type="button" className="invite-btn invite-btn-ghost" onClick={() => setEditMaster(null)}>取消</button>
+              <button type="button" className="invite-btn invite-btn-primary" onClick={saveEditMaster}>保存</button>
             </div>
           </div>
         </div>

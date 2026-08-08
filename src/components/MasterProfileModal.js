@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
 // 大师资料弹窗（从 page.js 拆出）
-
-export default function MasterProfileModal({ master, onClose, locale }) {
+export default function MasterProfileModal({ master, onClose, locale, onEdit }) {
   if (!master) return null;
   const isEn = locale === 'en';
+  const isCustom = master.source === 'custom';
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="modal-content profile-modal" onClick={e => e.stopPropagation()} style={{ borderColor: master.color }}>
@@ -39,7 +39,13 @@ export default function MasterProfileModal({ master, onClose, locale }) {
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
             「{master.quote}」
           </blockquote>
-          {master.source !== 'custom' && (
+          {isCustom ? (
+            onEdit && (
+              <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
+                ✏️ {isEn ? '编辑画像' : '编辑画像'}
+              </button>
+            )
+          ) : (
             <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
               {isEn ? '查看大师主页 →' : '查看大师主页 →'}
             </Link>
