@@ -205,6 +205,102 @@ function secidFromACode(code) {
   return code.startsWith('6') ? `1.${code}` : `0.${code}`;
 }
 
+// 常见公司名后缀（用于从问题里自动识别词典外的公司）
+const COMPANY_SUFFIXES = [
+  '集团', '股份', '控股', '科技', '国际', '银行', '证券', '保险', '医药', '生物',
+  '电子', '通信', '电力', '钢铁', '汽车', '食品', '传媒', '地产', '航空', '石油',
+  '化工', '建设', '发展', '工业', '材料', '物流', '珠宝', '乳业', '电器', '重工',
+  '装备', '矿业', '机械', '软件', '信息', '环保', '健康', '医疗', '商业', '贸易',
+  '家居', '服装', '纺织', '基建', '半导体', '光伏', '风电', '储能', '氢能', '芯片',
+  '面板', '光学', '旅游', '酒店', '餐饮', '调味', '化纤', '塑料', '橡胶', '建材',
+  '黄金', '稀土', '煤炭', '天然气', '热力', '燃气', '水务', '港口', '高速', '租赁',
+  '期货', '基金', '装饰', '园林', '生态', '新能源', '智能', '数据', '网络', '游戏',
+  '啤酒', '白酒', '水泥', '玻璃', '家电', '农牧', '种业', '电梯', '电气', '仪表',
+];
+
+// 从问题文本中提取可能的公司名：
+// 1) 按后缀启发式（词典外但带"股份/集团/科技"等后缀的公司）
+// 2) 按分隔符分段 + 剥离问法/噪音词（覆盖无后缀公司名，如"中国中车""东方雨虹"）
+const SEGMENT_SPLIT = /[，。？！；、,.!?;:：\s]+|和|与|及|或|跟|还有/;
+const NOISE_SUFFIXES = [
+  '怎么样', '值得长期持有吗', '值得持有吗', '值得买吗', '还能拿吗', '还能买吗',
+  '现在能买吗', '现在能拿吗', '可以买吗', '可以持有吗', '哪个更好', '哪个更稳',
+  '哪个好', '应该怎么看', '怎么看', '更稳', '更好', '看好', '看空',
+  '是否', '相比', '对比', '如何', '现在', '目前', '长期', '持有', '买入', '卖出',
+  '重仓', '浮亏', '怎么', '吗', '呢', '吧', '啊', '了', '的', '更', '还', '再',
+];
+const LEADING_NOISE = [
+  '我觉得', '我认为', '请问一下', '请问', '想问一下', '想问', '我想问', '我想',
+  '大家', '各位', '老师们', '老师', '朋友们', '帮我', '给我', '分析一下', '分析下',
+  '分析', '看看', '看一下', '看下', '现在',
+];
+
+// 循环剥离问法/噪音词，直到稳定（防止"还值得持有吗"剥完还留个"还"字）
+function stripNoise(seg) {
+  let prev;
+  let guard = 0;
+  do {
+    prev = seg;
+    for (const n of NOISE_SUFFIXES) {
+      if (seg.endsWith(n)) { seg = seg.slice(0, -n.length); break; }
+    }
+    for (const n of LEADING_NOISE) {
+      if (seg.startsWith(n)) { seg = seg.slice(n.length); break; }
+    }
+    guard += 1;
+  } while (seg !== prev && guard < 8 && seg.length > 0);
+  for (const n of ['还', '了', '的', '呢', '吧', '吗', '更', '再', '想', '要', '买', '卖']) {
+    if (seg.length > 2 && seg.endsWith(n)) seg = seg.slice(0, -1);
+  }
+  return seg;
+}
+
+function extractCompanyCandidates(query) {
+  const found = new Set();
+
+  // 1) 后缀启发式
+  for (const suf of COMPANY_SUFFIXES) {
+    let idx = query.indexOf(suf);
+    while (idx !== -1) {
+      let start = idx;
+      while (start > 0 && /[\u4e00-\u9fa5]/.test(query[start - 1]) && idx - start < 8) start -= 1;
+      const name = query.slice(start, idx + suf.length);
+      if (name.length >= 2 && name.length <= 8 && name !== suf) found.add(name);
+      idx = query.indexOf(suf, idx + suf.length);
+    }
+  }
+
+  // 2) 分段 + 剥离问法词
+  for (let seg of query.split(SEGMENT_SPLIT)) {
+    seg = seg.replace(/[^\u4e00-\u9fa5]/g, '');
+    if (seg.length < 2 || seg.length > 10) continue;
+    seg = stripNoise(seg);
+    for (const n of ['哪个', '什么', '为什么', '如何', '是否']) {
+      const i = seg.indexOf(n);
+      if (i > 1) seg = seg.slice(0, i);
+    }
+    seg = stripNoise(seg);
+    if (seg.length >= 2 && seg.length <= 8) found.add(seg);
+  }
+
+  const arr = Array.from(found).sort((a, b) => b.length - a.length);
+  return arr.filter((n, i) => !arr.some((m, j) => j !== i && m.includes(n) && m.length > n.length)).slice(0, 4);
+}
+
+// 用东财搜索解析任意公司名（优先 A 股，其次港股/美股）
+async function resolveName(name) {
+  return cached(`resolve:${name}`, 86400000, async () => {
+    const list = await searchEastMoney(name);
+    if (!list.length) return null;
+    const order = ['CN', 'HK', 'US'];
+    for (const m of order) {
+      const hit = list.find((x) => x.market === m && x.symbol.length <= 6);
+      if (hit) return hit;
+    }
+    return list[0] || null;
+  });
+}
+
 async function resolveTicker(t) {
   // 用东财搜索解析代码（美股需要知道交易所前缀，A股数字代码可直接推导）
   if (looksLikeAStockCode(t)) {
@@ -250,6 +346,16 @@ export async function resolveSymbols(query) {
     try {
       const info = await resolveTicker(t);
       if (info && !found.has(info.secid)) found.set(info.secid, { ...info, source: 'ticker' });
+    } catch (e) {
+      // 单个解析失败不影响其他
+    }
+  }
+
+  // 3) 词典外的中文公司名：按后缀启发式提取 → 东财搜索解析（A股优先）
+  for (const name of extractCompanyCandidates(query)) {
+    try {
+      const info = await resolveName(name);
+      if (info && !found.has(info.secid)) found.set(info.secid, { ...info, name, source: 'name' });
     } catch (e) {
       // 单个解析失败不影响其他
     }
