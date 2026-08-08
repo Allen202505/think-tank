@@ -24,6 +24,11 @@ export const messages = {
     verdictTitle: '⚖️ 智囊团综合裁决',
     summonErrorNoQuestion: '请输入问题',
     summonErrorNoMaster: '请至少选择一位大师',
+    resetDebate: '↺ 清除本场记录',
+    sharePoster: '分享海报',
+    posterSaving: '生成中…',
+    posterSave: '保存图片',
+    posterClose: '关闭',
   },
   en: {
     title: 'Master Debate',
@@ -50,6 +55,11 @@ export const messages = {
     verdictTitle: '⚖️ Combined verdict',
     summonErrorNoQuestion: 'Please enter your question',
     summonErrorNoMaster: 'Please select at least one master',
+    resetDebate: '↺ Clear this debate',
+    sharePoster: 'Share poster',
+    posterSaving: 'Generating…',
+    posterSave: 'Save image',
+    posterClose: 'Close',
   },
 };
 

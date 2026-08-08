@@ -1,5 +1,20 @@
 # 决策记录
 
+## 📌 当前待办（2026-08-08 更新 · 最近一次会话状态）
+
+> ⚠️ **最重要：最新代码已本地提交（commit 96f4934），但还没推送到 GitHub，也还没部署到 Vercel 线上！**
+
+- [ ] **推送 + 部署**：等用户能翻墙后执行 `git push`，Vercel 会自动部署（部署前先确认未提交的用户改动）
+- [ ] **线上验证**：部署后在 yieldglide.com 用「英伟达」「腾讯控股」提问，确认美股/港股财务注入（Yahoo 路径）生效
+- [ ] **本地完整对话前提**：`.env.local` 缺 `DEEPSEEK_API_KEY`，本地测试需补上（DeepSeek 国内可用，无需翻墙）
+- [ ] **未提交的用户改动**：`src/data/masters.js`、`public/avatars/*`、`memory/project.md` 仍未提交，推送前需确认是否一起提交
+- [ ] （旧）Cloudflare 删除「非 www → www」跳转规则，只保留 Vercel 的「www → 非 www」，防止重定向死循环
+- [ ] （可选）扩充公司词典：`src/app/api/chat/marketData.js` 的 `COMMON_SYMBOLS` 加一行即可
+- [ ] 第二批优化（移动端/大师页/海报/持久化/拆分）已本地完成并构建验证，待部署后线上复核（含用户浏览器确认持久化）
+
+---
+
+
 ## 2026-03-04
 
 ### 百度 SEO 配置
@@ -216,8 +231,37 @@
 - 问题里没有可解析的公司时返回空，不影响对话。
 
 **待办**:
-- 部署后在线上验证美股/港股财务注入（Yahoo 路径，国内本机无法直接验证）。
-- 可继续扩充公司词典（在 marketData.js 的 COMMON_SYMBOLS 中加一行即可）。
+- ⏳ 推送到 GitHub / Vercel 部署（等用户能翻墙；当前仅本地提交 96f4934）
+- ⏳ 部署后在线上验证美股/港股财务注入（Yahoo 路径，国内本机无法直接验证）
+- ⏳ 本地完整对话需在 .env.local 配置 DEEPSEEK_API_KEY
+- ⏳ 可继续扩充公司词典（在 marketData.js 的 COMMON_SYMBOLS 中加一行即可）
+
+---
+
+## 2026-08-08（第二批）
+
+### 优化批次：移动端适配 / OG分享图 / 持久化 / 代码拆分 / 大师详情页 / 分享海报
+**背景**: 用户 review 后选定以下优化：移动端适配(#1)、OG 分享图(#3)、主题首帧闪烁(#5)、讨论持久化(#6)、死代码清理(#7)、page.js 拆分(#8)、大师详情页(#9)、辩论分享海报(#10)。首轮辩论串行请求(#2)是刻意设计（群聊真实感），不改。
+
+**实现**:
+- #1 移动端适配：`page.css` 新增 @media 断点（≤900px 单栏、侧边栏横向滚动选人；≤520px 收紧留白）；修复 Grid 内容撑破页宽问题（`minmax(0,1fr)` + `min-width:0`）。已用浏览器 375px 宽度实测：无横向溢出。
+- #3 OG 分享图：用 8 位真实大师头像生成 `public/og-image.png`（1200×630，深色学院风 + 金色点缀）。
+- #5 主题闪烁：`layout.js` `<head>` 加内联脚本，首帧即按 localStorage 设置 `data-theme`；page.js 主题初始值改为从 localStorage 读取。
+- #6 讨论持久化：localStorage 防抖保存（选中大师/问题/整场讨论），刷新可恢复；新增「清除本场记录」按钮。
+- #7 死代码：删除 `src/app/head.js`（App Router 不渲染，内含假评分 JSON-LD）、未用变量、重复的 light body::before 样式、custom-form 等未用 CSS。
+- #8 拆分：内联 `<style jsx>` → `src/app/page.css`；prompt 构建 → `src/lib/prompts.js`；Card/MasterAvatar/MiniBtn → `src/components/ui.js`；MasterProfileModal → 独立文件。page.js 从 1029 行降到约 800 行，首屏 JS 115kB→109kB。
+- #9 大师详情页：新增 `/masters`（全名单列表）+ `/masters/[id]`（32 位大师生平/理论/金句，Person JSON-LD、独立 metadata）；sitemap 扩展 33 个 URL；资料弹窗加「查看大师主页」；详情页「参与辩论」→ `/?masters=id` 自动选中该大师。
+- #10 分享海报：`src/lib/poster.js` canvas 生成 1080×1920 竖版海报（问题/开场/发言气泡/裁决/页脚），讨论区新增「分享海报」按钮 + 弹窗（保存图片/关闭）。
+
+**影响**:
+- 手机端体验可用（原为固定双栏，小屏会被挤爆）。
+- 社交分享有预览图；微信传播有海报入口。
+- 刷新不丢讨论；代码结构大幅改善，后续维护/扩展更容易。
+- SEO：新增 33 个可收录页面。
+
+**待办**:
+- ⏳ 部署后线上复核：美股/港股财务注入（Yahoo）、海报、大师页、移动端。
+- 本地无法直接验证 localStorage 持久化（应用内浏览器禁用了存储），需用户在自己浏览器确认。
 
 ---
 
