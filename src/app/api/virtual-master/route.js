@@ -70,6 +70,33 @@ async function searchWeb(name) {
   return collected.slice(0, 8);
 }
 
+// 尽力而为的正文读取：能读的源就读全文，读不到就用摘要
+const BLOCKED_HOSTS = /zhihu\.com|xueqiu\.com|zsxq\.com|weixin|mp\.weixin|weibo\.com|bilibili\.com/;
+
+async function fetchArticle(url) {
+  try {
+    const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
+    if (BLOCKED_HOSTS.test(host)) return '';
+    const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4000), redirect: 'follow' });
+    if (!r.ok) return '';
+    const html = await r.text();
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/g, ' ')
+      .replace(/<style[\s\S]*?<\/style>/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    // 噪声过滤：验证码/登录墙/无正文
+    if (!text || text.length < 200) return '';
+    if (/验证码|访问过于频繁|无标题文档|请开启JavaScript|安全验证/.test(text.slice(0, 300))) return '';
+    const cn = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    if (cn < 80) return '';
+    return text.slice(0, 1200);
+  } catch (e) {
+    return '';
+  }
+}
+
 async function callDeepSeek(messages, maxTokens = 1500, temperature = 0.7) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   let lastErr;
@@ -114,12 +141,32 @@ export async function POST(request) {
 
     // ── 1) 全网检索昵称（公开内容 + 他人评价，按相关度加权） ──
     const web = await searchWeb(name);
-    const webCorpus = web.length
-      ? `【全网检索结果（按相关度排序，越靠前权重越高）】\n${web.map((r, i) => `[${i + 1}]（${r.engine}）标题：${r.title}${r.snippet ? `\n    摘要：${r.snippet}` : ''}\n    来源：${r.url}`).join('\n')}`
-      : '';
 
-    // ── 2) 资料准备：用户粘贴资料 > 检索语料 > LLM 知识 ──
-    let research = materials || webCorpus;
+    // 1.1) 对靠前的结果尝试"阅读"全文（能读的读，读不到用摘要）
+    const seen = new Set();
+    const articles = [];
+    for (const r of web.slice(0, 4)) {
+      if (seen.has(r.url) || BLOCKED_HOSTS.test(r.url)) continue;
+      seen.add(r.url);
+      const body = await fetchArticle(r.url);
+      if (body) {
+        articles.push({ url: r.url, title: r.title, body });
+        if (articles.length >= 2) break;
+      }
+    }
+
+    // 1.2) 构建"带来源与可信度"的阅读材料（正文 > 摘要 > 用户资料排最前）
+    const corpus = [];
+    if (materials) corpus.push(`【用户提供的真实资料 · 可信度最高】\n${materials.slice(0, 4000)}`);
+    if (articles.length) {
+      corpus.push(`【已读取到的全文正文 · 可信度高】\n${articles.map((a, i) => `[正文${i + 1}]《${a.title}》\n${a.body}`).join('\n\n')}`);
+    }
+    if (web.length) {
+      corpus.push(`【搜索摘要 · 可信度中（搜索引擎对该页面的浓缩）】\n${web.map((r, i) => `[${i + 1}]（${r.engine}）标题：${r.title}${r.snippet ? `\n    摘要：${r.snippet}` : ''}\n    来源：${r.url}`).join('\n')}`);
+    }
+
+    // ── 2) 资料准备：用户资料 > 检索语料 > LLM 知识 ──
+    let research = corpus.length ? corpus.join('\n\n') : '';
     if (!research) {
       const researchPrompt = `你是人物资料研究员。人物：「${name}」。
 ${hint ? `用户补充：${hint}\n` : ''}
@@ -129,7 +176,7 @@ ${hint ? `用户补充：${hint}\n` : ''}
     }
 
     // ── 3) 建模：基于资料构建画像（含风格示范发言） ──
-    const personaPrompt = `基于以下「资料」构建人物「${name}」的"投资大师画像"。${materials ? '用户粘贴的资料为最高优先级；' : ''}检索资料按相关度排序，越靠前越可信。说话风格必须贴合资料中体现的真实公开形象；资料未提及的具体细节（如出身、经历）不要编造，可留空或用通用表述。
+    const personaPrompt = `基于以下「阅读材料」构建人物「${name}」的"投资大师画像"。请像人一样带着判断去阅读：每条材料都标注了来源与可信度（用户资料 > 全文正文 > 搜索摘要；排名靠前权重更高）。优先从可信材料中提炼事实；资料未提及的具体细节（如出身、经历）不要编造，可留空或用通用表述；如果材料之间存在矛盾，以可信度更高者为准并说明。
 
 资料：
 ${research.slice(0, 5000)}
