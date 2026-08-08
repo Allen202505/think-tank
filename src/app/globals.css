@@ -14,6 +14,7 @@
   --bear: #e05555;
   --neutral: #c9a84c;
   --font-serif: Georgia, "Songti SC", "SimSun", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --font-mono: "SF Mono", "Consolas", monospace;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   --overlay: rgba(0, 0, 0, 0.7);

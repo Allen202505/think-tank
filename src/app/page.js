@@ -77,6 +77,10 @@ export default function Home() {
   const [editMaster, setEditMaster] = useState(null); // 正在编辑画像的虚拟大师
   const [editForm, setEditForm] = useState({});
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [invitePhase, setInvitePhase] = useState('form'); // form | building | preview | added
+  const [inviteStage, setInviteStage] = useState('');      // search | research | build
+  const [inviteMaster, setInviteMaster] = useState(null); // 生成的画像（预览）
+  const [inviteSources, setInviteSources] = useState([]); // 检索资料来源标题
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [bgMaster, setBgMaster] = useState('buffett'); // 背景：'none' 或大师 id（默认用巴菲特肖像营造氛围）
@@ -249,32 +253,88 @@ export default function Home() {
   }, []);
 
   const handleInvite = useCallback(async () => {
-    const name = inviteName.trim();
-    if (!name || inviteBusy) return;
+    const nm = inviteName.trim();
+    if (!nm || inviteBusy) return;
     setInviteBusy(true);
     setError('');
+    setInvitePhase('building');
+    setInviteStage('search');
+    setInviteMaster(null);
+    setInviteSources([]);
     try {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, hint: inviteHint.trim(), materials: inviteMaterials.trim() }),
+        body: JSON.stringify({ name: nm, hint: inviteHint.trim(), materials: inviteMaterials.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || '生成失败，请重试');
-      const master = data.master;
-      const next = [...customMasters, master];
-      setCustomMasters(next);
-      persistCustoms(next);
-      setSelected((prev) => new Set([...prev, master.id])); // 自动选中
-      setInviteOpen(false);
-      setInviteName('');
-      setInviteHint('');
-      setInviteMaterials('');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finished = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line);
+            if (ev.stage === 'search') setInviteStage('search');
+            else if (ev.stage === 'research') setInviteStage('research');
+            else if (ev.stage === 'build') setInviteStage('build');
+            else if (ev.stage === 'done') {
+              setInviteMaster({ ...ev.master, sources: ev.sources || [] });
+              setInviteSources(ev.sources || []);
+              setInvitePhase('preview');
+              finished = true;
+            } else if (ev.stage === 'error') {
+              setError(ev.error || '生成失败，请重试');
+              setInvitePhase('form');
+              finished = true;
+            }
+          } catch (e) { /* 忽略半行 */ }
+        }
+      }
+      if (!finished) { setError('生成中断，请重试'); setInvitePhase('form'); }
     } catch (e) {
-      setError(e.message || '邀请失败，请重试');
+      setError(e.message || '生成失败，请重试');
+      setInvitePhase('form');
     }
     setInviteBusy(false);
-  }, [inviteName, inviteHint, inviteBusy, customMasters, persistCustoms]);
+  }, [inviteName, inviteHint, inviteMaterials, inviteBusy]);
+
+  // 确认加入智囊团（持久化 + 选中）
+  const confirmInvite = useCallback(() => {
+    if (!inviteMaster) return;
+    const next = [...customMasters, inviteMaster];
+    setCustomMasters(next);
+    persistCustoms(next);
+    setSelected((prev) => new Set([...prev, inviteMaster.id]));
+    setInvitePhase('added');
+  }, [inviteMaster, customMasters, persistCustoms]);
+
+  const openInvite = useCallback(() => {
+    setInvitePhase('form');
+    setInviteStage('');
+    setInviteMaster(null);
+    setInviteSources([]);
+    setError('');
+    setInviteOpen(true);
+  }, []);
+
+  const closeInvite = useCallback(() => {
+    setInviteOpen(false);
+    setInvitePhase('form');
+    setInviteStage('');
+    setInviteMaster(null);
+    setInviteSources([]);
+    setInviteName('');
+    setInviteHint('');
+    setInviteMaterials('');
+    setError('');
+  }, []);
 
   const removeCustomMaster = useCallback((id) => {
     setCustomMasters((prev) => {
@@ -333,6 +393,8 @@ export default function Home() {
       persistCustoms(next);
       return next;
     });
+    // 若正在预览（未入列）的画像被编辑，同步更新预览
+    setInviteMaster((prev) => (prev && prev.id === editMaster.id ? { ...prev, ...editForm } : prev));
     setEditMaster(null);
   }, [editMaster, editForm, persistCustoms]);
 
@@ -814,12 +876,14 @@ export default function Home() {
 
       <div className="main-layout">
         <aside className="sidebar">
+          <button type="button" className="invite-entry" onClick={openInvite}>
+            <span className="ie-icon">✦</span> 邀请一位大师
+          </button>
           <Card title={t('membersTitle')} accent="var(--accent)">
             <div className="sidebar-actions">
               <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}>{t('membersSelectAll')}</MiniBtn>
               <MiniBtn onClick={() => setSelected(new Set())}>{t('membersClear')}</MiniBtn>
               <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}>{t('membersRandom5')}</MiniBtn>
-              <MiniBtn onClick={() => setInviteOpen(true)}>＋ 邀请</MiniBtn>
             </div>
             <div className="sidebar-count">{t('selectedCount', selected.size, allMasters.length)}</div>
             <div className="master-list">
@@ -848,25 +912,15 @@ export default function Home() {
                       </span>
                     </div>
                     {on && <span className="master-check" style={{ color: inv.color }}>✓</span>}
-                    {inv.source === 'custom' && (
-                      <button
-                        type="button"
-                        className="master-del-btn"
-                        onClick={(e) => { e.stopPropagation(); removeCustomMaster(inv.id); }}
-                        title="移除该虚拟大师"
-                        aria-label="移除"
-                      >
-                        ✕
-                      </button>
-                    )}
+                    {inv.source === 'custom' && <span className="master-custom-badge">AI·全网画像</span>}
                     <button
                       type="button"
-                      className="master-profile-btn"
-                      onClick={e => { e.stopPropagation(); setProfileMaster(inv); }}
-                      title={locale === 'en' ? 'View profile' : '查看资料'}
-                      aria-label={locale === 'en' ? 'View profile' : '查看资料'}
+                      className="master-more-btn"
+                      onClick={(e) => { e.stopPropagation(); setProfileMaster(inv); }}
+                      title={locale === 'en' ? 'Profile & actions' : '资料与操作'}
+                      aria-label={locale === 'en' ? 'Profile & actions' : '资料与操作'}
                     >
-                      📋
+                      ⋯
                     </button>
                   </div>
                 );
@@ -1151,43 +1205,107 @@ export default function Home() {
         </main>
       </div>
 
-      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} onStartChat={startSoloChat} />}
+      {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onEdit={openEditMaster} onStartChat={startSoloChat} onRemove={removeCustomMaster} />}
 
       {inviteOpen && (
-        <div className="modal-overlay" onClick={() => setInviteOpen(false)} role="dialog" aria-modal="true">
+        <div className="modal-overlay" onClick={closeInvite} role="dialog" aria-modal="true">
           <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invite-head">
-              <h3 className="invite-title">邀请大师辩论</h3>
-              <button type="button" className="modal-close" onClick={() => setInviteOpen(false)} aria-label="关闭">×</button>
+              <h3 className="invite-title">{invitePhase === 'preview' || invitePhase === 'added' ? '大师档案卡' : '邀请一位大师'}</h3>
+              <button type="button" className="modal-close" onClick={closeInvite} aria-label="关闭">×</button>
             </div>
-            <p className="invite-desc">输入你感兴趣的人物（投资大V、游资、企业家…），AI 会基于其公开言行画像，构建一位虚拟大师与现役大师同台竞技，并在本地持久化保存。</p>
-            <label className="invite-label">人物名字 / 昵称</label>
-            <input
-              className="invite-input"
-              value={inviteName}
-              onChange={(e) => setInviteName(e.target.value)}
-              placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
-            />
-            <label className="invite-label">真实语录 / 资料（可选，强烈建议）</label>
-            <textarea
-              className="invite-input invite-textarea"
-              value={inviteMaterials}
-              onChange={(e) => setInviteMaterials(e.target.value)}
-              placeholder="粘贴这个人的公开语录、采访片段或你的补充描述，AI 会按真人资料建模，风格更像本人"
-            />
-            <label className="invite-label">补充说明（可选）</label>
-            <textarea
-              className="invite-input invite-textarea"
-              value={inviteHint}
-              onChange={(e) => setInviteHint(e.target.value)}
-              placeholder="例如：喜欢用简单的话讲道理，强调安全边际"
-            />
-            <div className="invite-actions">
-              <button type="button" className="invite-btn invite-btn-ghost" onClick={() => setInviteOpen(false)}>取消</button>
-              <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>
-                {inviteBusy ? '生成中…' : '生成并加入'}
-              </button>
-            </div>
+
+            {invitePhase === 'form' && (
+              <>
+                <p className="invite-desc">输入你感兴趣的人物（投资大V、游资、企业家…），系统会全网检索他的公开内容与评价，构建一位虚拟大师与现役大师同台竞技。</p>
+                <label className="invite-label">人物名字 / 昵称</label>
+                <input
+                  className="invite-input"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
+                  onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
+                />
+                <label className="invite-label">真实语录 / 资料（可选，强烈建议）</label>
+                <textarea
+                  className="invite-input invite-textarea"
+                  value={inviteMaterials}
+                  onChange={(e) => setInviteMaterials(e.target.value)}
+                  placeholder="粘贴这个人的公开语录、采访片段或你的补充描述，AI 会按真人资料建模，风格更像本人"
+                />
+                <label className="invite-label">补充说明（可选）</label>
+                <textarea
+                  className="invite-input invite-textarea"
+                  value={inviteHint}
+                  onChange={(e) => setInviteHint(e.target.value)}
+                  placeholder="例如：喜欢用简单的话讲道理，强调安全边际"
+                />
+                <div className="invite-actions">
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>
+                    开始构建
+                  </button>
+                </div>
+              </>
+            )}
+
+            {invitePhase === 'building' && (
+              <div className="invite-steps">
+                <div className={`invite-step ${inviteStage === 'search' ? 'active' : 'done'}`}><span className="step-dot" /> ① 检索公开资料与评价</div>
+                <div className={`invite-step ${inviteStage === 'research' ? 'active' : (inviteStage === 'build' || inviteStage === 'done' ? 'done' : '')}`}><span className="step-dot" /> ② 提炼观点 / 语录 / 说话风格</div>
+                <div className={`invite-step ${inviteStage === 'build' ? 'active' : (inviteStage === 'done' ? 'done' : '')}`}><span className="step-dot" /> ③ 构建大师画像</div>
+              </div>
+            )}
+
+            {invitePhase === 'preview' && inviteMaster && (
+              <div className="persona-card">
+                <div className="persona-head">
+                  <span className="persona-emoji" style={{ background: `${inviteMaster.color}18` }}>{inviteMaster.emoji}</span>
+                  <div>
+                    <h3 className="persona-name">{inviteMaster.name}</h3>
+                    <p className="persona-title">{inviteMaster.title}</p>
+                  </div>
+                </div>
+                <blockquote className="persona-quote">「{inviteMaster.quote}」</blockquote>
+                {inviteMaster.styleSample && (
+                  <div className="persona-sec">
+                    <h5>风格示范</h5>
+                    <p className="persona-style-sample">{inviteMaster.styleSample}</p>
+                  </div>
+                )}
+                {inviteMaster.coreViews && (
+                  <div className="persona-sec">
+                    <h5>核心观点</h5>
+                    <p>{inviteMaster.coreViews}</p>
+                  </div>
+                )}
+                {inviteSources.length > 0 && (
+                  <div className="persona-sec">
+                    <h5>基于这些公开资料构建</h5>
+                    <ul className="persona-sources">
+                      {inviteSources.slice(0, 6).map((src, i) => <li key={i}><span className="src-rank">#{i + 1}</span>{src}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div className="persona-actions">
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => openEditMaster(inviteMaster)}>✏️ 编辑画像</button>
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={handleInvite}>↺ 重新构建</button>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={confirmInvite}>确认加入</button>
+                </div>
+              </div>
+            )}
+
+            {invitePhase === 'added' && inviteMaster && (
+              <div style={{ textAlign: 'center', padding: '20px 0 8px' }}>
+                <div style={{ fontSize: 44 }}>{inviteMaster.emoji}</div>
+                <h3 className="persona-name" style={{ marginTop: 8 }}>{inviteMaster.name} 已加入智囊团</h3>
+                <p className="invite-desc" style={{ marginTop: 8 }}>可以在左侧勾选 TA 参与辩论，或先一对一聊聊。</p>
+                <div className="persona-actions" style={{ marginTop: 18 }}>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={() => { closeInvite(); startSoloChat(inviteMaster); }}>💬 和 TA 单聊</button>
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>完成</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

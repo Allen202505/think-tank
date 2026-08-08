@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
-// 大师资料弹窗（从 page.js 拆出）
-export default function MasterProfileModal({ master, onClose, locale, onEdit, onStartChat }) {
+// 大师资料弹窗
+export default function MasterProfileModal({ master, onClose, locale, onEdit, onStartChat, onRemove }) {
   if (!master) return null;
   const isEn = locale === 'en';
   const isCustom = master.source === 'custom';
@@ -39,16 +39,39 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit, on
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
             「{master.quote}」
           </blockquote>
+
+          {master.styleSample && (
+            <section className="profile-extra">
+              <h4>风格示范</h4>
+              <p className="profile-style-sample">{master.styleSample}</p>
+            </section>
+          )}
+          {isCustom && Array.isArray(master.sources) && master.sources.length > 0 && (
+            <section className="profile-extra">
+              <h4>画像资料来源</h4>
+              <ul className="profile-sources">
+                {master.sources.slice(0, 6).map((src, i) => <li key={i}>{src}</li>)}
+              </ul>
+            </section>
+          )}
+
           <div className="profile-actions">
             <button type="button" className="profile-chat-btn" onClick={() => onStartChat && onStartChat(master)}>
               💬 与 TA 单聊 →
             </button>
             {isCustom ? (
-              onEdit && (
-                <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
-                  ✏️ {isEn ? '编辑画像' : '编辑画像'}
-                </button>
-              )
+              <>
+                {onEdit && (
+                  <button type="button" className="profile-page-link" onClick={() => onEdit(master)}>
+                    ✏️ {isEn ? '编辑画像' : '编辑画像'}
+                  </button>
+                )}
+                {onRemove && (
+                  <button type="button" className="profile-remove-btn" onClick={() => { onRemove(master.id); onClose(); }}>
+                    {isEn ? '从智囊团移除' : '从智囊团移除'}
+                  </button>
+                )}
+              </>
             ) : (
               <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
                 {isEn ? '查看大师主页 →' : '查看大师主页 →'}
