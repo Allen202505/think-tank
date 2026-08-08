@@ -25,7 +25,7 @@ export function buildFollowUpPrompt(previousSummary, userFollowUp, investors) {
 ${list}
 
 请让各位大师针对追问 **轮流发言、互相反驳**（每人 60–100 字），后发言的要引用或直接批驳前面的观点，有火药味。发言时尽量用 **数据、估值指标、历史或可比案例** 举证支撑观点，避免只讲空泛看法。最后更新裁决。
-时间要求：如需引用数据，优先引用 **2025 年（或最近 12 个月 / 最新财报）**口径；不确定就写区间并标注可能过时，避免引用更早年份的精确数字。
+时间要求：如需引用数据，优先引用上面注入的【最新市场数据快照】；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁用记忆中的旧数字冒充最新。
 
 只输出一个 JSON：
 {"discussion":[{"investorId":"id","stance":"BULL或BEAR或NEUTRAL","content":"发言内容","keyPoint":"一句话"}],"verdict":{"summary":"更新后的综合总结","bullCount":数字,"bearCount":数字,"neutralCount":数字,"consensus":"共识","mainRisk":"风险"}}`;
@@ -43,7 +43,7 @@ export function buildOpeningOnlyPrompt(question, host, investors) {
 export function buildOneSpeechPrompt(question, investors, previousParts, nextSpeakerId) {
   const list = investors.map(i => `ID:${i.id} | ${i.name} | 风格:${i.style} | 性格:${i.personality} | 语录:"${i.quote}"`).join('\n');
   const context = previousParts.map(p => p.type === 'hostOpening' ? `开场白：${p.text}` : p.type === 'speech' ? `${p.investorId}说：${p.content}` : '').filter(Boolean).join('\n');
-  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，要直接反驳或回应前面观点，有争吵感。**发言必须有数据支撑**：用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点。**时间要求**：如需引用数据，优先引用 2025 年（或最近12个月/最新财报）口径；不确定就给区间并标注可能过时，不要引用更早年份的精确数字。只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证（尽量用2025口径）","keyPoint":"核心观点一句话"}`;
+  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，要直接反驳或回应前面观点，有争吵感。**发言必须有数据支撑**：用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点。**时间要求**：如需引用数据，优先引用上面注入的【最新市场数据快照】中的数字；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁用记忆中的旧数字冒充最新。只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证（尽量用2025口径）","keyPoint":"核心观点一句话"}`;
 }
 
 

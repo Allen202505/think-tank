@@ -67,9 +67,10 @@ function formatQuoteLine(info, q) {
   return bits.length ? bits.join(' | ') : null;
 }
 
-function formatFinancialLinesCN(fin) {
-  if (!fin || fin.source !== 'eastmoney') return [];
+function formatFinancialLines(fin) {
+  if (!fin) return [];
   const lines = [];
+  const cur = fin.currency && fin.currency !== 'CNY' ? ` ${fin.currency}` : '';
   const latest = fin.latest;
   if (latest) {
     const head = latest.reportName && latest.reportDate
@@ -77,7 +78,7 @@ function formatFinancialLinesCN(fin) {
       : '最新财报';
     lines.push(head);
     const row1 = [];
-    if (latest.revenue != null) row1.push(`营业总收入 ${fmtMoney(latest.revenue)}${latest.revenueGrowth != null ? `（同比 ${fmtPct(latest.revenueGrowth)}）` : ''}`);
+    if (latest.revenue != null) row1.push(`营业总收入 ${fmtMoney(latest.revenue)}${cur}${latest.revenueGrowth != null ? `（同比 ${fmtPct(latest.revenueGrowth)}）` : ''}`);
     if (latest.netProfit != null) row1.push(`归母净利润 ${fmtMoney(latest.netProfit)}${latest.netProfitGrowth != null ? `（同比 ${fmtPct(latest.netProfitGrowth)}）` : ''}`);
     if (row1.length) lines.push(row1.join(' | '));
     const row2 = [];
@@ -85,41 +86,22 @@ function formatFinancialLinesCN(fin) {
     if (latest.netMargin != null) row2.push(`净利率 ${fmtPct(latest.netMargin)}`);
     if (latest.roe != null) row2.push(`ROE ${fmtPct(latest.roe)}`);
     if (latest.eps != null) row2.push(`每股收益 ${latest.eps}`);
+    if (latest.epsTTM != null) row2.push(`每股收益TTM ${Number(latest.epsTTM).toFixed(2)}`);
     if (latest.bps != null) row2.push(`每股净资产 ${Number(latest.bps).toFixed(2)}`);
     if (latest.cashFlowPerShare != null) row2.push(`每股经营现金流 ${Number(latest.cashFlowPerShare).toFixed(2)}`);
+    if (latest.debtAssetRatio != null) row2.push(`资产负债率 ${fmtPct(latest.debtAssetRatio)}`);
     if (row2.length) lines.push(row2.join(' | '));
   }
   const annual = fin.annual;
-  if (annual && annual.revenue != null) {
-    const bits = [`${annual.reportName || '年报'}：营收 ${fmtMoney(annual.revenue)}${annual.revenueGrowth != null ? `（同比 ${fmtPct(annual.revenueGrowth)}）` : ''}`];
-    if (annual.netProfit != null) {
-      bits.push(`净利 ${fmtMoney(annual.netProfit)}${annual.netProfitGrowth != null ? `（同比 ${fmtPct(annual.netProfitGrowth)}）` : ''}`);
-    }
+  const sameAsLatest = annual && latest && annual.reportDate === latest.reportDate && annual.reportName === latest.reportName;
+  if (annual && !sameAsLatest && annual.revenue != null) {
+    const bits = [`${annual.reportName || '年报'}：营收 ${fmtMoney(annual.revenue)}${cur}${annual.revenueGrowth != null ? `（同比 ${fmtPct(annual.revenueGrowth)}）` : ''}`];
+    if (annual.netProfit != null) bits.push(`净利 ${fmtMoney(annual.netProfit)}${annual.netProfitGrowth != null ? `（同比 ${fmtPct(annual.netProfitGrowth)}）` : ''}`);
     lines.push(bits.join(' | '));
   }
-  return lines;
-}
-
-function formatFinancialLinesYahoo(fin) {
-  if (!fin || fin.source !== 'yahoo') return [];
-  const lines = [];
-  const cur = fin.currency || 'USD';
-  const row1 = [];
-  if (fin.revenue != null) row1.push(`营收(TTM) ${fmtMoney(fin.revenue)} ${cur}${fin.revenueGrowth != null ? `（同比 ${fmtPct(fin.revenueGrowth)}）` : ''}`);
-  if (fin.netMargin != null) row1.push(`净利率 ${fmtPct(fin.netMargin)}`);
-  if (fin.grossMargin != null) row1.push(`毛利率 ${fmtPct(fin.grossMargin)}`);
-  if (fin.operatingMargin != null) row1.push(`经营利润率 ${fmtPct(fin.operatingMargin)}`);
-  if (row1.length) lines.push(row1.join(' | '));
-  const row2 = [];
-  if (fin.roe != null) row2.push(`ROE ${fmtPct(fin.roe)}`);
-  if (fin.eps != null) row2.push(`每股收益(TTM) ${fin.eps}`);
-  if (fin.freeCashflow != null) row2.push(`自由现金流 ${fmtMoney(fin.freeCashflow)} ${cur}`);
-  if (fin.operatingCashflow != null) row2.push(`经营现金流 ${fmtMoney(fin.operatingCashflow)} ${cur}`);
-  if (fin.forwardPe != null) row2.push(`预测PE ${Number(fin.forwardPe).toFixed(1)}`);
-  if (row2.length) lines.push(row2.join(' | '));
   if (fin.targetMeanPrice != null || fin.recommendationKey) {
     const bits = [];
-    if (fin.targetMeanPrice != null) bits.push(`分析师目标价均值 ${cur}${Number(fin.targetMeanPrice).toFixed(2)}`);
+    if (fin.targetMeanPrice != null) bits.push(`分析师目标价均值 ${fin.currency || 'USD'} ${Number(fin.targetMeanPrice).toFixed(2)}`);
     if (fin.recommendationKey) bits.push(`评级 ${fin.recommendationKey}`);
     if (fin.numberOfAnalystOpinions) bits.push(`覆盖分析师 ${fin.numberOfAnalystOpinions} 位`);
     if (bits.length) lines.push(bits.join(' | '));
@@ -135,9 +117,7 @@ function formatEntry(info, quote, fin) {
   const qLine = formatQuoteLine(info, quote);
   if (qLine) headParts.push(qLine);
   const lines = [headParts.join('\n   ')];
-  const finLines = info.market === 'CN'
-    ? formatFinancialLinesCN(fin)
-    : formatFinancialLinesYahoo(fin);
+  const finLines = formatFinancialLines(fin);
   if (finLines.length) lines.push(...finLines.map((l) => `  ${l}`));
   return lines.join('\n');
 }
@@ -181,9 +161,10 @@ export async function getQuoteContext(userQuery) {
 
   const lines = [
     `【以下为截至 ${today} 的最新市场数据快照（来源：东方财富 / Yahoo Finance，均为公开行情数据）】`,
-    '- 你在后续发言、分析、给出结论时，如需引用「股价、市值、估值倍数、财务数据（营收/净利/增速/利润率/ROE 等）」等具体数字，必须优先以上述数据为准，不要使用你记忆中的旧数据或自行编造数字。',
-    '- 如果上面没有某个具体数字，请用「大约」「约」「区间」等模糊表述，不要给出看起来精确的过往年份数据。',
-    '- 如需引用历史情况，可以用「过去几年」「上一轮周期」等整体描述；若必须给出年份数据，尽量使用 2025 年或最近 12 个月/最新财报口径，不确定就标注可能过时。',
+    '- 你在后续发言、分析、给出结论时，如需引用「股价、市值、估值倍数、财务数据（营收/净利/增速/利润率/ROE 等）」等具体数字，**必须以上述快照数据为准**，不要使用你记忆中的旧数据或自行编造数字。',
+    '- **快照里没有的精确数字（例如某家公司的 PE、营收、净利、增速），一律不允许引用具体数值**，只能用「大约」「约」「可能」「区间」等模糊表述；宁可说「我没有这家公司的最新精确数据」，也不能用训练记忆里的旧数字冒充最新。',
+    '- 各公司数据以快照标注的报告期为准（例如 2026 年一季报），不要自行假设有更新的报告期。',
+    '- 如需引用历史情况，可以用「过去几年」「上一轮周期」等整体描述；不要给出快照之外的具体年份精确数字。',
     '',
     ...valid.map((e, i) => `${i + 1}) ${formatEntry(e.info, e.quote, e.fin)}`),
   ];

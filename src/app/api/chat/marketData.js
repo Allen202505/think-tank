@@ -19,6 +19,7 @@
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
 const EM_QUOTE = 'https://push2.eastmoney.com/api/qt/stock/get';
 const EM_F10 = 'https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew';
+const EM_DATACENTER = 'https://datacenter.eastmoney.com/securities/api/data/v1/get';
 // 东方财富网页版搜索框公开使用的固定 token（无需申请）
 const EM_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8';
 const REQUEST_TIMEOUT_MS = 8000;
@@ -390,6 +391,96 @@ async function fetchFinancialsCN(secid) {
   return { source: 'eastmoney', latest, annual };
 }
 
+// 美股财务主要指标（东财 datacenter，国内可用）
+async function resolveEMSecucode(symbol) {
+  const params = new URLSearchParams({
+    reportName: 'RPT_USF10_INFO_ORGPROFILE',
+    columns: 'SECUCODE,SECURITY_CODE',
+    filter: `(SECURITY_CODE="${symbol}")`,
+    pageNumber: '1', pageSize: '200', source: 'SECURITIES', client: 'PC',
+  });
+  const json = await fetchJson(`${EM_DATACENTER}?${params}`);
+  return json?.result?.data?.[0]?.SECUCODE || null;
+}
+
+function pickUSRow(r) {
+  if (!r) return null;
+  return {
+    reportName: r.REPORT_DATA_TYPE || r.REPORT_TYPE || null,
+    reportDate: r.REPORT_DATE ? String(r.REPORT_DATE).slice(0, 10) : null,
+    revenue: r.OPERATE_INCOME ?? null,
+    revenueGrowth: r.OPERATE_INCOME_YOY ?? null,
+    netProfit: r.PARENT_HOLDER_NETPROFIT ?? null,
+    netProfitGrowth: r.PARENT_HOLDER_NETPROFIT_YOY ?? null,
+    grossMargin: r.GROSS_PROFIT_RATIO ?? null,
+    netMargin: r.NET_PROFIT_RATIO ?? null,
+    roe: r.ROE_AVG ?? null,
+    roa: r.ROA ?? null,
+    eps: r.BASIC_EPS ?? null,
+    debtAssetRatio: r.DEBT_ASSET_RATIO ?? null,
+  };
+}
+
+async function fetchFinancialsUS(symbol) {
+  const secucode = await cached(`ussecu:${symbol}`, 86400000, () => resolveEMSecucode(symbol));
+  if (!secucode) throw new Error('美股无财务代码');
+  const params = new URLSearchParams({
+    reportName: 'RPT_USF10_FN_GMAININDICATOR',
+    columns: 'USF10_FN_GMAININDICATOR',
+    filter: `(SECUCODE="${secucode}")`,
+    pageNumber: '1', pageSize: '12', sortTypes: '-1', sortColumns: 'REPORT_DATE',
+    source: 'SECURITIES', client: 'PC',
+  });
+  const json = await fetchJson(`${EM_DATACENTER}?${params}`);
+  const rows = json?.result?.data || [];
+  if (!rows.length) throw new Error('美股无财务数据');
+  return {
+    source: 'eastmoney-us',
+    currency: rows[0].CURRENCY_ABBR || 'USD',
+    latest: pickUSRow(rows[0]),
+    annual: pickUSRow(rows.find((r) => String(r.DATE_TYPE_CODE) === '001') || null),
+  };
+}
+
+// 港股财务主要指标（东财 datacenter，国内可用）
+function pickHKRow(r) {
+  if (!r) return null;
+  return {
+    reportName: r.REPORT_TYPE || null,
+    reportDate: r.REPORT_DATE ? String(r.REPORT_DATE).slice(0, 10) : null,
+    revenue: r.OPERATE_INCOME ?? null,
+    revenueGrowth: r.OPERATE_INCOME_YOY ?? null,
+    netProfit: r.HOLDER_PROFIT ?? null,
+    netProfitGrowth: r.HOLDER_PROFIT_YOY ?? null,
+    grossMargin: r.GROSS_PROFIT_RATIO ?? null,
+    netMargin: r.NET_PROFIT_RATIO ?? null,
+    roe: r.ROE_AVG ?? null,
+    eps: r.BASIC_EPS ?? null,
+    bps: r.BPS ?? null,
+    epsTTM: r.EPS_TTM ?? null,
+  };
+}
+
+async function fetchFinancialsHK(symbol) {
+  const code = String(symbol).padStart(5, '0');
+  const params = new URLSearchParams({
+    reportName: 'RPT_HKF10_FN_MAININDICATOR',
+    columns: 'ALL',
+    filter: `(SECUCODE="${code}.HK")`,
+    pageNumber: '1', pageSize: '12', sortTypes: '-1', sortColumns: 'REPORT_DATE',
+    source: 'HSF10', client: 'PC',
+  });
+  const json = await fetchJson(`${EM_DATACENTER}?${params}`);
+  const rows = json?.result?.data || [];
+  if (!rows.length) throw new Error('港股无财务数据');
+  return {
+    source: 'eastmoney-hk',
+    currency: 'HKD',
+    latest: pickHKRow(rows[0]),
+    annual: pickHKRow(rows.find((r) => String(r.DATE_TYPE_CODE) === '001') || null),
+  };
+}
+
 // ─── 对外主入口：行情 + 财务 ─────────────────────────────
 /**
  * 获取单只股票的行情（东财为主，美股/港股用 Yahoo 补字段）
@@ -418,12 +509,24 @@ export async function getFinancials(info) {
   if (info.market === 'CN') {
     return cached(`fin:${info.secid}`, 1800000, () => fetchFinancialsCN(info.secid));
   }
-  if (info.market === 'US' || info.market === 'HK') {
+  if (info.market === 'HK') {
+    return cached(`finhk:${info.symbol}`, 1800000, () => fetchFinancialsHK(info.symbol));
+  }
+  if (info.market === 'US') {
+    const base = await cached(`finus:${info.symbol}`, 1800000, () => fetchFinancialsUS(info.symbol));
+    // 生产环境用 Yahoo 补充分析师目标价/评级（国内不可达时忽略）
     try {
-      return await withTimeout(cached(`yfin:${info.symbol}`, 3600000, () => fetchFinancialsYahoo(info.symbol)), 3000);
-    } catch (e) {
-      return null;
-    }
+      const y = await withTimeout(cached(`yfin:${info.symbol}`, 3600000, () => fetchFinancialsYahoo(info.symbol)), 3000);
+      if (y) {
+        return {
+          ...base,
+          targetMeanPrice: y.targetMeanPrice,
+          recommendationKey: y.recommendationKey,
+          numberOfAnalystOpinions: y.numberOfAnalystOpinions,
+        };
+      }
+    } catch (e) { /* 忽略 */ }
+    return base;
   }
   return null;
 }
