@@ -37,22 +37,13 @@ export default function Home() {
     },
   };
 
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const t = localStorage.getItem('theme');
-      if (t === 'dark' || t === 'light') return t;
-    }
-    return 'light';
-  });
+  const [theme, setTheme] = useState('light'); // SSR 与首帧一致，挂载后 effect 再读 localStorage
   const [qrOpen, setQrOpen] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
-  // 默认随机选 5 位大师
-  const [selected, setSelected] = useState(() => {
-    const shuffled = [...PRESET_MASTERS].sort(() => Math.random() - 0.5);
-    return new Set(shuffled.slice(0, 5).map(i => i.id));
-  });
+  // 默认 5 位（SSR 固定，避免水合不一致；挂载后再随机/恢复）
+  const [selected, setSelected] = useState(() => new Set(['buffett', 'munger', 'soros', 'lynch', 'dalio']));
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -130,30 +121,18 @@ export default function Home() {
   // ─── 讨论持久化（#6）：刷新/重开页面可恢复最近一场 ───
   const STORAGE_KEY = 'master-debate-state-v1';
 
-  // 恢复上次讨论（仅首次挂载）
+  // 恢复上次讨论（仅首次挂载）：URL 指定大师 > 本地历史 > 随机 5 位
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (Array.isArray(saved.selected) && saved.selected.length) setSelected(new Set(saved.selected));
-      if (typeof saved.query === 'string') setQuery(saved.query);
-      if (Array.isArray(saved.rounds) && saved.rounds.length) {
-        setRounds(saved.rounds);
-        setResult(saved.result || null);
-        setRevealStepLegacy(9999); // 直接展示全部历史
-      }
-    } catch (e) { /* 恢复失败不影响使用 */ }
+    let selectedSet = null;
 
-    // URL 指定大师（从大师详情页「参与辩论」进入）：优先于本地历史
     try {
       const params = new URLSearchParams(window.location.search);
       const ids = (params.get('masters') || '').split(',').map((s) => s.trim()).filter(Boolean);
       if (ids.length) {
         const valid = new Set(ids.filter((id) => allMasters.some((m) => m.id === id)));
         if (valid.size) {
-          setSelected(valid);
+          selectedSet = valid;
           setQuery('');
           setRounds([]);
           setResult(null);
@@ -161,6 +140,28 @@ export default function Home() {
         }
       }
     } catch (e) { /* ignore */ }
+
+    if (!selectedSet) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved.selected) && saved.selected.length) selectedSet = new Set(saved.selected);
+          if (typeof saved.query === 'string') setQuery(saved.query);
+          if (Array.isArray(saved.rounds) && saved.rounds.length) {
+            setRounds(saved.rounds);
+            setResult(saved.result || null);
+            setRevealStepLegacy(9999); // 直接展示全部历史
+          }
+        }
+      } catch (e) { /* 恢复失败不影响使用 */ }
+    }
+
+    if (!selectedSet) {
+      const shuffled = [...allMasters].sort(() => Math.random() - 0.5);
+      selectedSet = new Set(shuffled.slice(0, 5).map((i) => i.id));
+    }
+    setSelected(selectedSet);
   }, []);
 
   // 防抖保存
