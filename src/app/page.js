@@ -723,14 +723,15 @@ export default function Home() {
       });
       const ctx = await ctxRes.json();
       snapshotRef.current = ctx?.snapshot || '';
-      setNotice(ctx?.notice || '');
       if (ctx?.notice && !force) {
-        // AI 判定这个问题需要具体公司数据：弹窗让用户补充，暂停发起
+        // AI 判定这个问题需要具体公司数据：弹窗让用户补充，暂停发起（弹窗即提示，不显示行内提示）
+        setNotice('');
         setLoading(false);
         setSupplementValue('');
         setSupplementOpen(true);
         return;
       }
+      setNotice(''); // 正常发起时也不保留旧提示
     } catch (e) {
       snapshotRef.current = '';
     }
@@ -774,6 +775,7 @@ export default function Home() {
   // 弹窗：不带数据继续
   const skipSupplement = useCallback(() => {
     setSupplementOpen(false);
+    setNotice('');
     setTimeout(() => goRef.current(true), 80);
   }, []);
 
