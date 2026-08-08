@@ -39,9 +39,11 @@ export default function MasterProfileModal({ master, onClose, locale }) {
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
             「{master.quote}」
           </blockquote>
-          <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
-            {isEn ? '查看大师主页 →' : '查看大师主页 →'}
-          </Link>
+          {master.source !== 'custom' && (
+            <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
+              {isEn ? '查看大师主页 →' : '查看大师主页 →'}
+            </Link>
+          )}
         </div>
       </div>
     </div>

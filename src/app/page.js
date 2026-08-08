@@ -73,6 +73,7 @@ export default function Home() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteHint, setInviteHint] = useState('');
+  const [inviteMaterials, setInviteMaterials] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
@@ -254,7 +255,7 @@ export default function Home() {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, hint: inviteHint.trim() }),
+        body: JSON.stringify({ name, hint: inviteHint.trim(), materials: inviteMaterials.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || '生成失败，请重试');
@@ -266,6 +267,7 @@ export default function Home() {
       setInviteOpen(false);
       setInviteName('');
       setInviteHint('');
+      setInviteMaterials('');
     } catch (e) {
       setError(e.message || '邀请失败，请重试');
     }
@@ -1116,6 +1118,13 @@ export default function Home() {
               value={inviteName}
               onChange={(e) => setInviteName(e.target.value)}
               placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
+            />
+            <label className="invite-label">真实语录 / 资料（可选，强烈建议）</label>
+            <textarea
+              className="invite-input invite-textarea"
+              value={inviteMaterials}
+              onChange={(e) => setInviteMaterials(e.target.value)}
+              placeholder="粘贴这个人的公开语录、采访片段或你的补充描述，AI 会按真人资料建模，风格更像本人"
             />
             <label className="invite-label">补充说明（可选）</label>
             <textarea
