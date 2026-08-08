@@ -991,6 +991,17 @@
 
 **验证**: 浏览器实测——22px 圆形、描边、opacity 1、title「资料与操作」；impeccable detect 0 告警；构建通过。
 
+## 2026-08-08（第四十四批）
+
+### 大师详情弹窗：固定高度 + 底部操作按钮固定右下角
+**背景**: 用户希望大师详情弹窗高度固定，底部按钮固定在右下角（内容滚动时按钮不跟着跑）。
+
+**实现**:
+- MasterProfileModal.js：把 .profile-actions 从 .profile-body 内移到弹窗根级（作为 footer 兄弟节点，不再随内容滚动）
+- page.css：.profile-modal 改 flex column + height min(640px, 88vh) + overflow hidden；.profile-header flex-shrink 0；.profile-body flex:1 overflow-y auto；.profile-actions 改 footer（border-top 细线 + bg-input 底 + align-items flex-end 右下角 + padding）
+
+**验证**: 浏览器实测——弹窗高 634px 固定，children=[header, body, actions]，actions 父节点为 modal-content（已脱离滚动区），底部间隙 1px、右对齐；impeccable detect 0 告警；构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

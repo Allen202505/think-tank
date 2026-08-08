@@ -75,8 +75,9 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit, on
               </ul>
             </section>
           )}
+        </div>
 
-          <div className="profile-actions">
+        <div className="profile-actions">
             <button type="button" className="profile-chat-btn" onClick={() => onStartChat && onStartChat(master)}>
               💬 与 TA 单聊 →
             </button>
@@ -102,7 +103,6 @@ export default function MasterProfileModal({ master, onClose, locale, onEdit, on
                 {isEn ? '查看大师主页 →' : '查看大师主页 →'}
               </Link>
             )}
-          </div>
         </div>
       </div>
     </div>
