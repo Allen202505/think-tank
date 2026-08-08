@@ -1091,6 +1091,15 @@
 
 **验证**: 浏览器实测——group-style 在 tab 下方，footer 仅剩 btn-submit；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十三批）
+
+### 「风格」标签放大加深
+**背景**: 用户反馈群聊 tab 下方的「风格」两个字太小（原 9px 灰字），注意不到。
+
+**实现** (page.css .group-style .style-label)：9px mono 灰字 → 12px sans、字重 600、正文深色 var(--text)。
+
+**验证**: 浏览器实测标签 12px/600/深色；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown

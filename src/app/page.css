@@ -289,7 +289,7 @@
 .chat-mode-btn:hover:not(.active) { border-color: var(--accent-dim); color: var(--text); }
 .chat-mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .group-style { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.group-style .style-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; color: var(--text-muted); white-space: nowrap; }
+.group-style .style-label { font-family: var(--font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: var(--text); white-space: nowrap; }
 
 /* 群聊风格下拉 */
 .style-select { flex: 1; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 12px; padding: 9px 10px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer; }
