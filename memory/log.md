@@ -1118,6 +1118,17 @@
 
 **验证**: 浏览器实测暗色——question-input 与未选中 tab 背景均为 rgb(10,10,15)=页面背景，边框 rgb(52,52,76) 清晰可见，激活 tab 金色不变；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第五十六批）
+
+### 暗色输入框/tab 融入背景：改为透明填充（修正上批）
+**背景**: 上批只把暗色 --bg-input 对齐页面底色，但用户反馈「还是跟原来一样」。诊断：背景上有巴菲特水印/金色光晕，纯色填充仍形成深色块（像素：输入框区 ~11 vs 周围 ~50）。
+
+**决策/实现** (page.css)：暗色下 .question-input/.followup-input/.invite-input/.style-select/.chat-mode-btn:not(.active) 改为 background: transparent，让背景纹理透过来，仅靠边框（--border-subtle）区分。
+
+**验证**: 浏览器实测暗色——这些元素背景均为 rgba(0,0,0,0)，像素采样输入框区由 (11,10,15) 变为 (43-54) 与周围水印区一致；impeccable detect 0 告警；干净构建通过。
+
+**待办**: 无。
+
 ## 模板（新增记录时使用）
 
 ```markdown

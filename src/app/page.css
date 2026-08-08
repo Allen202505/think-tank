@@ -295,6 +295,13 @@
 .style-select { flex: 0 1 auto; width: auto; max-width: 340px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 12px; padding: 9px 10px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer; }
 .style-select:focus { outline: none; border-color: var(--accent); }
 
+/* 暗色：输入框 / 未选中 tab 填充透明，让背景纹理透过来，只靠边框区分 */
+[data-theme="dark"] .question-input,
+[data-theme="dark"] .followup-input,
+[data-theme="dark"] .invite-input,
+[data-theme="dark"] .style-select,
+[data-theme="dark"] .chat-mode-btn:not(.active) { background: transparent; }
+
 /* 单聊对象 chips */
 .solo-target { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 12px; background: var(--accent-bg); border: 1px dashed var(--accent-dim); border-radius: 8px; }
 .solo-target-name { font-size: 14px; font-weight: 700; color: var(--accent); }
