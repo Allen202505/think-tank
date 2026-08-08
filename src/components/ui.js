@@ -32,9 +32,27 @@ export function MasterAvatar({ master, size = 44, className = '' }) {
       </span>
     );
   }
+  // 无真实头像（邀请的自定义大师）：首字符 + 大师色圆形填充，与预置照片风格统一
+  const raw = (master.name || master.nameEn || '').trim();
+  const cjkMatch = raw.match(/[\u4e00-\u9fff]/);
+  const ch = (cjkMatch ? cjkMatch[0] : raw.charAt(0) || '?').toUpperCase();
+  const bg = /^#[0-9a-fA-F]{6}$/.test(master.color || '') ? master.color : '#5a5a7a';
+  const r = parseInt(bg.slice(1, 3), 16), g = parseInt(bg.slice(3, 5), 16), b = parseInt(bg.slice(5, 7), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const fg = lum > 0.55 ? 'var(--text)' : '#fffef9';
   return (
-    <span className={className} style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.45, flexShrink: 0, ...wrapperStyle }}>
-      {master.emoji}
+    <span
+      className={className}
+      style={{
+        width: size, height: size, borderRadius: '50%', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: bg, color: fg, fontSize: size * 0.5, fontWeight: 700,
+        fontFamily: 'var(--font-sans)', lineHeight: 1,
+        boxShadow: 'inset 0 0 0 1px rgba(0, 0, 0, 0.08)',
+        ...wrapperStyle,
+      }}
+    >
+      {ch}
     </span>
   );
 }
