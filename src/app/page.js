@@ -19,6 +19,19 @@ import {
 import { generatePoster } from '../lib/poster';
 import './page.css';
 
+// 从发言的实际立场统计票数（不信任 AI 裁决里的数字，避免数错）
+function countVotes(items) {
+  const votes = { bull: 0, bear: 0, neutral: 0 };
+  for (const b of items || []) {
+    if (b.type !== 'speech') continue;
+    const st = b.msg?.stance ?? b.content?.stance;
+    if (st === 'BULL') votes.bull += 1;
+    else if (st === 'BEAR') votes.bear += 1;
+    else votes.neutral += 1;
+  }
+  return votes;
+}
+
 // ─── 主组件 ──────────────────────────────────────────────
 export default function Home() {
   // 结构化数据 JSON-LD
@@ -203,6 +216,12 @@ export default function Home() {
     setPosterBusy(true);
     setError('');
     try {
+      const stances = (result.discussion || []).reduce((acc, m) => {
+        if (m?.stance === 'BULL') acc.bull += 1;
+        else if (m?.stance === 'BEAR') acc.bear += 1;
+        else acc.neutral += 1;
+        return acc;
+      }, { bull: 0, bear: 0, neutral: 0 });
       const canvas = await generatePoster({
         question: query,
         hostId: result.hostId,
@@ -210,7 +229,7 @@ export default function Home() {
         hostOpening: result.hostOpening,
         discussion: result.discussion,
         hostClosing: result.hostClosing,
-        verdict: result.verdict || {},
+        verdict: { ...(result.verdict || {}), bullCount: stances.bull, bearCount: stances.bear, neutralCount: stances.neutral },
       });
       setPosterUrl(canvas.toDataURL('image/png'));
       setPosterOpen(true);
@@ -729,19 +748,20 @@ export default function Home() {
                     {block.type === 'verdict' && (() => {
                       const v = block.verdict ?? block.content;
                       if (!v) return null;
+                      const votes = countVotes(blocks);
                       return (
                         <div className="verdict-block">
                           <div className="verdict-title">{t('verdictTitle')}</div>
                           <p className="verdict-summary">{v.summary}</p>
                           <div className="verdict-bars">
-                            <div className="v-bar v-bull" style={{ width: `${Math.round(((v.bullCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
-                            <div className="v-bar v-neutral" style={{ width: `${Math.round(((v.neutralCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
-                            <div className="v-bar v-bear" style={{ width: `${Math.round(((v.bearCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
+                            <div className="v-bar v-bull" style={{ width: `${Math.round(((votes.bull)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
+                            <div className="v-bar v-neutral" style={{ width: `${Math.round(((votes.neutral)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
+                            <div className="v-bar v-bear" style={{ width: `${Math.round(((votes.bear)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
                           </div>
                           <div className="verdict-votes">
-                            <span className="v-bull">看多 {v.bullCount || 0} 票</span>
-                            <span className="v-neutral">中性 {v.neutralCount || 0} 票</span>
-                            <span className="v-bear">看空 {v.bearCount || 0} 票</span>
+                            <span className="v-bull">看多 {votes.bull} 票</span>
+                            <span className="v-neutral">中性 {votes.neutral} 票</span>
+                            <span className="v-bear">看空 {votes.bear} 票</span>
                           </div>
                           {v.consensus && <div className="verdict-consensus">🤝 共识：{v.consensus}</div>}
                           {v.mainRisk && <div className="verdict-risk">⚠️ 风险：{v.mainRisk}</div>}
@@ -822,6 +842,7 @@ export default function Home() {
                     {typingPhase === 'content' && currentBlock.type === 'verdict' && (() => {
                       const v = currentBlock.verdict ?? currentBlock.content;
                       if (!v) return null;
+                      const votes = countVotes(blocks);
                       return (
                         <div className="verdict-block">
                           <div className="verdict-title">{t('verdictTitle')}</div>
@@ -829,14 +850,14 @@ export default function Home() {
                           {typeCharIndex >= currentLen && (
                             <>
                               <div className="verdict-bars">
-                                <div className="v-bar v-bull" style={{ width: `${Math.round(((v.bullCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
-                                <div className="v-bar v-neutral" style={{ width: `${Math.round(((v.neutralCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
-                                <div className="v-bar v-bear" style={{ width: `${Math.round(((v.bearCount||0)/((v.bullCount||0)+(v.bearCount||0)+(v.neutralCount||0)||1))*100)}%` }} />
+                                <div className="v-bar v-bull" style={{ width: `${Math.round(((votes.bull)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
+                                <div className="v-bar v-neutral" style={{ width: `${Math.round(((votes.neutral)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
+                                <div className="v-bar v-bear" style={{ width: `${Math.round(((votes.bear)/((votes.bull)+(votes.bear)+(votes.neutral)||1))*100)}%` }} />
                               </div>
                               <div className="verdict-votes">
-                                <span className="v-bull">看多 {v.bullCount || 0} 票</span>
-                                <span className="v-neutral">中性 {v.neutralCount || 0} 票</span>
-                                <span className="v-bear">看空 {v.bearCount || 0} 票</span>
+                                <span className="v-bull">看多 {votes.bull} 票</span>
+                                <span className="v-neutral">中性 {votes.neutral} 票</span>
+                                <span className="v-bear">看空 {votes.bear} 票</span>
                               </div>
                               {v.consensus && <div className="verdict-consensus">🤝 共识：{v.consensus}</div>}
                               {v.mainRisk && <div className="verdict-risk">⚠️ 风险：{v.mainRisk}</div>}
