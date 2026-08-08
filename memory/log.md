@@ -859,6 +859,29 @@
 
 **验证**: 内置浏览器实测——本地已有邀请的「段永平 [AI·全网画像]」真实排在巴菲特等 33 位预置大师之前；数组逻辑复现：林小梅→老段→巴菲特→芒格→索罗斯；构建通过。
 
+## 2026-08-08（第三十五批）
+
+### UI 纵深优化：按用户建议落地（毛玻璃/卡片阴影/墨色主按钮/左右栏分色/留白）
+**背景**: 用户提供一份五点 UI 优化建议（背景处理/色彩/光影纵深/排版/三步微调），要求照此优化。
+
+**决策**: 在既有「羊皮纸+金色学院风」基础上做层级与质感升级，不推倒重来；背景已在上一批重构过，本次只加底部压暗渐变与宣纸颗粒 5.5%→7.5%；主按钮按建议改为「墨色底+暗金文字」（取代上批的白字金底）。
+
+**实现**:
+- globals.css 新 token：`--bg-card-sidebar`(左暖白)/`--bg-card-main`(右米黄)/`--header-bg`(毛玻璃半透明)/`--btn-primary-bg`/`--btn-primary-text`(墨底金字)/`--shadow-soft`/`--shadow-bubble`
+- 顶部 header：position sticky + backdrop-filter blur(14px) saturate(1.15) 毛玻璃（亮/暗各半透明 0.72）
+- 侧栏：向右微弱内阴影（inset -1px + 外投 8px 柔影），暗色主题同步
+- 左右栏底色微妙区分：侧栏卡片暖白、主栏卡片米黄（暗色同构区分）
+- 聊天卡片化：.speech-content/.host-block/.user-followup 圆角 0 6px 6px 0 / 6px + 极淡阴影；.card-panel 圆角 8→6px + shadow-soft
+- 排版：.speech-name 700→800、.master-name 600→700、.verdict-title 700→800；正文 .speech-content weight 400、字号 13.5→14、行高 1.95
+- 留白 +20~30%：.main-layout padding/gap、.discussion-container gap 24→28、.speech-row gap 12→16、.speech-meta margin、.master-row gap/padding
+- 主按钮 .btn-submit：墨色底(#201f26 亮 / #1c1b23 暗) + 暗金文字(#c9a84c) + 金描边，hover 上浮 1px + 柔影
+- 背景：宣纸颗粒 5.5%→7.5%；底部加压暗渐变（亮=暖棕 5%、暗=黑 22%），强化底部落地感
+- 大师发言前的极细立场竖线（2px）保留，即建议中的引用装饰
+
+**验证**: 浏览器实测亮/暗两主题——header 毛玻璃 backdrop-filter 生效、侧栏/主栏卡片底色区分（#fffdf5 vs #fbf6ea / #12121e vs #0e0e18）、墨色按钮渲染确认（像素采样 ≈#201f26）、卡片圆角/阴影/字号/留白均生效；impeccable detect 0 告警；构建通过。
+
+**待办**: 墨色主按钮若用户觉得太暗可回退金底白字（上批 commit c236911 前的样式）。
+
 ## 模板（新增记录时使用）
 
 ```markdown

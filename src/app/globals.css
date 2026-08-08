@@ -2,7 +2,14 @@
 :root {
   --bg-page: #0a0a0f;
   --bg-card: #10101a;
+  --bg-card-sidebar: #12121e;
+  --bg-card-main: #0e0e18;
   --bg-input: #0d0d18;
+  --header-bg: rgba(16, 16, 26, 0.72);
+  --btn-primary-bg: #1c1b23;
+  --btn-primary-text: #c9a84c;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px -16px rgba(0, 0, 0, 0.5);
+  --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.3);
   --border: #2a2a3e;
   --border-subtle: #34344c;
   --text: #e8e4d8;
@@ -25,7 +32,14 @@
 [data-theme="light"] {
   --bg-page: #f5f0e6;
   --bg-card: #fffef9;
+  --bg-card-sidebar: #fffdf5;
+  --bg-card-main: #fbf6ea;
   --bg-input: #faf8f3;
+  --header-bg: rgba(255, 254, 249, 0.72);
+  --btn-primary-bg: #201f26;
+  --btn-primary-text: #c9a84c;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05), 0 10px 26px -18px rgba(0, 0, 0, 0.16);
+  --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.05);
   --border: #d4cfc4;
   --border-subtle: #e8e4dc;
   --text: #1a1915;
@@ -67,16 +81,18 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E") repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.075'/%3E%3C/svg%3E") repeat,
     radial-gradient(ellipse 90% 72% at 50% 0%, transparent 55%, rgba(74, 58, 28, 0.07) 100%),
+    linear-gradient(180deg, transparent 72%, rgba(74, 58, 28, 0.05) 100%),
     radial-gradient(ellipse 80% 50% at 20% 10%, var(--accent-bg), transparent 45%),
     radial-gradient(ellipse 60% 40% at 85% 85%, var(--accent-bg), transparent 40%);
   z-index: 0;
 }
 [data-theme="dark"] body::before {
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E") repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.075'/%3E%3C/svg%3E") repeat,
     radial-gradient(ellipse 90% 72% at 50% 0%, transparent 42%, rgba(0, 0, 0, 0.42) 100%),
+    linear-gradient(180deg, transparent 64%, rgba(0, 0, 0, 0.22) 100%),
     radial-gradient(ellipse 70% 46% at 22% 12%, rgba(201, 168, 76, 0.10), transparent 55%),
     radial-gradient(ellipse 55% 40% at 80% 88%, rgba(201, 168, 76, 0.07), transparent 50%);
 }
