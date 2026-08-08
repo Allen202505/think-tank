@@ -1,5 +1,14 @@
 // poster.js —— 客户端生成辩论分享海报（#10 v2）
 // 重新设计：问题作为大标题 / 观点卡片化 / 关键数字高亮 / 控制文字量 / 更多留白
+import QRCode from 'qrcode';
+
+// 二维码指向的网站地址（.env.local 里是占位符时兜底真实域名）
+function getSiteUrl() {
+  const env = process.env.NEXT_PUBLIC_SITE_URL || '';
+  if (env && !/your-domain|example\.com|think-tank\.example/.test(env)) return env;
+  return 'https://yieldglide.com';
+}
+
 const W = 1080;
 const H = 1920;
 
@@ -186,8 +195,10 @@ export async function generatePoster(opts) {
     y += 42;
   }
 
-  // ── 大师观点卡片 ──
-  const shown = discussion.slice(0, 4);
+  // ── 大师观点卡片：精选最多 2 位（优先一多一空，辩论感更强） ──
+  const bullPick = discussion.find((m) => m.stance === 'BULL');
+  const bearPick = discussion.find((m) => m.stance === 'BEAR');
+  const shown = bullPick && bearPick ? [bullPick, bearPick] : discussion.slice(0, 2);
   const avatarCache = {};
   const CARD_W = W - MARGIN * 2;
   const CARD_PAD = 30;
@@ -202,11 +213,12 @@ export async function generatePoster(opts) {
     const m = masterMap[msg.investorId];
     const st = STANCE[msg.stance] || STANCE.NEUTRAL;
     const name = m?.name || '大师';
-    const keyPoint = clean(msg.keyPoint);
+    let keyPoint = clean(msg.keyPoint);
+    keyPoint = keyPoint.replace(/^观点[：:]\s*/, ''); // 避免重复"观点："前缀
 
     // 先测量，确定行数与卡片高度（避免内容溢出/空档）
     ctx.font = `400 26px ${FONT_SANS}`;
-    const contentLines = wrapLines(ctx, msg.content || '', CARD_W - CARD_PAD * 2 - 14, 3);
+    const contentLines = wrapLines(ctx, msg.content || '', CARD_W - CARD_PAD * 2 - 14, 2);
     ctx.font = `700 27px ${FONT_SANS}`;
     const kpLines = keyPoint ? wrapLines(ctx, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 2) : [];
     const kpH = kpLines.length * 40;
@@ -336,6 +348,39 @@ export async function generatePoster(opts) {
       y += 38;
     }
   }
+
+  // ── 二维码（引导扫码访问网站） ──
+  y += 40;
+  const qrSize = 176;
+  const qrX = (W - qrSize) / 2;
+  const siteUrl = getSiteUrl();
+  try {
+    const qrData = await QRCode.toDataURL(siteUrl, {
+      width: qrSize * 4,
+      margin: 0,
+      color: { dark: '#1f1d19', light: '#ffffff' },
+    });
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = qrData; });
+    // 白色二维码卡片 + 金边
+    ctx.fillStyle = '#ffffff';
+    roundedRect(ctx, qrX - 14, y - 14, qrSize + 28, qrSize + 28, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(154,120,48,0.5)';
+    ctx.lineWidth = 2;
+    roundedRect(ctx, qrX - 14, y - 14, qrSize + 28, qrSize + 28, 12);
+    ctx.stroke();
+    ctx.drawImage(img, qrX, y, qrSize, qrSize);
+  } catch (e) { /* 二维码生成失败不阻塞 */ }
+
+  ctx.textAlign = 'center';
+  ctx.font = `600 26px ${FONT_SANS}`;
+  ctx.fillStyle = INK;
+  ctx.fillText('扫码访问「大师吵股」', W / 2, y + qrSize + 44);
+  ctx.font = `400 21px ${FONT_MONO}`;
+  ctx.fillStyle = MUTED;
+  ctx.fillText(`${siteUrl.replace(/^https?:\/\//, '')} · 查看完整辩论与最新数据`, W / 2, y + qrSize + 76);
+  ctx.textAlign = 'left';
 
   // ── 页脚 ──
   const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
