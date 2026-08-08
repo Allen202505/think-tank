@@ -882,6 +882,24 @@
 
 **待办**: 墨色主按钮若用户觉得太暗可回退金底白字（上批 commit c236911 前的样式）。
 
+## 2026-08-08（第三十六批）
+
+### 去框化：一体沉浸式布局（标题融入纸面 + 卡片全透明）
+**背景**: 用户反馈 UI「切割感太重」，标题区与内容区分成两块，希望打造一体的沉浸体验。
+
+**决策**: 把「盒子拼贴」改为「一整张纸面」——标题区融入纸面（去毛玻璃条/去边框/不吸顶），所有卡片去边框去阴影去底色直接落在羊皮纸上，左右栏不再分色，气泡外框改极淡细线。
+
+**实现** (page.css)：
+- .header：去掉 sticky/backdrop-filter/边框/底色，改为透明题头（padding 26px 顶），下方用一条「渐隐细金线」（linear-gradient 90deg 金→透明，opacity 0.3）柔和过渡
+- .main-layout：padding 上缩下放（12px 18px 40px）、栏间距 26px
+- .card-panel：background transparent、去 border/shadow/radius（内容直接落在纸上）；章节靠 .card-title 等宽标签+更淡的横线区分
+- .sidebar：去掉内阴影与左右分色，改为极细竖线分隔（border-right var(--border-subtle)），移动端去掉竖线
+- .speech-content / .host-block / .user-followup：外框 var(--border)→var(--border-subtle)（更淡），保留立场竖线与柔影
+
+**验证**: 浏览器实测亮/暗——header 透明不吸顶、::after 金线存在、card-panel 全透明、侧栏仅细竖线；像素采样：主栏中部从旧版纯白卡片(255,254,249)变为纸色(243,241,235)，说明盒子已消失；impeccable detect 0 告警；构建通过。
+
+**待办**: 若觉得金线/竖线也可以不要，一句话去掉。
+
 ## 模板（新增记录时使用）
 
 ```markdown
