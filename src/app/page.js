@@ -307,7 +307,7 @@ export default function Home() {
     try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(masters)); } catch (e) { /* ignore */ }
   }, []);
 
-  const handleInvite = useCallback(async (nameOverride) => {
+  const handleInvite = useCallback(async (nameOverride, forceOnline = false) => {
     const nm = (typeof nameOverride === 'string' ? nameOverride : inviteName).trim();
     if (!nm || inviteBusy) return;
     setInviteBusy(true);
@@ -318,9 +318,9 @@ export default function Home() {
     setInviteMaster(null);
     setInviteSources([]);
 
-    // 预置画像：本地秒出档案卡，跳过全网搜索 + LLM 生成
+    // 预置画像：本地秒出档案卡，跳过全网搜索 + LLM 生成（重新构建时强制走在线配方）
     const preset = PRESET_MASTERS_MAP[nm];
-    if (preset) {
+    if (preset && !forceOnline) {
       const master = {
         ...preset,
         id: `custom_${Date.now()}_${nm}`,
@@ -1447,7 +1447,7 @@ export default function Home() {
               )}
               {invitePhase === 'preview' && (
                 <div className="invite-actions">
-                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => handleInvite()}>↺ 重新构建</button>
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => handleInvite(inviteMaster?.name, true)}>↺ 重新构建</button>
                   <button type="button" className="invite-btn invite-btn-primary" onClick={confirmInvite}>确认加入</button>
                 </div>
               )}

@@ -3,6 +3,7 @@
 // 返回流式（NDJSON）事件：search → research → build → done/error，前端可展示阶段进度
 import { ReadableStream } from 'node:stream/web';
 import { snapColorToPalette } from '../../../data/masters';
+import { RECIPES } from '../../../data/recipes';
 
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
@@ -48,26 +49,44 @@ function parseBaidu(html) {
 
 const BLOCKED_HOSTS = /zhihu\.com|xueqiu\.com|zsxq\.com|weixin|mp\.weixin|weibo\.com|bilibili\.com/;
 
-async function searchWeb(name) {
-  const engines = [
-    { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(`"${name}"`)}&count=12` },
-    { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(`"${name}"`)}` },
-  ];
+async function searchWeb(name, recipe = null) {
+  // 相关性锚点：命中锚点的结果排最前（防同名/字典/无关内容抢占）
+  const anchor = name;
+  const queries = recipe?.queries?.length ? recipe.queries : [name];
   const collected = [];
-  for (const e of engines) {
-    try {
-      const r = await fetch(e.url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
-      if (!r.ok) continue;
-      const html = await r.text();
-      const parsed = e.name === 'bing' ? parseBing(html) : parseBaidu(html);
-      for (const item of parsed) {
-        if (isNoise(item)) continue;
-        collected.push({ ...item, rank: collected.length + 1, engine: e.name });
-      }
-      if (collected.length >= 8) break;
-    } catch (err) { /* 单引擎失败不影响 */ }
+  const seen = new Set();
+  for (const q of queries) {
+    const engines = [
+      { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(`"${q}"`)}&count=12` },
+      { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(`"${q}"`)}` },
+    ];
+    for (const e of engines) {
+      try {
+        const r = await fetch(e.url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
+        if (!r.ok) continue;
+        const html = await r.text();
+        const parsed = e.name === 'bing' ? parseBing(html) : parseBaidu(html);
+        for (const item of parsed) {
+          if (isNoise(item)) continue;
+          if (recipe?.noise && recipe.noise.test(`${item.title} ${item.url}`)) continue;
+          if (seen.has(item.url)) continue;
+          seen.add(item.url);
+          collected.push({ ...item, rank: collected.length + 1, engine: e.name, query: q });
+        }
+      } catch (err) { /* 单引擎失败不影响 */ }
+    }
   }
-  return collected.slice(0, 8);
+  // 相关性排序：标题/摘要含完整昵称的排最前，其次是含姓氏/别名，纯噪音垫底
+  collected.sort((a, b) => {
+    const score = (r) => {
+      const t = `${r.title} ${r.snippet}`;
+      if (t.includes(anchor)) return 0;
+      if (anchor.length >= 2 && t.includes(anchor.slice(0, 2))) return 1;
+      return 2;
+    };
+    return score(a) - score(b);
+  });
+  return collected.slice(0, 12);
 }
 
 async function fetchArticle(url) {
@@ -141,9 +160,10 @@ export async function POST(request) {
     async start(controller) {
       const emit = (obj) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       try {
-        // ① 检索公开资料
+        // ① 检索公开资料（命中配方走定制多关键词检索）
         emit({ stage: 'search' });
-        const web = await searchWeb(name);
+        const recipe = RECIPES.find((r) => r.name === name) || null;
+        const web = await searchWeb(name, recipe);
         const seen = new Set();
         const articles = [];
         for (const r of web.slice(0, 4)) {
@@ -159,6 +179,7 @@ export async function POST(request) {
         // ② 资料准备：用户粘贴 > 全文正文 > 搜索摘要 > LLM 知识
         emit({ stage: 'research' });
         const corpus = [];
+        if (recipe?.hint) corpus.push(`【人工校准背景 · 可信度最高】\n${recipe.hint}`);
         if (materials) corpus.push(`【用户提供的真实资料 · 可信度最高】\n${materials.slice(0, 4000)}`);
         if (articles.length) {
           corpus.push(`【已读取到的全文正文 · 可信度高】\n${articles.map((a, i) => `[正文${i + 1}]《${a.title}》\n${a.body}`).join('\n\n')}`);
@@ -168,7 +189,7 @@ export async function POST(request) {
         }
         let research = corpus.join('\n\n');
         if (!research) {
-          const rp = `你是人物资料研究员。人物：「${name}」。\n${hint ? `用户补充：${hint}\n` : ''}\n请写一份关于该人物的「研究简报」，包含：1) 身份与背景 2) 代表观点与投资/做事理念 3) 经典语录（尽量还原原话） 4) 外界/网络评价 5) 说话风格与习惯。基于你对该人物的了解来写；资料有限就写公开形象，不要编造具体细节。只输出研究简报正文，400-600字。`;
+          const rp = `你是人物资料研究员。人物：「${name}」。\n${recipe?.hint ? `人工校准背景：${recipe.hint}\n` : ''}\n${hint ? `用户补充：${hint}\n` : ''}\n请写一份关于该人物的「研究简报」，包含：1) 身份与背景 2) 代表观点与投资/做事理念 3) 经典语录（尽量还原原话） 4) 外界/网络评价 5) 说话风格与习惯。基于你对该人物的了解来写；资料有限就写公开形象，不要编造具体细节。只输出研究简报正文，400-600字。`;
           research = await callDeepSeek([{ role: 'user', content: rp }], 1600, 0.5);
         }
 
