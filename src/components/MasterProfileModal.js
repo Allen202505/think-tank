@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { MasterAvatar } from './ui';
 
 // 大师资料弹窗
@@ -81,20 +80,14 @@ export default function MasterProfileModal({ master, onClose, locale, onStartCha
             <button type="button" className="profile-chat-btn" onClick={() => onStartChat && onStartChat(master)}>
               💬 与 TA 单聊 →
             </button>
-            {isCustom ? (
-              onRemove && (
-                <button
-                  type="button"
-                  className={`profile-remove-btn${confirming ? ' confirming' : ''}`}
-                  onClick={handleRemove}
-                >
-                  {confirming ? (isEn ? '再点一次确认移除' : '再点一次确认移除') : (isEn ? '从智囊团移除' : '从智囊团移除')}
-                </button>
-              )
-            ) : (
-              <Link href={`/masters/${master.id}`} className="profile-page-link" onClick={onClose}>
-                {isEn ? '查看大师主页 →' : '查看大师主页 →'}
-              </Link>
+            {isCustom && onRemove && (
+              <button
+                type="button"
+                className={`profile-remove-btn${confirming ? ' confirming' : ''}`}
+                onClick={handleRemove}
+              >
+                {confirming ? (isEn ? '再点一次确认移除' : '再点一次确认移除') : (isEn ? '从智囊团移除' : '从智囊团移除')}
+              </button>
             )}
         </div>
       </div>

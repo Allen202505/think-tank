@@ -189,9 +189,6 @@
 .debate-reset-btn { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; cursor: pointer; opacity: 0.7; }
 .debate-reset-btn:hover { opacity: 1; color: var(--bear); }
 
-/* 资料弹窗：查看大师主页 */
-.profile-page-link { display: inline-block; margin-top: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--accent); text-decoration: none; }
-.profile-page-link:hover { text-decoration: underline; }
 
 /* 分享海报（#10） */
 .poster-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
