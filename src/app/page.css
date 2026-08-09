@@ -380,14 +380,7 @@
 .style-dropdown-btn:hover { border-color: var(--accent); }
 .style-dropdown-label { font-weight: 700; white-space: nowrap; }
 .style-dropdown-hint { color: var(--text-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.style-dropdown-caret {
-  margin-left: auto; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: var(--accent-dim); color: var(--accent);
-  transition: transform 0.15s, background 0.15s, color 0.15s;
-}
-.style-dropdown-btn:hover .style-dropdown-caret { background: var(--accent); color: var(--on-accent); }
+.style-dropdown-caret { margin-left: auto; color: var(--text-muted); font-size: 16px; line-height: 1; transition: transform 0.15s; }
 .style-dropdown-caret.up { transform: rotate(180deg); }
 .style-dropdown-menu {
   position: absolute; top: calc(100% + 4px); left: 0; width: max-content; min-width: 100%; max-width: 380px; z-index: 60;

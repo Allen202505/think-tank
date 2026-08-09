@@ -63,9 +63,7 @@ function StyleDropdown({ value, onChange, options }) {
       >
         <span className="style-dropdown-label">{current ? current.label : value}</span>
         {current && <span className="style-dropdown-hint">{current.hint}</span>}
-        <span className={`style-dropdown-caret${open ? ' up' : ''}`} aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-        </span>
+        <span className={`style-dropdown-caret${open ? ' up' : ''}`} aria-hidden="true">▾</span>
       </button>
       {open && (
         <div className="style-dropdown-menu" role="listbox">
