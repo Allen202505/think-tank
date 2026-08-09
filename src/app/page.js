@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { PRESET_MASTERS, snapColorToPalette } from '../data/masters';
+import { QUICK_PICK_GROUPS } from '../data/quickPicks';
 import { messages } from '../i18n/messages';
 import { Card, MasterAvatar, MiniBtn } from '../components/ui';
 import MasterProfileModal from '../components/MasterProfileModal';
@@ -304,8 +305,8 @@ export default function Home() {
     try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(masters)); } catch (e) { /* ignore */ }
   }, []);
 
-  const handleInvite = useCallback(async () => {
-    const nm = inviteName.trim();
+  const handleInvite = useCallback(async (nameOverride) => {
+    const nm = (nameOverride ?? inviteName).trim();
     if (!nm || inviteBusy) return;
     setInviteBusy(true);
     setError('');
@@ -1324,6 +1325,34 @@ export default function Home() {
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   autoFocus
                 />
+                <div className="invite-quick">
+                  <div className="invite-quick-head">
+                    <span className="invite-quick-title">或从知名人物中快捷选择</span>
+                    <span className="invite-quick-hint">点击即开始构建</span>
+                  </div>
+                  <div className="invite-quick-groups">
+                    {QUICK_PICK_GROUPS.map((g) => (
+                      <div className="invite-quick-group" key={g.id}>
+                        <div className="invite-quick-group-label">{g.label}</div>
+                        <div className="invite-quick-chips">
+                          {g.people.map((person) => (
+                            <button
+                              type="button"
+                              key={person.name}
+                              className="invite-quick-chip"
+                              onClick={() => { setInviteName(person.name); handleInvite(person.name); }}
+                              disabled={inviteBusy}
+                              title={person.hint}
+                            >
+                              <span className="iqc-name">{person.name}</span>
+                              <span className="iqc-hint">{person.hint}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="invite-actions">
                   <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
                   <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>

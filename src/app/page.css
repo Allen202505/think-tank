@@ -229,6 +229,19 @@
 .invite-input { width: 100%; box-sizing: border-box; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); padding: 9px 11px; border-radius: 6px; font-size: 13px; }
 .invite-input:focus { outline: none; border-color: var(--accent); }
 .invite-textarea { min-height: 64px; resize: vertical; }
+/* 快捷选择知名人物 */
+.invite-quick { margin-top: 14px; border-top: 1px solid var(--border-subtle); padding-top: 12px; }
+.invite-quick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.invite-quick-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.invite-quick-hint { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+.invite-quick-groups { display: flex; flex-direction: column; gap: 10px; max-height: 34vh; overflow-y: auto; padding-right: 4px; }
+.invite-quick-group-label { font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); letter-spacing: 0.08em; margin-bottom: 5px; }
+.invite-quick-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.invite-quick-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: var(--font-sans); transition: all 0.12s; }
+.invite-quick-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.invite-quick-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.invite-quick-chip .iqc-name { font-weight: 700; white-space: nowrap; }
+.invite-quick-chip .iqc-hint { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 .invite-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .invite-btn { padding: 9px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
 .invite-btn-ghost { background: transparent; border-color: var(--border); color: var(--text); }
