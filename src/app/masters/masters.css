@@ -12,7 +12,7 @@
 .master-card-title { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 详情页 */
-.master-hero { display: flex; align-items: center; gap: 22px; padding: 26px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+.master-hero { display: flex; align-items: center; gap: 22px; padding: 26px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
 .master-hero-avatar { border-radius: 50%; object-fit: cover; width: 110px; height: 110px; flex-shrink: 0; }
 .master-hero-emoji { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 54px; background: var(--bg-input); flex-shrink: 0; }
 .master-hero h1 { margin: 0; font-size: 30px; letter-spacing: 0.03em; }
@@ -20,12 +20,12 @@
 .master-badges { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .master-badge { font-family: var(--font-mono); font-size: 10px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 20px; color: var(--accent); }
 .master-status-dead { color: var(--text-muted); }
-.master-quote { margin: 22px 0 0; padding: 16px 18px; border-left: 3px solid var(--accent); background: var(--bg-input); font-style: italic; font-size: 16px; line-height: 1.7; }
+.master-quote { margin: 22px 0 0; padding: 16px 18px; border-left: 3px solid var(--accent); background: var(--bg-input); font-style: italic; font-size: 16px; line-height: 1.7; } /* impeccable-disable-line side-tab -- 引言引用条，语义色非装饰 */
 .master-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
 .master-sec { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 18px; }
 .master-sec h3 { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--accent); margin: 0 0 10px; }
 .master-sec p { margin: 0; line-height: 1.8; font-size: 14px; color: var(--text); }
-.master-cta { display: inline-block; margin-top: 26px; padding: 12px 26px; background: var(--accent); color: #0a0a0f; font-weight: 700; border-radius: 4px; text-decoration: none; }
+.master-cta { display: inline-block; margin-top: 26px; padding: 12px 26px; background: var(--accent); color: #0a0a0f; font-weight: 700; border-radius: 6px; text-decoration: none; }
 .master-cta:hover { opacity: 0.9; }
 @media (max-width: 720px) {
   .master-sections { grid-template-columns: 1fr; }

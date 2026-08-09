@@ -1317,6 +1317,15 @@
 
 **验证**: 浏览器实测暗色——下拉面板 rgb(36,32,25)（R>G>B 暖棕、无紫）、页面底 rgb(13,11,8) 暖炭；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十五批）
+
+### 圆角统一：两档体系（小控件 6px / 卡片浮层 10px）
+**背景**: 用户反馈圆角太杂（原混用 4/6/8/12px）。
+
+**实现**: page.css + masters.css 统一——小控件（输入框/按钮/tab/下拉项/提示/错误框/成员行等）4px→6px；卡片/弹窗/浮层（modal、qr、history、invite-entry、persona、solo-target、verdict、poster-img、master-hero 等）8px/12px→10px。保留：胶囊 999px、圆形 50%、聊天气泡非对称 4/14、细进度条 4px。另给 masters.css 引言色条补 impeccable 豁免注释。
+
+**验证**: 浏览器实测小控件 6px、入口 10px；检测器 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
