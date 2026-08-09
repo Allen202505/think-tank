@@ -1035,45 +1035,6 @@ export default function Home() {
 
         <main className="main">
           <Card title={t('askLabel')} accent="var(--accent)">
-            <div className="chat-mode-switch" role="tablist" aria-label="聊天方式">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={chatMode === 'group'}
-                className={`chat-mode-btn ${chatMode === 'group' ? 'active' : ''}`}
-                onClick={() => setChatMode('group')}
-              >
-                群聊
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={chatMode === 'solo'}
-                className={`chat-mode-btn ${chatMode === 'solo' ? 'active' : ''}`}
-                onClick={() => setChatMode('solo')}
-              >
-                单聊
-              </button>
-            </div>
-            {chatMode === 'group' && (
-              <div className="group-style">
-                <span className="style-label">风格</span>
-                <StyleDropdown value={mode} onChange={setMode} options={MODES} />
-              </div>
-            )}
-            {chatMode === 'solo' && (
-              <div className="solo-target">
-                {soloTarget ? (
-                  <>
-                    <MasterAvatar master={soloTarget} size={28} />
-                    <span className="solo-target-name">{soloTarget.name}</span>
-                    <span className="solo-target-title">{soloTarget.title}</span>
-                  </>
-                ) : (
-                  <span className="solo-target-empty">请从左侧选择 1 位单聊对象</span>
-                )}
-              </div>
-            )}
             <textarea
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -1084,6 +1045,45 @@ export default function Home() {
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             <div className="question-footer">
+              <div className="question-aux" role="tablist" aria-label="聊天方式">
+                <div className="chat-mode-switch">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={chatMode === 'group'}
+                    className={`chat-mode-btn ${chatMode === 'group' ? 'active' : ''}`}
+                    onClick={() => setChatMode('group')}
+                  >
+                    群聊
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={chatMode === 'solo'}
+                    className={`chat-mode-btn ${chatMode === 'solo' ? 'active' : ''}`}
+                    onClick={() => setChatMode('solo')}
+                  >
+                    单聊
+                  </button>
+                </div>
+                {chatMode === 'group' && (
+                  <div className="group-style">
+                    <StyleDropdown value={mode} onChange={setMode} options={MODES} />
+                  </div>
+                )}
+                {chatMode === 'solo' && (
+                  <div className="solo-target">
+                    {soloTarget ? (
+                      <>
+                        <MasterAvatar master={soloTarget} size={22} />
+                        <span className="solo-target-name">{soloTarget.name}</span>
+                      </>
+                    ) : (
+                      <span className="solo-target-empty">请从左侧选择 1 位单聊对象</span>
+                    )}
+                  </div>
+                )}
+              </div>
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
                 {loading ? `⟳ ${t('summoning')}` : t('btnSummon')}
               </button>
