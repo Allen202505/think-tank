@@ -1647,3 +1647,21 @@
 **验证**: node 直接调用全部 6 个 prompt 函数正常（固定辩论基调）；浏览器实测——风格下拉与 group-style 容器已消失、辅助区只剩群聊/单聊 switch、文案"开启辩论"生效；全仓 grep 无 MODES/StyleDropdown 残留（仅 DEEPSEEK_MODEL 环境变量无关）；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第九十六批）
+
+### 单聊辅助胶囊移除 + 邀请浮层去「⚡即选」+ 海报折行修复与页脚删除
+**背景**: 用户三点：①单聊模式下旁边不需要姓名头像；②邀请浮层快捷人选不要"即选"字样（信息冗余）；③海报还有折行，底部网址+风险说明可删。
+
+**决策**:
+- 删除 question-aux 里的 solo-target 胶囊（头像+姓名/提示），单聊辅助区只剩群聊/单聊 switch
+- 删除邀请 chip 的「⚡即选」徽标（JSX + CSS）
+- 海报：删除底部页脚「yieldglide.com · 日期 · 仅供研究参考，不构成投资建议」
+- 海报折行根因修复：正文测量用常规字体 `400 26px`，但绘制 drawRichLine 数字用粗体 `700 26px`，粗体更宽导致实际绘制超出测量宽度→含数字的行溢出卡片框线/折行错乱。修复：wrapLines 支持富文本感知测宽（opts.boldDigits/boldFont，数字 token 用粗体测），contentLines 测量传入与绘制一致的字体
+- 顺带健壮性：wrapLines 英文单词（含 / . - %）聚成原子 token 不拆行；新行首空白/标点清理
+
+**实现**: page.js（删 solo-target 块、iqc-preset 徽标）；page.css（删 iqc-preset 样式）；poster.js（删页脚、wrapLines 富文本测宽+英文聚合+行首清理、measureLines 透传 opts、contentLines 传入 boldDigits）。
+
+**验证**: playwright 实测——单聊辅助区只剩 switch；邀请 chip 无「⚡即选」；海报像素分析：卡片区 133 文字行最右 x=962 < 卡片右缘 995，无一行超出（修复前含数字行会超出）；左右边缘 0 文字侵入；底部 1500-1600 无页脚文字；二维码说明保留；impeccable 0 告警。
+
+**待办**: 无新增；此前待办不变。

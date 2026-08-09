@@ -31,21 +31,41 @@ const FONT_SANS = '"PingFang SC","Heiti SC",-apple-system,"Microsoft YaHei",sans
 const FONT_MONO = '"SF Mono","Consolas",monospace';
 
 // 按宽度换行；超出 maxLines 时在末行补 "…"
-function wrapLines(ctx, text, maxWidth, maxLines) {
+// opts.boldDigits=true 时按富文本测宽（数字 token 用粗体，与 drawRichLine 一致，避免实际绘制溢出）
+function wrapLines(ctx, text, maxWidth, maxLines, opts = {}) {
   const s = String(text || '');
+  const baseFont = opts.baseFont || '';
+  const boldFont = opts.boldFont || '';
+  const boldDigits = !!opts.boldDigits;
   const lines = [];
   let line = '';
   let truncated = false;
   // 数字(含单位)聚成原子 token 不拆行；其余按字符逐字折行
   const chars = [];
-  const re = /-?\d+(?:\.\d+)?(?:万亿|亿|万|倍|%|％)?|[\s\S]/g;
+  // 数字(含单位)与英文单词(含 / . - % 等)聚成原子 token 不拆行；其余按字符逐字折行
+  const re = /-?\d+(?:\.\d+)?(?:万亿|亿|万|倍|%|％)?|[A-Za-z][A-Za-z0-9./%\-]*|\s|[\s\S]/g;
   let m;
   while ((m = re.exec(s)) !== null) chars.push(m[0]);
+  // 富文本感知测宽：数字 token 用粗体，其余用常规（与绘制一致，防溢出）
+  const measure = (str) => {
+    if (!boldDigits || !boldFont) return ctx.measureText(str).width;
+    let w = 0;
+    const re2 = /-?\d+(?:\.\d+)?(?:万亿|亿|万|倍|%|％)?|[^-?\d]+/g;
+    let mm;
+    while ((mm = re2.exec(str)) !== null) {
+      const tk = mm[0];
+      ctx.font = /^-?\d/.test(tk) ? boldFont : baseFont;
+      w += ctx.measureText(tk).width;
+    }
+    ctx.font = baseFont;
+    return w;
+  };
+  const trimStart = (str) => str.replace(/^[\s、。，；：,.，!！?？、]+/, '');
   for (const ch of chars) {
-    if (line && ctx.measureText(line + ch).width > maxWidth) {
+    if (line && measure(line + ch) > maxWidth) {
       if (lines.length >= maxLines - 1) { truncated = true; break; }
       lines.push(line);
-      line = ch;
+      line = trimStart(ch);
     } else {
       line += ch;
     }
@@ -53,7 +73,7 @@ function wrapLines(ctx, text, maxWidth, maxLines) {
   if (line && lines.length < maxLines) lines.push(line);
   if (truncated) {
     let last = lines.length ? lines[lines.length - 1] : '';
-    while (last.length && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+    while (last.length && measure(last + '…') > maxWidth) last = last.slice(0, -1);
     if (lines.length) lines[lines.length - 1] = last + '…';
     else lines.push('…');
   }
@@ -149,9 +169,9 @@ export async function generatePoster(opts) {
 
   // ── 测量阶段：先按内容算行数，画布高度随内容自适应（不截断） ──
   const scratch = document.createElement('canvas').getContext('2d');
-  const measureLines = (font, text, maxW, maxLines) => {
+  const measureLines = (font, text, maxW, maxLines, opts = {}) => {
     scratch.font = font;
-    return wrapLines(scratch, text || '', maxW, maxLines);
+    return wrapLines(scratch, text || '', maxW, maxLines, { ...opts, baseFont: font });
   };
 
   const titleLines = measureLines(`700 52px ${FONT_SERIF}`, question || '（未提供问题）', CARD_W, 2);
@@ -166,7 +186,7 @@ export async function generatePoster(opts) {
     const kpLines = keyPoint
       ? measureLines(`700 27px ${FONT_SANS}`, `观点：${keyPoint}`, CARD_W - CARD_PAD * 2 - 14, 2)
       : [];
-    const contentLines = measureLines(`400 26px ${FONT_SANS}`, msg.content, CARD_W - CARD_PAD * 2 - 14, 6);
+    const contentLines = measureLines(`400 26px ${FONT_SANS}`, msg.content, CARD_W - CARD_PAD * 2 - 14, 6, { boldDigits: true, boldFont: `700 26px ${FONT_SANS}` });
     const kpH = kpLines.length * 40;
     const contentTop = PAD_TOP + NAME_H + (kpLines.length ? KP_GAP + kpH : 0) + BODY_GAP + 26;
     const cardH = contentTop + contentLines.length * LINE_H + PAD_BOTTOM - 10;
@@ -420,12 +440,6 @@ export async function generatePoster(opts) {
   ctx.fillStyle = MUTED;
   ctx.fillText(`${siteUrl.replace(/^https?:\/\//, '')} · 查看完整辩论与最新数据`, W / 2, y + qrSize + 76);
   ctx.textAlign = 'left';
-
-  // 页脚
-  const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  ctx.font = `400 21px ${FONT_MONO}`;
-  ctx.fillStyle = DIM;
-  ctx.fillText(`yieldglide.com · ${date} · 仅供研究参考，不构成投资建议`, MARGIN, H - 56);
 
   return canvas;
 }

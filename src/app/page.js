@@ -1010,18 +1010,6 @@ export default function Home() {
                   </button>
                   <span className={`cs-label${chatMode === 'solo' ? ' on' : ''}`}>单聊</span>
                 </div>
-                {chatMode === 'solo' && (
-                  <div className="solo-target">
-                    {soloTarget ? (
-                      <>
-                        <MasterAvatar master={soloTarget} size={22} />
-                        <span className="solo-target-name">{soloTarget.name}</span>
-                      </>
-                    ) : (
-                      <span className="solo-target-empty">请从左侧选择 1 位单聊对象</span>
-                    )}
-                  </div>
-                )}
               </div>
               <button type="button" className="btn-submit" onClick={go} disabled={loading}>
                 {loading ? `⟳ ${t('summoning')}` : t('btnSummon')}
@@ -1313,7 +1301,6 @@ export default function Home() {
                               title={person.hint}
                             >
                               <span className="iqc-name">{person.name}</span>
-                              {PRESET_MASTERS_MAP[person.name] && <span className="iqc-preset">⚡即选</span>}
                               <span className="iqc-hint">{person.hint}</span>
                             </button>
                           ))}
