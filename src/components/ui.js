@@ -71,7 +71,7 @@ export function MiniBtn({ children, onClick }) {
       className="mini-btn"
       style={{
         background: h ? 'var(--accent)' : 'transparent',
-        borderColor: h ? 'var(--accent)' : 'var(--text-muted)',
+        borderColor: h ? 'var(--accent)' : 'var(--accent-dim)',
         color: h ? 'var(--on-accent)' : 'var(--text)',
         transform: pressed ? 'translateY(1px)' : 'none',
       }}

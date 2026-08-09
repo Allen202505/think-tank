@@ -1288,6 +1288,15 @@
 
 **验证**: 浏览器实测亮/暗外框色分别为 rgb(92,90,84)/rgb(179,173,160)，清晰可见；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十二批）
+
+### 成员操作按钮外框改为与「邀请一位大师」一致的金色描边
+**背景**: 用户要求三个操作按钮外框线用和邀请大师按钮一样的样式。
+
+**实现** (ui.js MiniBtn)：resting borderColor var(--text-muted)→var(--accent-dim)，与 .invite-entry 外框完全一致（亮 rgba(125,95,31,.35) / 暗 rgba(165,131,42,.30)）。
+
+**验证**: 浏览器实测亮/暗 miniBtn 与 inviteEntry 外框色完全一致；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
