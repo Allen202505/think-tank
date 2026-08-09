@@ -1346,6 +1346,15 @@
 
 **验证**: 浏览器实测 invite-entry=mini-btn=6px、question-input=speech-content=14px；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十八批）
+
+### 风格下拉选项折行修复
+**背景**: 用户反馈下拉选项选中时折行。
+
+**实现** (page.css)：.style-dropdown-menu 改 width:max-content + max-width 380px（面板随内容变宽不再挤压）；option/label/hint 加 white-space:nowrap 单行，hint 超长省略号。
+
+**验证**: 浏览器实测三选项均单行（高 33px），面板宽 179px 贴合内容；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
