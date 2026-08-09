@@ -317,7 +317,19 @@
 .group-style .style-label { font-family: var(--font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: var(--text); white-space: nowrap; }
 
 /* 群聊风格下拉 */
-.style-select { flex: 0 1 auto; width: auto; max-width: 340px; background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text); font-size: 12px; padding: 9px 10px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer; }
+.style-select {
+  flex: 0 1 auto; width: auto; max-width: 340px;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background-color: var(--bg-input);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238b8577' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  color: var(--text); font-size: 12px;
+  padding: 9px 36px 9px 12px;
+  border: 1px solid var(--border-subtle); border-radius: 6px;
+  font-family: var(--font-sans); cursor: pointer;
+}
 .style-select:focus { outline: none; border-color: var(--accent); }
 
 /* 暗色：输入框 / 未选中 tab 填充透明，让背景纹理透过来，只靠边框区分 */
@@ -325,7 +337,7 @@
 [data-theme="dark"] .followup-input,
 [data-theme="dark"] .invite-input,
 [data-theme="dark"] .style-select,
-[data-theme="dark"] .chat-mode-btn:not(.active) { background: transparent; }
+[data-theme="dark"] .chat-mode-btn:not(.active) { background-color: transparent; }
 
 /* 单聊对象 chips */
 .solo-target { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 12px; background: var(--accent-bg); border: 1px dashed var(--accent-dim); border-radius: 8px; }

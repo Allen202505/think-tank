@@ -1270,6 +1270,15 @@
 
 **验证**: 浏览器实测加载即 data-theme=light；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十批）
+
+### 风格下拉箭头右边距优化
+**背景**: 用户反馈下拉箭头贴右缘太紧。
+
+**实现** (page.css .style-select)：原生箭头改自定义 SVG 下拉箭头（appearance:none），background-position right 12px center（距右缘 12px），padding-right 9-10px→36px（文字不挤箭头）；暗色透明覆盖由 background 改为 background-color，避免抹掉箭头。
+
+**验证**: 浏览器实测亮/暗——均含自定义箭头、箭头距右缘 calc(100%-12px)、右 padding 36px；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
