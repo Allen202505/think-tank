@@ -52,7 +52,7 @@ export default function Home() {
     },
   };
 
-  const [theme, setTheme] = useState('dark'); // 默认暗色；SSR 与首帧一致，挂载后 effect 再读 localStorage
+  const [theme, setTheme] = useState('light'); // 默认亮色；SSR 与首帧一致，挂载后 effect 再读 localStorage
   const [qrOpen, setQrOpen] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）

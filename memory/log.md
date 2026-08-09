@@ -1261,6 +1261,15 @@
 
 **验证**: 浏览器实测暗色——邀请弹窗底 rgb(255,254,249) 白、标题深色、标签深灰、主按钮深金白字；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十九批）
+
+### 默认主题改回亮色
+**背景**: 用户要求默认背景还是亮色（撤销第六十一批改暗色默认）。
+
+**实现**: layout.js 首帧脚本 t='dark'→'light'（含 catch 兜底）；page.js useState('dark')→useState('light')。
+
+**验证**: 浏览器实测加载即 data-theme=light；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
