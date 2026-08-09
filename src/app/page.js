@@ -130,8 +130,6 @@ export default function Home() {
   const [inviteMaster, setInviteMaster] = useState(null); // 生成的画像（预览）
   const [inviteSources, setInviteSources] = useState([]); // 检索资料来源标题
   const [inviteError, setInviteError] = useState(''); // 邀请弹窗内错误
-  const [invitePos, setInvitePos] = useState(null); // 浮层锚定位置 {left, top}
-  const inviteBtnRef = useRef(null);
   const inviteInputRef = useRef(null);
   const [supplementOpen, setSupplementOpen] = useState(false); // 需要补充公司信息弹窗
   const [supplementValue, setSupplementValue] = useState('');
@@ -372,26 +370,6 @@ export default function Home() {
     setInvitePhase('added');
   }, [inviteMaster, customMasters, persistCustoms]);
 
-  const updateInvitePos = useCallback(() => {
-    const btn = inviteBtnRef.current;
-    if (!btn) return;
-    const r = btn.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let left, top;
-    if (vw <= 900) {
-      left = 8; top = 8;
-    } else {
-      left = Math.max(12, r.left);
-      top = r.bottom + 8; // 优先在按钮下方展开
-      if (top > vh * 0.78) {
-        // 下方空间不足：贴住视口底部，浮层内部滚动
-        top = Math.max(12, vh - 240);
-      }
-    }
-    setInvitePos({ left, top, maxHeight: Math.max(220, vh - top - 12) });
-  }, []);
-
   const openInvite = useCallback(() => {
     setInvitePhase('form');
     setInviteStage('');
@@ -400,20 +378,7 @@ export default function Home() {
     setError('');
     setInviteError('');
     setInviteOpen(true);
-    updateInvitePos();
-  }, [updateInvitePos]);
-
-  // 浮层打开期间跟随滚动/缩放
-  useEffect(() => {
-    if (!inviteOpen) return undefined;
-    const onMove = () => updateInvitePos();
-    window.addEventListener('scroll', onMove, true);
-    window.addEventListener('resize', onMove);
-    return () => {
-      window.removeEventListener('scroll', onMove, true);
-      window.removeEventListener('resize', onMove);
-    };
-  }, [inviteOpen, updateInvitePos]);
+  }, []);
 
   const closeInvite = useCallback(() => {
     setInviteOpen(false);
@@ -1002,7 +967,7 @@ export default function Home() {
                 ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
                 : t('selectedCount', selected.size, allMasters.length)}
             </div>
-            <button type="button" className="invite-entry" ref={inviteBtnRef} onClick={openInvite}>
+            <button type="button" className="invite-entry" onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
             </button>
             <div className="master-list">
@@ -1342,16 +1307,15 @@ export default function Home() {
 
       {inviteOpen && (
         <>
-          <div className="invite-backdrop" onClick={closeInvite} />
+          <div className="invite-drawer-backdrop" onClick={closeInvite} />
           <div
-            className="invite-popover"
+            className="invite-drawer"
             role="dialog"
-            aria-modal="false"
+            aria-modal="true"
             aria-labelledby="inviteTitle"
             onClick={(e) => e.stopPropagation()}
-            style={invitePos ? { left: invitePos.left, top: invitePos.top, maxHeight: invitePos.maxHeight } : undefined}
           >
-            <div className="invite-head">
+            <div className="invite-head invite-drawer-head">
               <h3 className="invite-title" id="inviteTitle">{invitePhase === 'preview' || invitePhase === 'added' ? '大师档案卡' : '邀请一位大师'}</h3>
               <button type="button" className="modal-close" onClick={closeInvite} aria-label="关闭">×</button>
             </div>
