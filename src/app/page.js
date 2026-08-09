@@ -35,6 +35,56 @@ function countVotes(items) {
 }
 
 // ─── 主组件 ──────────────────────────────────────────────
+
+// 自定义风格下拉（原生 select 的下拉面板是系统配色，暗色下偏紫不可控，改用自绘面板）
+function StyleDropdown({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const current = options[value] || null;
+  return (
+    <div className="style-dropdown" ref={ref}>
+      <button
+        type="button"
+        className="style-dropdown-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="群聊风格"
+      >
+        <span className="style-dropdown-label">{current ? current.label : value}</span>
+        {current && <span className="style-dropdown-hint">{current.hint}</span>}
+        <span className={`style-dropdown-caret${open ? ' up' : ''}`} aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="style-dropdown-menu" role="listbox">
+          {Object.entries(options).map(([k, m]) => (
+            <button
+              type="button"
+              key={k}
+              role="option"
+              aria-selected={k === value}
+              className={`style-dropdown-option${k === value ? ' selected' : ''}`}
+              onClick={() => { onChange(k); setOpen(false); }}
+            >
+              <span className="style-dropdown-option-label">{m.label}</span>
+              <span className="style-dropdown-option-hint">{m.hint}</span>
+              {k === value && <span className="style-dropdown-option-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   // 结构化数据 JSON-LD
   const jsonLd = {
@@ -988,11 +1038,7 @@ export default function Home() {
             {chatMode === 'group' && (
               <div className="group-style">
                 <span className="style-label">风格</span>
-                <select className="style-select" value={mode} onChange={(e) => setMode(e.target.value)} title="群聊风格">
-                  {Object.entries(MODES).map(([k, m]) => (
-                    <option key={k} value={k}>{m.label} · {m.hint}</option>
-                  ))}
-                </select>
+                <StyleDropdown value={mode} onChange={setMode} options={MODES} />
               </div>
             )}
             {chatMode === 'solo' && (

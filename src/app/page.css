@@ -317,26 +317,37 @@
 .group-style .style-label { font-family: var(--font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: var(--text); white-space: nowrap; }
 
 /* 群聊风格下拉 */
-.style-select {
-  flex: 0 1 auto; width: auto; max-width: 340px;
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  background-color: var(--bg-input);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238b8577' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-  color: var(--text); font-size: 12px;
-  padding: 9px 36px 9px 12px;
-  border: 1px solid var(--border-subtle); border-radius: 6px;
-  font-family: var(--font-sans); cursor: pointer;
+/* 自定义风格下拉（自绘面板，配色随主题，不再用系统原生紫色面板） */
+.style-dropdown { position: relative; flex: 0 1 auto; max-width: 340px; }
+.style-dropdown-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text);
+  font-size: 12px; padding: 9px 12px; border-radius: 6px; font-family: var(--font-sans); cursor: pointer;
+  transition: border-color 0.15s;
 }
-.style-select:focus { outline: none; border-color: var(--accent); }
+.style-dropdown-btn:hover { border-color: var(--accent); }
+.style-dropdown-label { font-weight: 700; white-space: nowrap; }
+.style-dropdown-hint { color: var(--text-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.style-dropdown-caret { margin-left: auto; color: var(--text-muted); font-size: 10px; transition: transform 0.15s; }
+.style-dropdown-caret.up { transform: rotate(180deg); }
+.style-dropdown-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; z-index: 60;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column;
+}
+.style-dropdown-option {
+  display: flex; align-items: baseline; gap: 8px; padding: 8px 10px; border: none; background: transparent;
+  color: var(--text); font-size: 12px; font-family: var(--font-sans); cursor: pointer; border-radius: 6px; text-align: left;
+}
+.style-dropdown-option:hover { background: var(--accent-bg); }
+.style-dropdown-option.selected { color: var(--accent); font-weight: 700; }
+.style-dropdown-option-hint { color: var(--text-muted); font-size: 11px; }
+.style-dropdown-option-check { margin-left: auto; color: var(--accent); font-weight: 800; }
 
 /* 暗色：输入框 / 未选中 tab 填充透明，让背景纹理透过来，只靠边框区分 */
 [data-theme="dark"] .question-input,
 [data-theme="dark"] .followup-input,
 [data-theme="dark"] .invite-input,
-[data-theme="dark"] .style-select,
 [data-theme="dark"] .chat-mode-btn:not(.active) { background-color: transparent; }
 
 /* 单聊对象 chips */
