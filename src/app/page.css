@@ -126,6 +126,24 @@
 .mini-btn span { font-size: 12px; line-height: 1; }
 .modal-overlay { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+/* 暗色主题下弹窗统一用亮色面（白底深字），保证可读与辨识 */
+[data-theme="dark"] .modal-content {
+  --bg-card: #fffef9;
+  --text: #1a1915;
+  --text-muted: #5c5a54;
+  --border: #d4cfc4;
+  --border-subtle: #e8e4dc;
+  --bg-input: #faf8f3;
+  --accent: #7d5f1f;
+  --accent-dim: rgba(125, 95, 31, 0.35);
+  --accent-bg: rgba(125, 95, 31, 0.08);
+  --on-accent: #ffffff;
+  --neutral: #7d5f1f;
+  --bull: #2e7d57;
+  --bear: #c04040;
+  background: var(--bg-card);
+  color: var(--text);
+}
 .profile-modal { max-width: 420px; height: min(640px, 88vh); display: flex; flex-direction: column; overflow: hidden; }
 .profile-modal .profile-header { flex-shrink: 0; }
 .profile-modal .profile-body { flex: 1 1 auto; overflow-y: auto; padding-bottom: 20px; }
