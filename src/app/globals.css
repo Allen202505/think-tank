@@ -1,7 +1,7 @@
 /* 大师吵股 - 学院风主题变量 */
 :root {
   --bg-page: #0a0a0f;
-  --bg-card: #10101a;
+  --bg-card: #171726; /* 暗色：弹窗/浮层底色提亮，与背景区分开 */
   --bg-card-sidebar: #12121e;
   --bg-card-main: #0e0e18;
   --bg-input: #0a0a0f; /* 暗色：输入/未选中控件填充与页面背景一致，仅靠边框区分 */
@@ -11,7 +11,7 @@
   --border: #2a2a3e;
   --border-subtle: #34344c;
   --text: #e8e4d8;
-  --text-muted: #9b98ad;
+  --text-muted: #b3ada0; /* 暗色：暖灰取代灰紫，更亮更可读 */
   --accent: #a5832a; /* 暗色主题：暗金（原亮黄 #c9a84c 过亮） */
   --accent-strong: #9a7830; /* 金色渐变末端（暗色主题偏浅，适合深字） */
   --on-accent: #0a0a0f; /* 金色/强调色背景上的文字（暗色主题用深字） */
