@@ -12,7 +12,6 @@ import {
   TYPEWRITER_DELAY_MS,
   AFTER_TYPE_PAUSE_MS,
   STANCES,
-  MODES,
   buildFollowUpPrompt,
   buildOpeningOnlyPrompt,
   buildOneSpeechPrompt,
@@ -39,54 +38,6 @@ function countVotes(items) {
 // ─── 主组件 ──────────────────────────────────────────────
 
 // 自定义风格下拉（原生 select 的下拉面板是系统配色，暗色下偏紫不可控，改用自绘面板）
-function StyleDropdown({ value, onChange, options }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [open]);
-  const current = options[value] || null;
-  return (
-    <div className="style-dropdown" ref={ref}>
-      <button
-        type="button"
-        className="style-dropdown-btn"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        title="群聊风格"
-      >
-        <span className="style-dropdown-label">{current ? current.label : value}</span>
-        {current && <span className="style-dropdown-hint">{current.hint}</span>}
-        <span className={`style-dropdown-caret${open ? ' up' : ''}`} aria-hidden="true">▾</span>
-      </button>
-      {open && (
-        <div className="style-dropdown-menu" role="listbox">
-          {Object.entries(options).map(([k, m]) => (
-            <button
-              type="button"
-              key={k}
-              role="option"
-              aria-selected={k === value}
-              className={`style-dropdown-option${k === value ? ' selected' : ''}`}
-              onClick={() => { onChange(k); setOpen(false); }}
-            >
-              <span className="style-dropdown-option-label">{m.label}</span>
-              <span className="style-dropdown-option-hint">{m.hint}</span>
-              {k === value && <span className="style-dropdown-option-check">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Home() {
   // 结构化数据 JSON-LD
   const jsonLd = {
@@ -121,7 +72,6 @@ export default function Home() {
   const [posterUrl, setPosterUrl] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
   const [chatMode, setChatMode] = useState('group'); // 群聊 / 单聊
-  const [mode, setMode] = useState('debate'); // 群聊风格：debate/explore/teach
   const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -628,7 +578,7 @@ export default function Home() {
     const run = async () => {
       try {
         if (step.type === 'hostOpening') {
-          const prompt = buildOpeningOnlyPrompt(query, host, investors, mode);
+          const prompt = buildOpeningOnlyPrompt(query, host, investors);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'speech') {
@@ -637,7 +587,7 @@ export default function Home() {
             if (b.type === 'speech') return { type: 'speech', investorId: b.speakerId, content: b.content?.content };
             return null;
           }).filter(Boolean);
-          const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId, mode);
+          const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
@@ -645,14 +595,14 @@ export default function Home() {
         } else if (step.type === 'hostClosing') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const discussionSummary = completedBlocks.filter(b => b.type === 'speech').map(b => `${invMapLocal[b.speakerId]?.name}: ${b.content?.content?.slice(0, 50)}...`).join('；');
-          const prompt = buildClosingOnlyPrompt(query, host?.name || '主持人', opening, discussionSummary, mode);
+          const prompt = buildClosingOnlyPrompt(query, host?.name || '主持人', opening, discussionSummary);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           setCurrentBlock(b => b ? { ...b, content: text.replace(/^["']|["']$/g, '') } : b);
         } else if (step.type === 'verdict') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
           const closing = completedBlocks.find(b => b.type === 'hostClosing')?.content || '';
           const discussionText = completedBlocks.filter(b => b.type === 'speech').map(b => b.content?.content).join('\n');
-          const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing, mode);
+          const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           const match = text.match(/\{[\s\S]*\}/);
           const parsed = match ? JSON.parse(match[0]) : {};
@@ -668,7 +618,7 @@ export default function Home() {
       fetchInProgressRef.current = false;
     };
     run();
-  }, [useStreamingMode, stepIndex, sequence, currentBlock, result, query, completedBlocks, getResponseText, mode]);
+  }, [useStreamingMode, stepIndex, sequence, currentBlock, result, query, completedBlocks, getResponseText]);
 
   // 逐条模式：收到内容后先「正在输入」再打字
   useEffect(() => {
@@ -854,13 +804,13 @@ export default function Home() {
       if (investors.length === 1) {
         // 点对点深聊：直接问答，不输出裁决
         const text = await getResponseText(
-          [{ role: 'user', content: buildChatPrompt(msg, investors[0], mode) }],
+          [{ role: 'user', content: buildChatPrompt(msg, investors[0]) }],
           query,
           mergedSnapshot,
         );
         parsedDiscussion = [{ investorId: investors[0].id, stance: 'NEUTRAL', content: text, keyPoint: '' }];
       } else {
-        const payload = buildFollowUpPrompt(prevSummary, msg, investors, mode);
+        const payload = buildFollowUpPrompt(prevSummary, msg, investors);
         const parsed = await doRequest([{ role: 'user', content: payload }], query, mergedSnapshot);
         parsedDiscussion = parsed.discussion || [];
         parsedVerdict = parsed.verdict || {};
@@ -887,7 +837,7 @@ export default function Home() {
       setError(e.message || '追问失败，请重试');
     }
     setLoadingFollowUp(false);
-  }, [followUpInput, result, query, doRequest, loadingFollowUp, getResponseText, mode]);
+  }, [followUpInput, result, query, doRequest, loadingFollowUp, getResponseText]);
 
   return (
     <>
@@ -1060,11 +1010,6 @@ export default function Home() {
                   </button>
                   <span className={`cs-label${chatMode === 'solo' ? ' on' : ''}`}>单聊</span>
                 </div>
-                {chatMode === 'group' && (
-                  <div className="group-style">
-                    <StyleDropdown value={mode} onChange={setMode} options={MODES} />
-                  </div>
-                )}
                 {chatMode === 'solo' && (
                   <div className="solo-target">
                     {soloTarget ? (

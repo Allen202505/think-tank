@@ -1629,3 +1629,21 @@
 **验证**: playwright 实测——亮色 inputBg rgba(255,255,255,0.5)/边框 rgb(212,207,196)、暗色 rgba(255,255,255,0.043)/边框 rgb(58,54,45)；像素采样暗色输入框内部 (45,42,38) 明显亮于卡片 (27,24,19)（清晰可辨）；styleLabel 已消失；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第九十五批）
+
+### 删除辩论/探讨/教学模式选择，固定辩论模式
+**背景**: 用户要求"辩论、探讨、教学这几个模式直接删掉，默认就是辩论模式"——彻底移除风格切换，不再提供选择。
+
+**决策**:
+- 删除 UI 上的风格下拉（StyleDropdown 组件、group-style 容器、样式）
+- 删除 page.js 的 mode state、MODES import、所有 prompt 调用的 mode 参数
+- prompts.js 删除 MODES 导出与 explore/teach 分支，固定辩论基调（MODE_RULES + 各 prompt 内联辩论文案）
+- 侧栏提示文案"选一种风格"→"开启辩论"（中英双语）
+- buildChatPrompt 单聊也去掉 mode 分支
+
+**实现**: page.js（删组件/state/import/调用参数/JSX）；prompts.js（删 MODES、explore/teach，固定 debate）；page.css（删 style-dropdown/group-style 样式）；i18n messages 文案更新。
+
+**验证**: node 直接调用全部 6 个 prompt 函数正常（固定辩论基调）；浏览器实测——风格下拉与 group-style 容器已消失、辅助区只剩群聊/单聊 switch、文案"开启辩论"生效；全仓 grep 无 MODES/StyleDropdown 残留（仅 DEEPSEEK_MODEL 环境变量无关）；impeccable 0 告警。
+
+**待办**: 无新增。
