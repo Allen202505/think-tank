@@ -73,10 +73,12 @@ async function searchWeb(name, recipe = null) {
   const queries = recipe?.queries?.length ? recipe.queries : [name];
   const seen = new Set();
   // 并行：所有 query × 引擎同时发起，避免串行等待
+  // site: 查询保持原样（外层引号会破坏语法），其余加引号精确匹配
+  const qExpr = (q) => (q.includes('site:') ? q : `"${q}"`);
   const results = await Promise.all(queries.flatMap((q) => [
-    { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(`"${q}"`)}&count=12` },
-    { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(`"${q}"`)}` },
-    { name: 'sogou', url: `https://www.sogou.com/web?query=${encodeURIComponent(`"${q}"`)}` },
+    { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(qExpr(q))}&count=12` },
+    { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(qExpr(q))}` },
+    { name: 'sogou', url: `https://www.sogou.com/web?query=${encodeURIComponent(qExpr(q))}` },
   ]).map(async (e) => {
     try {
       const r = await fetch(e.url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
@@ -209,7 +211,19 @@ export async function POST(request) {
 
         // ③ 建模
         emit({ stage: 'build' });
-        const personaPrompt = `基于以下「阅读材料」构建人物「${name}」的"投资大师画像"。请像人一样带着判断去阅读：每条材料都标注了来源与可信度（用户资料 > 全文正文 > 搜索摘要；排名靠前权重更高）。优先从可信材料中提炼事实；资料未提及的具体细节（如出身、经历）不要编造，可留空或用通用表述；材料间若有矛盾，以可信度更高者为准。
+        const personaPrompt = `你是深谙人物研究的分析总监。目标人物：「${name}」。请像舆情研究员一样系统性阅读材料，严格执行以下分析纲领：
+
+【素材分层】
+- 本人原话：材料中明确为人物本人发言/引语的内容（带引号者优先），用于还原真实语言习惯、口头禅与表达节奏
+- 他人评价：网友、粉丝、批评者、同行对他的评论与转述，用于还原外界眼中的形象与口碑
+- 人工校准背景：最可信，作为判断基准
+
+【硬性要求】
+1. 区分上述素材，不可混用；本人原话必须尽量保留原句，quote 字段优先使用材料中的真实原话（带引号），没有原话就不编造，用最贴近的转述并保持克制
+2. 信源分层解构：若材料同时存在欣赏者与批评者视角，两方都要参考，不可只取一面；将批评者指出的问题（如逻辑漏洞、争议点）融入 personality 或 riskPref 的刻画，让人物更立体
+3. 时间线矛盾标注：若材料显示其观点前后转变或与市场共识相悖，如实体现在 coreViews 或 decisionHabits 中，不要强行抹平
+4. 不脑补：资料未提及的具体细节（出身、经历、个人生活）不得编造，留空或仅用通用表述；宁可资料有限时画像朴素，也不要虚构细节
+5. 风格还原：styleSample 必须模仿其真实表达习惯（用词、语气、口头禅、句式），若有本人原话参考，优先贴近原话节奏
 
 资料：
 ${research.slice(0, 5000)}
