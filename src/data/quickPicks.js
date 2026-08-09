@@ -5,6 +5,30 @@
 
 export const QUICK_PICK_GROUPS = [
   {
+    id: 'youzi',
+    label: '游资 / 短线高手',
+    people: [
+      { name: '炒股养家', hint: '情绪周期 · 打板鼻祖' },
+      { name: '章盟主', hint: '章建平 · 顶级游资' },
+      { name: '赵老哥', hint: '八年一万倍' },
+      { name: '作手新一', hint: '新生代游资' },
+      { name: '陈小群', hint: '一线游资' },
+    ],
+  },
+  {
+    id: 'zhihu',
+    label: '知乎 / 自媒体大V',
+    people: [
+      { name: '寒武纪的鳄鱼', hint: '周期股大佬 · 已退乎' },
+      { name: 'Dang大', hint: '周期有色 · MR Dang' },
+      { name: 'DeepVan', hint: '美股 · 叫兽指数' },
+      { name: '培风客', hint: '宏观 · 大宗商品' },
+      { name: '君临', hint: '君临投资汇 · 财经专栏' },
+      { name: '陈达', hint: '陈达美股投资' },
+      { name: '谦和屋', hint: '价值投资 · 职业投资人' },
+    ],
+  },
+  {
     id: 'fund',
     label: '公募基金经理',
     people: [
@@ -27,30 +51,6 @@ export const QUICK_PICK_GROUPS = [
       { name: '邓晓峰', hint: '高毅 · 产业研究' },
       { name: '赵丹阳', hint: '赤子之心 · 价值投资' },
       { name: '邱国鹭', hint: '高毅资产 · 董事长' },
-    ],
-  },
-  {
-    id: 'youzi',
-    label: '游资 / 短线高手',
-    people: [
-      { name: '炒股养家', hint: '情绪周期 · 打板鼻祖' },
-      { name: '章盟主', hint: '章建平 · 顶级游资' },
-      { name: '赵老哥', hint: '八年一万倍' },
-      { name: '作手新一', hint: '新生代游资' },
-      { name: '陈小群', hint: '一线游资' },
-    ],
-  },
-  {
-    id: 'zhihu',
-    label: '知乎 / 自媒体大V',
-    people: [
-      { name: '寒武纪的鳄鱼', hint: '周期股大佬 · 已退乎' },
-      { name: 'Dang大', hint: '周期有色 · MR Dang' },
-      { name: 'DeepVan', hint: '美股 · 叫兽指数' },
-      { name: '培风客', hint: '宏观 · 大宗商品' },
-      { name: '君临', hint: '君临投资汇 · 财经专栏' },
-      { name: '陈达', hint: '陈达美股投资' },
-      { name: '谦和屋', hint: '价值投资 · 职业投资人' },
     ],
   },
   {

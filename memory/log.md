@@ -1416,3 +1416,22 @@
 **验证**: playwright 实测——打开弹窗快捷区 5 组齐全；点击「张坤」→ 自动填名并进入 ①检索→②提炼→③构建 流程 → 生成「中国价值投资领军人物」档案卡（检索到百度百科/天天基金等真实资料）；亮/暗主题下弹窗白底深字、文字行分布正常；impeccable detect 0 告警。
 
 **待办**: 名单可继续扩充；如需给人物加固定头像/更细的画像种子，后续可升级为「预置知名人物库」而非仅快捷填名。
+
+## 2026-08-09（第八十三批）
+
+### 邀请大师快捷选择：分组排序 + 浮层化 + 预填充
+**背景**: 用户反馈三点：①游资、知乎大V 应排前 2 位；②居中弹窗屏效低，改用浮层；③快捷选择不应一点就构建，只做预填充，提交仍由用户手动点。
+
+**决策**:
+- 分组顺序改为：游资/短线高手 → 知乎/自媒体大V → 公募 → 私募 → 财经KOL
+- 邀请大师从居中 modal 改为**锚定入口按钮的浮层面板**（invite-popover）：fixed 定位在按钮下方、maxHeight 动态适配视口不超出底部、透明 backdrop 点击外部关闭、背景页面保持可见（屏效提升）；窄屏贴边全宽
+- 快捷人选点击 = 只填名字 + 聚焦输入框 + chip 高亮（.on），不再自动调 handleInvite；用户点「开始构建」手动提交
+
+**实现**:
+- src/data/quickPicks.js：QUICK_PICK_GROUPS 顺序重排
+- src/app/page.js：新增 invitePos/inviteBtnRef/inviteInputRef + updateInvitePos（滚动/缩放跟随）；弹窗结构 modal-overlay→backdrop+popover；快捷 chip onClick 仅 setInviteName+focus；handleInvite 的 nameOverride 加 typeof 防御；按钮 onClick 包箭头函数（避免 React 把 event 当 nameOverride 传入导致 .trim 报错——这是本批发现并修复的 bug）
+- src/app/page.css：.invite-backdrop/.invite-popover（含入场动画、动态 maxHeight）、暗色变量覆盖扩展到 popover（白底深字）、窄屏贴边、chip 选中态
+
+**验证**: playwright 实测——预填后按钮从 disabled→可用；点开始构建进入①检索→②提炼→③构建→档案卡→确认加入全流程；暗色主题下 popover 白底 rgb(255,254,249)/深字、页面背景深色可见；像素采样浮层白底 93%、浮层下方仍是页面背景（非全屏遮罩）；impeccable 0 告警。
+
+**待办**: 无新增；此前待办不变（推送部署、线上验证行情注入）。

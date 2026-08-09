@@ -130,6 +130,9 @@ export default function Home() {
   const [inviteMaster, setInviteMaster] = useState(null); // 生成的画像（预览）
   const [inviteSources, setInviteSources] = useState([]); // 检索资料来源标题
   const [inviteError, setInviteError] = useState(''); // 邀请弹窗内错误
+  const [invitePos, setInvitePos] = useState(null); // 浮层锚定位置 {left, top}
+  const inviteBtnRef = useRef(null);
+  const inviteInputRef = useRef(null);
   const [supplementOpen, setSupplementOpen] = useState(false); // 需要补充公司信息弹窗
   const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -306,7 +309,7 @@ export default function Home() {
   }, []);
 
   const handleInvite = useCallback(async (nameOverride) => {
-    const nm = (nameOverride ?? inviteName).trim();
+    const nm = (typeof nameOverride === 'string' ? nameOverride : inviteName).trim();
     if (!nm || inviteBusy) return;
     setInviteBusy(true);
     setError('');
@@ -369,6 +372,26 @@ export default function Home() {
     setInvitePhase('added');
   }, [inviteMaster, customMasters, persistCustoms]);
 
+  const updateInvitePos = useCallback(() => {
+    const btn = inviteBtnRef.current;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left, top;
+    if (vw <= 900) {
+      left = 8; top = 8;
+    } else {
+      left = Math.max(12, r.left);
+      top = r.bottom + 8; // 优先在按钮下方展开
+      if (top > vh * 0.78) {
+        // 下方空间不足：贴住视口底部，浮层内部滚动
+        top = Math.max(12, vh - 240);
+      }
+    }
+    setInvitePos({ left, top, maxHeight: Math.max(220, vh - top - 12) });
+  }, []);
+
   const openInvite = useCallback(() => {
     setInvitePhase('form');
     setInviteStage('');
@@ -377,7 +400,20 @@ export default function Home() {
     setError('');
     setInviteError('');
     setInviteOpen(true);
-  }, []);
+    updateInvitePos();
+  }, [updateInvitePos]);
+
+  // 浮层打开期间跟随滚动/缩放
+  useEffect(() => {
+    if (!inviteOpen) return undefined;
+    const onMove = () => updateInvitePos();
+    window.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
+    return () => {
+      window.removeEventListener('scroll', onMove, true);
+      window.removeEventListener('resize', onMove);
+    };
+  }, [inviteOpen, updateInvitePos]);
 
   const closeInvite = useCallback(() => {
     setInviteOpen(false);
@@ -966,7 +1002,7 @@ export default function Home() {
                 ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
                 : t('selectedCount', selected.size, allMasters.length)}
             </div>
-            <button type="button" className="invite-entry" onClick={openInvite}>
+            <button type="button" className="invite-entry" ref={inviteBtnRef} onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
             </button>
             <div className="master-list">
@@ -1305,8 +1341,16 @@ export default function Home() {
       {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onStartChat={startSoloChat} onRemove={removeCustomMaster} />}
 
       {inviteOpen && (
-        <div className="modal-overlay" onClick={closeInvite} role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
-          <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
+        <>
+          <div className="invite-backdrop" onClick={closeInvite} />
+          <div
+            className="invite-popover"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="inviteTitle"
+            onClick={(e) => e.stopPropagation()}
+            style={invitePos ? { left: invitePos.left, top: invitePos.top, maxHeight: invitePos.maxHeight } : undefined}
+          >
             <div className="invite-head">
               <h3 className="invite-title" id="inviteTitle">{invitePhase === 'preview' || invitePhase === 'added' ? '大师档案卡' : '邀请一位大师'}</h3>
               <button type="button" className="modal-close" onClick={closeInvite} aria-label="关闭">×</button>
@@ -1319,6 +1363,7 @@ export default function Home() {
                 <label className="invite-label">人物名字 / 昵称</label>
                 <input
                   className="invite-input"
+                  ref={inviteInputRef}
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
                   placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
@@ -1328,7 +1373,7 @@ export default function Home() {
                 <div className="invite-quick">
                   <div className="invite-quick-head">
                     <span className="invite-quick-title">或从知名人物中快捷选择</span>
-                    <span className="invite-quick-hint">点击即开始构建</span>
+                    <span className="invite-quick-hint">点击填入 · 手动提交</span>
                   </div>
                   <div className="invite-quick-groups">
                     {QUICK_PICK_GROUPS.map((g) => (
@@ -1339,9 +1384,8 @@ export default function Home() {
                             <button
                               type="button"
                               key={person.name}
-                              className="invite-quick-chip"
-                              onClick={() => { setInviteName(person.name); handleInvite(person.name); }}
-                              disabled={inviteBusy}
+                              className={`invite-quick-chip${inviteName === person.name ? ' on' : ''}`}
+                              onClick={() => { setInviteName(person.name); inviteInputRef.current?.focus(); }}
                               title={person.hint}
                             >
                               <span className="iqc-name">{person.name}</span>
@@ -1355,7 +1399,7 @@ export default function Home() {
                 </div>
                 <div className="invite-actions">
                   <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
-                  <button type="button" className="invite-btn invite-btn-primary" onClick={handleInvite} disabled={inviteBusy || !inviteName.trim()}>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={() => handleInvite()} disabled={inviteBusy || !inviteName.trim()}>
                     开始构建
                   </button>
                 </div>
@@ -1401,7 +1445,7 @@ export default function Home() {
                   </div>
                 )}
                 <div className="persona-actions">
-                  <button type="button" className="invite-btn invite-btn-ghost" onClick={handleInvite}>↺ 重新构建</button>
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => handleInvite()}>↺ 重新构建</button>
                   <button type="button" className="invite-btn invite-btn-primary" onClick={confirmInvite}>确认加入</button>
                 </div>
               </div>
@@ -1419,7 +1463,7 @@ export default function Home() {
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
       {supplementOpen && (

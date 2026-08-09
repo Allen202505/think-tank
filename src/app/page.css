@@ -127,7 +127,8 @@
 .modal-overlay { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
 /* 暗色主题下弹窗统一用亮色面（白底深字），保证可读与辨识 */
-[data-theme="dark"] .modal-content {
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .invite-popover {
   --bg-card: #fffef9;
   --text: #1a1915;
   --text-muted: #5c5a54;
@@ -160,6 +161,7 @@
 
 /* ─── 响应式：窄屏（#1 移动端适配） ─── */
 @media (max-width: 900px) {
+  .invite-popover { left: 8px !important; top: 8px !important; width: calc(100vw - 16px); max-width: none; max-height: calc(100vh - 16px); }
   .main-layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: static; max-height: none; overflow: visible; min-width: 0; border-right: none; padding-right: 0; }
   .master-list { flex-direction: row; overflow-x: auto; padding-bottom: 6px; min-width: 0; }
@@ -222,6 +224,23 @@
 
 /* ─── 邀请大师 / 历史弹窗 ─── */
 .invite-modal, .history-modal { max-width: 440px; padding: 22px; }
+/* 邀请大师浮层：锚定在入口按钮旁，不遮全屏（透明 backdrop 仅用于点击外部关闭） */
+.invite-backdrop { position: fixed; inset: 0; background: transparent; z-index: 1100; }
+.invite-popover {
+  position: fixed;
+  z-index: 1200;
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(76vh, 680px);
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+  text-align: left;
+  animation: invite-in 0.14s ease-out;
+}
+@keyframes invite-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .invite-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .invite-title { margin: 0; font-size: 17px; }
 .invite-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin: 0 0 14px; }
@@ -239,6 +258,7 @@
 .invite-quick-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .invite-quick-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; font-family: var(--font-sans); transition: all 0.12s; }
 .invite-quick-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.invite-quick-chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .invite-quick-chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .invite-quick-chip .iqc-name { font-weight: 700; white-space: nowrap; }
 .invite-quick-chip .iqc-hint { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
