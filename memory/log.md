@@ -1211,6 +1211,25 @@
 
 **验证**: 浏览器实测 .card-accent 数量 0、标题正常；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第六十五批）
+
+### ① 群聊样式：讨论区改群聊 UI（第一阶段）
+**背景**: 用户提出把讨论区做成群聊样式，支持插话/@大师（已评估，分三阶段）；本批做第一阶段「群聊样式」。
+
+**实现**:
+- page.css：
+  - 大师消息：气泡化（speech-content 圆角 4px 14px 14px 14px、inline-block 随内容、去掉左边立场色条 2px）；名字 13px 800、立场改胶囊标签
+  - 自己的消息：user-followup 右对齐金色气泡（14px 4px 14px 14px，bg accent + on-accent），隐藏 label
+  - 主持人开场/结尾：居中系统消息胶囊（999px 圆角，小字 muted）
+  - 正在输入：气泡样式（圆角 4 14 14 14 + 名字）
+  - 聊天输入框：followup-input/btn-followup 改胶囊（999px）
+  - 讨论间距 28→16
+- page.js：两处 speech-content 去掉 style borderLeftColor（气泡不再有立场色条）
+
+**验证**: 真实辩论（7 位大师）实测——hostOpening 胶囊、4 个 speech 气泡圆角 4/14、无 2px 左边条、typing 气泡出现；追问后 user-followup 右对齐（flex-end）、金色气泡 rgb(165,131,42) 圆角 14/4；impeccable detect 0 告警；干净构建通过。
+
+**待办**: ② @大师；③ 插话（排队版）。时间戳可作后续增强。
+
 ## 模板（新增记录时使用）
 
 ```markdown

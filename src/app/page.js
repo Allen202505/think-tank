@@ -1083,7 +1083,7 @@ export default function Home() {
                               <span className="speech-title">{inv.title}</span>
                               <span className="speech-stance" style={{ borderColor: st.border, color: st.color, background: st.bg }}>{st.label}</span>
                             </div>
-                            <div className="speech-content" style={{ borderLeftColor: st.border }}>
+                            <div className="speech-content">
                               {msg.content}
                               {msg.keyPoint && <div className="speech-key">💡 {msg.keyPoint}</div>}
                             </div>
@@ -1184,7 +1184,7 @@ export default function Home() {
                               <span className="speech-title">{inv.title}</span>
                               <span className="speech-stance" style={{ borderColor: st.border, color: st.color, background: st.bg }}>{st.label}</span>
                             </div>
-                            <div className="speech-content" style={{ borderLeftColor: st.border }}>
+                            <div className="speech-content">
                               {currentText.slice(0, typeCharIndex)}{!done && <span className="caret" />}
                               {done && msg?.keyPoint && <div className="speech-key">💡 {msg.keyPoint}</div>}
                             </div>
