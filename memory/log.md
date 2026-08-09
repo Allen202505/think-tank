@@ -1337,6 +1337,15 @@
 
 **验证**: 样式表实测三处均 14px；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十七批）
+
+### 圆角再统一：邀请按钮=随机5人；提问框=发言气泡
+**背景**: 用户要求「邀请一位大师」(10px) 与「随机5人」(6px) 圆角统一；提问输入框圆角与大师回答区一致。
+
+**实现** (page.css)：invite-entry 10→6px（归入按钮档，与 mini-btn 一致）；question-input 6→14px（与 speech-content 一致）。
+
+**验证**: 浏览器实测 invite-entry=mini-btn=6px、question-input=speech-content=14px；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
