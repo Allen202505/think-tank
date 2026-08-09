@@ -1714,3 +1714,18 @@
 **验证**: 浏览器实测亮色 rgba(255,255,255,0.28)、暗色 rgba(255,255,255,0.03)；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第一百批）
+
+### 修复 favicon 模糊：ico 升级为多尺寸 + 图标声明优化
+**背景**: 用户反馈网页 logo（favicon）发糊。
+
+**原因**: 旧 public/favicon.ico 只含单张 16×16 图，高 DPI 屏幕（Retina/高分屏）放大显示必然模糊；favicon.png（180×180）清晰但浏览器默认优先用 .ico。
+
+**决策**:
+- 用 favicon.png（RGBA 有效）重新生成 favicon.ico，内含 16/32/48 三尺寸
+- layout.js 图标声明加 sizes 属性（ico 48×48、png 180×180）并新增 apple-touch-icon（移动端主屏图标用 png）
+
+**验证**: ICO 内部 3 张图（16/32/48）；页面 link 声明生效（icon 48×48、png 180×180、apple-touch-icon）；favicon.ico/png HTTP 200；impeccable 0 告警。
+
+**待办**: 无新增。

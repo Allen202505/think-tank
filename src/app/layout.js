@@ -69,8 +69,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN">
       <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" type="image/png" href="/favicon.png" sizes="180x180" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
         <meta name="theme-color" content="#c9a84c" />
         <script
           dangerouslySetInnerHTML={{
