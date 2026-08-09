@@ -50,6 +50,9 @@
 [data-theme="light"] .question-input::placeholder,
 [data-theme="light"] .followup-input::placeholder,
 [data-theme="light"] .invite-input::placeholder { color: #4a463f; }
+/* 邀请大师输入框提示文案：色调再弱一档（不随提问区/追问区） */
+.invite-input::placeholder { color: #c6c0b4; opacity: 1; }
+[data-theme="light"] .invite-input::placeholder { color: #a8a295; }
 .error-msg { margin-top: 8px; padding: 9px 13px; background: rgba(224,85,85,0.08); border: 1px solid #c04040; color: var(--bear); font-size: 12px; border-radius: 6px; font-family: var(--font-mono); }
 .question-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
 .btn-submit { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); padding: 10px 24px; font-family: var(--font-serif); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: transform 0.15s, box-shadow 0.15s, filter 0.15s; }
@@ -275,6 +278,8 @@
 .invite-quick-chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 .invite-quick-chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .invite-quick-chip .iqc-name { font-weight: 700; white-space: nowrap; }
+.invite-quick-chip .iqc-preset { font-size: 9px; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 1px 5px; line-height: 1.5; font-weight: 700; white-space: nowrap; }
+.invite-quick-chip:hover .iqc-preset { background: var(--accent); }
 .invite-quick-chip .iqc-hint { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 .invite-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .invite-btn { padding: 9px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }

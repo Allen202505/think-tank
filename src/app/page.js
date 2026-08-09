@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { PRESET_MASTERS, snapColorToPalette } from '../data/masters';
 import { QUICK_PICK_GROUPS } from '../data/quickPicks';
+import { PRESET_MASTERS_MAP } from '../data/presetMasters';
 import { messages } from '../i18n/messages';
 import { Card, MasterAvatar, MiniBtn } from '../components/ui';
 import MasterProfileModal from '../components/MasterProfileModal';
@@ -316,6 +317,25 @@ export default function Home() {
     setInviteStage('search');
     setInviteMaster(null);
     setInviteSources([]);
+
+    // 预置画像：本地秒出档案卡，跳过全网搜索 + LLM 生成
+    const preset = PRESET_MASTERS_MAP[nm];
+    if (preset) {
+      const master = {
+        ...preset,
+        id: `custom_${Date.now()}_${nm}`,
+        avatar: '',
+        status: 'alive',
+        source: 'preset',
+        isCustom: true,
+      };
+      setInviteMaster(master);
+      setInviteSources(['预置画像（基于公开资料整理，如需更精准可点「重新构建」在线生成）']);
+      setInvitePhase('preview');
+      setInviteBusy(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
@@ -1354,6 +1374,7 @@ export default function Home() {
                               title={person.hint}
                             >
                               <span className="iqc-name">{person.name}</span>
+                              {PRESET_MASTERS_MAP[person.name] && <span className="iqc-preset">⚡即选</span>}
                               <span className="iqc-hint">{person.hint}</span>
                             </button>
                           ))}

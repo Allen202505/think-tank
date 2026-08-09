@@ -38,7 +38,7 @@ function masterProfileLine(i) {
   if (i.phrases) line += ` | 常用话术:${i.phrases}`;
   if (i.decisionHabits) line += ` | 决策习惯:${i.decisionHabits}`;
   if (i.riskPref) line += ` | 风险偏好:${i.riskPref}`;
-  if (i.source === 'custom' && i.styleSample) line += ` | 风格示范:${i.styleSample.slice(0, 160)}`;
+  if ((i.source === 'custom' || i.source === 'preset') && i.styleSample) line += ` | 风格示范:${i.styleSample.slice(0, 160)}`;
   return line;
 }
 

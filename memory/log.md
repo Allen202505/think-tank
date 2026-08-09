@@ -1470,3 +1470,21 @@
 **验证**: playwright 实测——drawer 0~720 全高；body 62~653（591px 可滚，scrollHeight 748>clientH 591）；footer 653~720 吸底；body 滚到底 footer 仍钉 720；form 阶段 footer=[取消,开始构建]、预填后开始构建变金色 rgb(125,95,31) 且底部距抽屉底 16px；building 阶段 footer 隐藏；preview 阶段 footer=[重新构建,确认加入] 吸底 720；impeccable 0 告警。
 
 **待办**: 无新增；此前待办不变（推送部署、线上验证行情注入）。
+
+## 2026-08-09（第八十六批）
+
+### 邀请大师：输入框提示文案弱化 + 28 位人物预置画像（秒出档案卡）
+**背景**: 用户两点需求：①「人物名字/昵称」输入框的 placeholder 提示文案色调太显，要弱化；②希望快捷选择里的大V提前预置，用户构建时速度很快。
+
+**决策**:
+- placeholder 只弱化邀请输入框（不随提问区/追问区）：亮色 #4a463f→#a8a295（暖灰），暗色 #b4b0c4→#c6c0b4；用后定义覆盖拆出 invite-input 专属规则
+- 新建 src/data/presetMasters.js：28 位快捷人物全部预置成完整画像（字段与 virtual-master 返回一致，source:'preset'），覆盖游资5/知乎7/公募6/私募7/KOL3
+- handleInvite 命中预置 → 本地秒出档案卡（跳过全网搜索+LLM 生成），sources 显示"预置画像（基于公开资料整理…）"
+- chip 上加「⚡即选」金色小徽标提示预置
+- prompts.js masterProfileLine 支持 source==='preset' 也带风格示范（styleSample 入对话）
+
+**实现**: presetMasters.js 新建（28 人画像）；page.js import + chip 徽标 + handleInvite 预置短路；page.css placeholder 覆盖 + .iqc-preset 徽标样式；prompts.js source 判断放宽。
+
+**验证**: playwright 实测——chip 均带⚡即选；点炒股养家→开始构建 1 秒内直达档案卡（无 building 等待，金句/来源正确）；确认加入后进成员列表；非预置（段永平）仍走在线①检索→②提炼→③构建；亮色 placeholder rgb(168,162,149)/暗色 rgb(198,192,180)，提问区保持原色；impeccable 0 告警。
+
+**待办**: 预置画像基于公开资料整理，如需更精准可点「重新构建」在线生成；后续可按需扩充更多预置人物。
