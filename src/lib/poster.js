@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 function getSiteUrl() {
   const env = process.env.NEXT_PUBLIC_SITE_URL || '';
   if (env && !/your-domain|example\.com|think-tank\.example/.test(env)) return env;
-  return 'https://yieldglide.com';
+  return 'https://think-tank.example.com';
 }
 
 const W = 1080;

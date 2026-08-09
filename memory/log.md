@@ -1681,3 +1681,23 @@
 **验证**: 浏览器实测——大师详情弹窗只剩「与 TA 单聊」按钮、无主页链接；/masters 返回 404；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第九十八批）
+
+### 整体代码 Review（提交前检查）
+**背景**: 用户要求整体 review 代码质量与改进点，确认没问题后更新 memory（过几天要提交代码）。
+
+**Review 结论（代码质量良好）**:
+- 32 位预置大师数据完整（id 唯一、核心字段齐全、都有头像）；quickPicks 28 人与 presetMasters 28 人一一对应
+- 数据层 marketData.js（828 行）健壮：东财+Yahoo 双源容错、TTL 缓存（失败负缓存 60s）、业绩预告+机构一致预期、超时控制；实测 /api/context 返回宁德时代快照正常
+- API 路由统一：/api/chat 带 60s 超时+重试、错误友好化；robots disallow /api
+- 无 TODO/FIXME/console.log 残留；impeccable 全量 0 告警
+- 主题/语言/聊天方式/讨论状态均本地持久化；SSR 与首帧一致（layout.js 内联脚本防闪烁）
+
+**修复项（部署前必须）**:
+- ❌→✅ 旧项目域名 yieldglide.com 残留：vercel.json 的 www→根域重定向已删除（本项目域名未定，重定向会指向错误站点）；poster.js getSiteUrl 兜底域名改为 think-tank.example.com（与 sitemap/layout 占位符一致）
+- ⚠️ 部署前待办（未改，需用户操作）：.env.local 的 NEXT_PUBLIC_SITE_URL 仍是 your-domain.com 占位符，部署时必须改为真实域名（影响海报二维码、SEO canonical、sitemap、robots）
+
+**未提交的旧残留（不处理）**: memory/project.md 是旧项目 YieldGlide 的残留文档（域名/架构过时），已忽略不提交；根目录 头像/、public/头像/ 为本地素材目录（git 未跟踪），prebuild 脚本 sync-avatars.mjs 从 public/头像 同步到 public/avatars（已跟踪）
+
+**待办**: ①部署时改 NEXT_PUBLIC_SITE_URL 真实域名 ②推送 101 个本地领先提交到 origin ③线上验证行情注入（东财国内直连/Yahoo 美股港股）
