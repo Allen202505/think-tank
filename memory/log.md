@@ -1729,3 +1729,14 @@
 **验证**: ICO 内部 3 张图（16/32/48）；页面 link 声明生效（icon 48×48、png 180×180、apple-touch-icon）；favicon.ico/png HTTP 200；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第一百零一批）
+
+### 背景壁纸替换为「查理和芒格吵架」，旧图保留
+**背景**: 用户提供新背景图（查理和芒格吵架.jpeg，2560×1440），要求放入素材库并替换网站背景壁纸，原图保留以便换回。
+
+**决策**: 复制原图为 public/bg-argue.jpg（152KB，体积合理），page.js 背景引用 /bg-debate.png → /bg-argue.jpg；旧图 public/bg-debate.png 保留不删。
+
+**验证**: 浏览器实测新背景 2560×1440 加载成功、滤镜（grayscale+sepia+blur 0.4px）与 opacity 0.22 正常。
+
+**待办**: 后续如需换回，把 page.js 的 /bg-argue.jpg 改回 /bg-debate.png 即可。

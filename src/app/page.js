@@ -919,7 +919,7 @@ export default function Home() {
       </header>
 
       <div className="bg-master-layer" aria-hidden="true">
-        <img src="/bg-debate.png" alt="" />
+        <img src="/bg-argue.jpg" alt="" />
       </div>
 
       <div className="main-layout">
