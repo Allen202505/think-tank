@@ -1279,6 +1279,15 @@
 
 **验证**: 浏览器实测亮/暗——均含自定义箭头、箭头距右缘 calc(100%-12px)、右 padding 36px；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十一批）
+
+### 成员操作按钮外框线加强
+**背景**: 用户反馈选择成员的三个操作按钮外框线太弱看不清。
+
+**实现** (ui.js MiniBtn)：resting borderColor var(--border)→var(--text-muted)（亮色 #5c5a54 / 暗色 #b3ada0），外框明显但不抢眼；hover 仍是金色。
+
+**验证**: 浏览器实测亮/暗外框色分别为 rgb(92,90,84)/rgb(179,173,160)，清晰可见；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
