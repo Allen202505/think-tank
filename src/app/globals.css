@@ -1,16 +1,16 @@
 /* 大师吵股 - 学院风主题变量 */
 :root {
-  --bg-page: #0a0a0f;
-  --bg-card: #212130; /* 暗色：弹窗/浮层底色再提亮，明显亮于背景 */
-  --bg-card-sidebar: #12121e;
-  --bg-card-main: #0e0e18;
-  --bg-input: #0a0a0f; /* 暗色：输入/未选中控件填充与页面背景一致，仅靠边框区分 */
-  --header-bg: rgba(16, 16, 26, 0.72);
+  --bg-page: #0d0b08; /* 暗色：暖炭底（原蓝黑偏紫） */
+  --bg-card: #242019; /* 暗色：弹窗/浮层面板用暖棕，去蓝紫 */
+  --bg-card-sidebar: #1c1914;
+  --bg-card-main: #171410;
+  --bg-input: #0d0b08; /* 暗色：输入/未选中控件填充与页面背景一致，仅靠边框区分 */
+  --header-bg: rgba(25, 22, 17, 0.72);
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px -16px rgba(0, 0, 0, 0.5);
   --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --border: #2a2a3e;
-  --border-subtle: #34344c;
-  --text: #e8e4d8;
+  --border: #3a362d;
+  --border-subtle: #474236;
+  --text: #eae3d3; /* 暖米白 */
   --text-muted: #b3ada0; /* 暗色：暖灰取代灰紫，更亮更可读 */
   --accent: #a5832a; /* 暗色主题：暗金（原亮黄 #c9a84c 过亮） */
   --accent-strong: #9a7830; /* 金色渐变末端（暗色主题偏浅，适合深字） */
