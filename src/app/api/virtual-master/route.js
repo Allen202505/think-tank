@@ -47,34 +47,52 @@ function parseBaidu(html) {
   return out;
 }
 
+function parseSogou(html) {
+  const out = [];
+  const re = /<h3[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const block = m[0];
+    const url = m[1];
+    // 搜狗结果链接是跳转链接，尝试取真实URL
+    const real = url.includes('link?') ? (url.match(/url=([^&]+)/)?.[1] || url) : url;
+    const title = stripHtml(m[2]);
+    if (!title) continue;
+    const snip = block.match(/<p[^>]*>([\s\S]*?)<\/p>/);
+    out.push({ title, url: real, snippet: snip ? stripHtml(snip[1]) : '' });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
 const BLOCKED_HOSTS = /zhihu\.com|xueqiu\.com|zsxq\.com|weixin|mp\.weixin|weibo\.com|bilibili\.com/;
 
 async function searchWeb(name, recipe = null) {
   // 相关性锚点：命中锚点的结果排最前（防同名/字典/无关内容抢占）
   const anchor = name;
   const queries = recipe?.queries?.length ? recipe.queries : [name];
-  const collected = [];
   const seen = new Set();
-  for (const q of queries) {
-    const engines = [
-      { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(`"${q}"`)}&count=12` },
-      { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(`"${q}"`)}` },
-    ];
-    for (const e of engines) {
-      try {
-        const r = await fetch(e.url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
-        if (!r.ok) continue;
-        const html = await r.text();
-        const parsed = e.name === 'bing' ? parseBing(html) : parseBaidu(html);
-        for (const item of parsed) {
-          if (isNoise(item)) continue;
-          if (recipe?.noise && recipe.noise.test(`${item.title} ${item.url}`)) continue;
-          if (seen.has(item.url)) continue;
-          seen.add(item.url);
-          collected.push({ ...item, rank: collected.length + 1, engine: e.name, query: q });
-        }
-      } catch (err) { /* 单引擎失败不影响 */ }
-    }
+  // 并行：所有 query × 引擎同时发起，避免串行等待
+  const results = await Promise.all(queries.flatMap((q) => [
+    { name: 'bing', url: `https://www.bing.com/search?q=${encodeURIComponent(`"${q}"`)}&count=12` },
+    { name: 'baidu', url: `https://www.baidu.com/s?wd=${encodeURIComponent(`"${q}"`)}` },
+    { name: 'sogou', url: `https://www.sogou.com/web?query=${encodeURIComponent(`"${q}"`)}` },
+  ]).map(async (e) => {
+    try {
+      const r = await fetch(e.url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return [];
+      const html = await r.text();
+      const parsed = e.name === 'bing' ? parseBing(html) : e.name === 'baidu' ? parseBaidu(html) : parseSogou(html);
+      return parsed.map((item) => ({ ...item, engine: e.name }));
+    } catch (err) { return []; }
+  }));
+  const collected = [];
+  for (const item of results.flat()) {
+    if (isNoise(item)) continue;
+    if (recipe?.noise && recipe.noise.test(`${item.title} ${item.url}`)) continue;
+    if (seen.has(item.url)) continue;
+    seen.add(item.url);
+    collected.push({ ...item, rank: collected.length + 1 });
   }
   // 相关性排序：标题/摘要含完整昵称的排最前，其次是含姓氏/别名，纯噪音垫底
   collected.sort((a, b) => {
@@ -164,17 +182,13 @@ export async function POST(request) {
         emit({ stage: 'search' });
         const recipe = RECIPES.find((r) => r.name === name) || null;
         const web = await searchWeb(name, recipe);
-        const seen = new Set();
-        const articles = [];
-        for (const r of web.slice(0, 4)) {
-          if (seen.has(r.url) || BLOCKED_HOSTS.test(r.url)) continue;
-          seen.add(r.url);
-          const art = await fetchArticle(r.url);
-          if (art) {
-            articles.push({ url: r.url, title: r.title, body: art });
-            if (articles.length >= 2) break;
-          }
-        }
+        // 并行抓取前 4 篇候选正文，取最先成功的 2 篇
+        const arts = await Promise.all(
+          web.slice(0, 4)
+            .filter((r) => !BLOCKED_HOSTS.test(r.url))
+            .map(async (r) => ({ r, body: await fetchArticle(r.url) }))
+        );
+        const articles = arts.filter((a) => a.body).slice(0, 2).map((a) => ({ url: a.r.url, title: a.r.title, body: a.body }));
 
         // ② 资料准备：用户粘贴 > 全文正文 > 搜索摘要 > LLM 知识
         emit({ stage: 'research' });
