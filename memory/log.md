@@ -1453,3 +1453,20 @@
 **验证**: playwright 实测——抽屉 left=800/right=1280/w=480/h=720（右侧全高）、遮罩 rgba(10,9,7,0.45)、动画 drawer-in；像素采样抽屉白底 87%、左侧背景被压暗、x=800 边界清晰；预填/手动提交/构建阶段/遮罩关闭全部正常；impeccable 0 告警。
 
 **待办**: 无新增；此前待办不变（推送部署、线上验证行情注入）。
+
+## 2026-08-09（第八十五批）
+
+### 邀请抽屉：操作按钮吸底，人物选择区获得更大空间
+**背景**: 用户要求「开始构建/取消」按钮吸底（固定底部），给人选区留更大展示空间。
+
+**决策**: 把邀请抽屉改成标准「头部固定 + 内容区滚动 + 底部按钮吸底」布局：
+- .invite-drawer 改 flex column + overflow hidden
+- 内容包进 .invite-drawer-body（flex:1 + overflow-y auto + min-height:0），可滚动
+- 按钮移到 .invite-drawer-footer（flex-shrink:0 + 上边框分隔 + 白底），仅 form/preview/added 阶段渲染（building 阶段隐藏空 footer）
+- 去掉 .invite-quick-groups 的 max-height:34vh 内滚限制，改由整个 body 滚动——人物选择区从约 34vh 扩大到近满高
+
+**实现**: page.js 把 form/preview/added 的按钮区从内容中抽出，统一放入 invite-drawer-footer 按 phase 条件渲染；page.css 抽屉改为 flex column 布局，新增 body/footer 样式。
+
+**验证**: playwright 实测——drawer 0~720 全高；body 62~653（591px 可滚，scrollHeight 748>clientH 591）；footer 653~720 吸底；body 滚到底 footer 仍钉 720；form 阶段 footer=[取消,开始构建]、预填后开始构建变金色 rgb(125,95,31) 且底部距抽屉底 16px；building 阶段 footer 隐藏；preview 阶段 footer=[重新构建,确认加入] 吸底 720；impeccable 0 告警。
+
+**待办**: 无新增；此前待办不变（推送部署、线上验证行情注入）。

@@ -1321,6 +1321,7 @@ export default function Home() {
             </div>
             {inviteError && <div className="invite-error">⚠ {inviteError}</div>}
 
+            <div className="invite-drawer-body">
             {invitePhase === 'form' && (
               <>
                 <p className="invite-desc">输入你感兴趣的人物（投资大V、游资、企业家…），系统会全网检索他的公开内容与评价，构建一位虚拟大师与现役大师同台竞技。</p>
@@ -1360,12 +1361,6 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                </div>
-                <div className="invite-actions">
-                  <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
-                  <button type="button" className="invite-btn invite-btn-primary" onClick={() => handleInvite()} disabled={inviteBusy || !inviteName.trim()}>
-                    开始构建
-                  </button>
                 </div>
               </>
             )}
@@ -1408,10 +1403,6 @@ export default function Home() {
                     </ul>
                   </div>
                 )}
-                <div className="persona-actions">
-                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => handleInvite()}>↺ 重新构建</button>
-                  <button type="button" className="invite-btn invite-btn-primary" onClick={confirmInvite}>确认加入</button>
-                </div>
               </div>
             )}
 
@@ -1420,11 +1411,32 @@ export default function Home() {
                 <div style={{ fontSize: 44 }}>{inviteMaster.emoji}</div>
                 <h3 className="persona-name" style={{ marginTop: 8 }}>{inviteMaster.name} 已加入智囊团</h3>
                 <p className="invite-desc" style={{ marginTop: 8 }}>可以在左侧勾选 TA 参与辩论，或先一对一聊聊。</p>
-                <div className="persona-actions" style={{ marginTop: 18 }}>
+              </div>
+            )}
+            </div>
+            {(invitePhase === 'form' || invitePhase === 'preview' || invitePhase === 'added') && (
+            <div className="invite-drawer-footer">
+              {invitePhase === 'form' && (
+                <div className="invite-actions">
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={() => handleInvite()} disabled={inviteBusy || !inviteName.trim()}>
+                    开始构建
+                  </button>
+                </div>
+              )}
+              {invitePhase === 'preview' && (
+                <div className="invite-actions">
+                  <button type="button" className="invite-btn invite-btn-ghost" onClick={() => handleInvite()}>↺ 重新构建</button>
+                  <button type="button" className="invite-btn invite-btn-primary" onClick={confirmInvite}>确认加入</button>
+                </div>
+              )}
+              {invitePhase === 'added' && (
+                <div className="invite-actions">
                   <button type="button" className="invite-btn invite-btn-primary" onClick={() => { closeInvite(); startSoloChat(inviteMaster); }}>💬 和 TA 单聊</button>
                   <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>完成</button>
                 </div>
-              </div>
+              )}
+            </div>
             )}
           </div>
         </>
