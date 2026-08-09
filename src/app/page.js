@@ -1045,29 +1045,24 @@ export default function Home() {
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             <div className="question-footer">
-              <div className="question-aux" role="tablist" aria-label="聊天方式">
-                <div className="chat-mode-switch">
+              <div className="question-aux">
+                <div className="chat-switch-wrap" aria-label="聊天方式">
+                  <span className={`cs-label${chatMode === 'group' ? ' on' : ''}`}>群聊</span>
                   <button
                     type="button"
-                    role="tab"
-                    aria-selected={chatMode === 'group'}
-                    className={`chat-mode-btn ${chatMode === 'group' ? 'active' : ''}`}
-                    onClick={() => setChatMode('group')}
+                    role="switch"
+                    aria-checked={chatMode === 'solo'}
+                    aria-label="切换群聊/单聊"
+                    className="chat-switch"
+                    onClick={() => setChatMode((m) => (m === 'group' ? 'solo' : 'group'))}
                   >
-                    群聊
+                    <span className="chat-switch-thumb" />
                   </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={chatMode === 'solo'}
-                    className={`chat-mode-btn ${chatMode === 'solo' ? 'active' : ''}`}
-                    onClick={() => setChatMode('solo')}
-                  >
-                    单聊
-                  </button>
+                  <span className={`cs-label${chatMode === 'solo' ? ' on' : ''}`}>单聊</span>
                 </div>
                 {chatMode === 'group' && (
                   <div className="group-style">
+                    <span className="style-label">讨论风格</span>
                     <StyleDropdown value={mode} onChange={setMode} options={MODES} />
                   </div>
                 )}

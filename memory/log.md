@@ -1598,3 +1598,19 @@
 **验证**: playwright 实测——辅助区 y261 位于输入框底部 y244 之下（左下角）、按钮 x1125 在右侧；像素采样辅助区/按钮区金色均存在、输入框上方无多余控件；暗色主题 active 按钮金色底可读；单聊模式胶囊提示正常；impeccable 0 告警。
 
 **待办**: 无新增。
+
+## 2026-08-09（第九十三批）
+
+### 输入框透明 + 群聊/单聊改Switch + 风格加"讨论风格"文案
+**背景**: 用户三点要求：①输入框颜色不要白/米白，用透明；②群聊/单聊从 tab 切换改为 Switch 开关；③风格处带文案"讨论风格"。
+
+**决策**:
+- question-input 背景改 transparent（暗色本就透明，亮色原为 #faf8f3 米白 → 统一透明，靠边框区分）
+- 群聊/单聊 tab 改为 Switch 开关：左"群聊"文字 + 中间 switch（38×21 胶囊 + 15px 圆thumb）+ 右"单聊"；aria-checked 控 thumb 位移（2px→19px）与金色；当前模式文字金色高亮
+- 风格下拉前加回 label「讨论风格」
+
+**实现**: page.js question-aux 内 chat-mode-switch/btn 替换为 chat-switch-wrap/cs-label/chat-switch/chat-switch-thumb，group-style 加 style-label；page.css 对应新增 switch 样式、输入框 background:transparent、暗色规则 .chat-mode-btn→.chat-switch。
+
+**验证**: playwright 实测——初始群聊 thumb 左 2px 灰；点开关切单聊 thumb 右 19px 金色、单聊文字高亮、solo-target 显示；切回群聊「讨论风格」在、thumb 回位；暗色下 switch/输入框均 transparent 靠边框区分；像素采样暗色输入框区域 (28,26,22) 与背景一致（非白）；impeccable 0 告警。
+
+**待办**: 无新增。
