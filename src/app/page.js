@@ -1062,7 +1062,6 @@ export default function Home() {
                 </div>
                 {chatMode === 'group' && (
                   <div className="group-style">
-                    <span className="style-label">讨论风格</span>
                     <StyleDropdown value={mode} onChange={setMode} options={MODES} />
                   </div>
                 )}
