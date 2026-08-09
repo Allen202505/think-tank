@@ -123,7 +123,6 @@ export default function Home() {
   const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
-  const [inviteHint, setInviteHint] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
   const [invitePhase, setInvitePhase] = useState('form'); // form | building | preview | added
   const [inviteStage, setInviteStage] = useState('');      // search | research | build
@@ -319,7 +318,7 @@ export default function Home() {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nm, hint: inviteHint.trim() }),
+        body: JSON.stringify({ name: nm }),
       });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -357,7 +356,7 @@ export default function Home() {
       setInvitePhase('form');
     }
     setInviteBusy(false);
-  }, [inviteName, inviteHint, inviteBusy]);
+  }, [inviteName, inviteBusy]);
 
   // 确认加入智囊团（持久化 + 选中）
   const confirmInvite = useCallback(() => {
@@ -386,7 +385,6 @@ export default function Home() {
     setInviteMaster(null);
     setInviteSources([]);
     setInviteName('');
-    setInviteHint('');
     setError('');
     setInviteError('');
   }, []);
@@ -1325,13 +1323,6 @@ export default function Home() {
                   placeholder="如：段永平、炒股养家、寒武纪的鳄鱼"
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   autoFocus
-                />
-                <label className="invite-label">补充说明（可选）</label>
-                <textarea
-                  className="invite-input invite-textarea"
-                  value={inviteHint}
-                  onChange={(e) => setInviteHint(e.target.value)}
-                  placeholder="例如：喜欢用简单的话讲道理，强调安全边际"
                 />
                 <div className="invite-actions">
                   <button type="button" className="invite-btn invite-btn-ghost" onClick={closeInvite}>取消</button>
