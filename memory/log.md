@@ -1355,6 +1355,15 @@
 
 **验证**: 浏览器实测三选项均单行（高 33px），面板宽 179px 贴合内容；impeccable detect 0 告警；干净构建通过。
 
+## 2026-08-09（第七十九批）
+
+### 群聊/单聊 tab 与风格行右缘对齐
+**背景**: 用户要求拉宽 tab 按钮，使单聊按钮右边距与下方风格下拉右边距对齐（原差 13px）。
+
+**实现** (page.css)：.chat-mode-switch 与 .group-style 统一 width:200px；.chat-mode-btn 改 flex:1 均分（去掉 min-width 92）；.style-dropdown 改 flex:1 填充（去 max-width）。
+
+**验证**: 浏览器实测单聊按钮右缘=风格下拉右缘=524px（间隙0），两行均 200px；impeccable detect 0 告警；干净构建通过。
+
 ## 模板（新增记录时使用）
 
 ```markdown
