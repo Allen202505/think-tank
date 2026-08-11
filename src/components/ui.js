@@ -57,23 +57,26 @@ export function MasterAvatar({ master, size = 44, className = '' }) {
 }
 
 
-export function MiniBtn({ children, onClick }) {
+export function MiniBtn({ children, onClick, disabled, active, subtle }) {
   const [h, setH] = useState(false);
   const [pressed, setPressed] = useState(false);
   return (
     <button
       type="button"
-      onClick={onClick}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => { setH(false); setPressed(false); }}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
-      className="mini-btn"
+      className={`mini-btn${subtle ? ' mini-btn-subtle' : ''}`}
       style={{
-        background: h ? 'var(--accent)' : 'transparent',
-        borderColor: h ? 'var(--accent)' : 'var(--accent-dim)',
-        color: h ? 'var(--on-accent)' : 'var(--text)',
+        background: (active || (h && !disabled)) ? 'var(--accent)' : 'transparent',
+        borderColor: (active || (h && !disabled)) ? 'var(--accent)' : 'var(--accent-dim)',
+        color: (active || (h && !disabled)) ? 'var(--on-accent)' : 'var(--text)',
         transform: pressed ? 'translateY(1px)' : 'none',
+        opacity: disabled ? 0.55 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
       {children}

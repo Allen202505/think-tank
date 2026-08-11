@@ -7,7 +7,8 @@
  *
  * 依赖：marketData.js（统一数据层）
  */
-import { resolveSymbols, getQuote, getFinancials, getForecast, needsCompanyData } from './marketData.js';
+import { resolveSymbols, getQuote, getFinancials, getForecast, needsCompanyData, withTimeout } from './marketData.js';
+import { getDeepAnalysis, formatDeepSnapshot } from './uziSkills.js';
 
 // ─── 格式化工具 ──────────────────────────────────────────
 function fmtMoney(v) {
@@ -225,6 +226,18 @@ export async function getQuoteContextInfo(userQuery) {
     return { snapshot: '', notice: '未能获取到所选公司的实时数据，请稍后重试或换一家公司。' };
   }
 
+  // 深度分析（移植 UZI-Skill：估值分位/K线指标/龙虎榜/研报/热榜/杀猪盘/DCF/同行对标）
+  // 最多 2 家公司，整体 10s 预算，失败只缺该项不拖垮聊天
+  const deepMap = new Map();
+  await Promise.all(
+    valid.slice(0, 2).map(async (e) => {
+      try {
+        const deep = await withTimeout(getDeepAnalysis(e.info, e.quote, e.fin), 10000);
+        if (deep) deepMap.set(e.info.secid, deep);
+      } catch (err) { /* 深度分析失败不影响主快照 */ }
+    }),
+  );
+
   const today = new Date().toLocaleDateString('zh-CN', {
     year: 'numeric', month: '2-digit', day: '2-digit',
   });
@@ -237,7 +250,16 @@ export async function getQuoteContextInfo(userQuery) {
     '- 【业绩预告】与【机构预测/一致预期】属于预测、预估数据：引用时**必须明确标注为"预测/预计/约"**，不得当作已披露的实际数据，也不要用机构预测反推"实际业绩已公布"。',
     '- 如需引用历史情况，可以用「过去几年」「上一轮周期」等整体描述；不要给出快照之外的具体年份精确数字。',
     '',
-    ...valid.map((e, i) => `${i + 1}) ${formatEntry(e.info, e.quote, e.fin, e.forecast)}`),
+    ...valid.map((e, i) => {
+      const head = `${i + 1}) ${formatEntry(e.info, e.quote, e.fin, e.forecast)}`;
+      const deep = deepMap.get(e.info.secid);
+      if (!deep) return head;
+      const deepLines = formatDeepSnapshot(e.info, e.quote, deep);
+      if (!deepLines.length) return head;
+      return [head, '    ── 深度分析快照（移植 UZI-Skill 数据维度/机构方法） ──', ...deepLines].join('\n');
+    }),
+    '',
+    '【深度分析使用规则】上面的【深度分析快照】含估值分位、DCF、龙虎榜、研报评级、社交热榜、杀猪盘信号等；如需引用这些维度的数字（如"PE 处于近 5 年 87% 分位""DCF 安全边际 -28%"），必须以上述快照为准，快照没有的精确数字不得编造。杀猪盘信号为量化规则扫描结果，不是结论，需结合基本面综合判断。',
   ];
   return { snapshot: lines.join('\n'), notice: '' };
 }

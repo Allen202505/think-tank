@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { PRESET_MASTERS, snapColorToPalette } from '../data/masters';
+import { MASTER_GROUP_ORDER, normalizeGroup } from '../data/masterGroups';
 import { QUICK_PICK_GROUPS } from '../data/quickPicks';
 import { PRESET_MASTERS_MAP } from '../data/presetMasters';
 import { messages } from '../i18n/messages';
@@ -18,6 +19,7 @@ import {
   buildClosingOnlyPrompt,
   buildVerdictOnlyPrompt,
   buildChatPrompt,
+  buildExplainPrompt,
 } from '../lib/prompts';
 import { generatePoster } from '../lib/poster';
 import './page.css';
@@ -33,6 +35,34 @@ function countVotes(items) {
     else votes.neutral += 1;
   }
   return votes;
+}
+
+// 轻量 Markdown 渲染：把 AI 输出里常见的 **加粗** / - 列表 转成可读样式（仅用于解释浮层）
+function inlineRich(seg, keyBase) {
+  const normalized = String(seg).replace(/\*\*\*/g, '**'); // ***x*** → **x**
+  const parts = normalized.split(/\*\*(.+?)\*\*/g);
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+}
+function renderExplainText(text) {
+  const lines = String(text || '').split('\n');
+  const out = [];
+  let list = [];
+  const flushList = () => {
+    if (list.length) { out.push(<ul key={out.length} className="explain-list">{list}</ul>); list = []; }
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flushList(); continue; }
+    const marker = line.match(/^【(.+?)】$/);
+    if (marker) { flushList(); out.push(<div key={out.length} className="explain-inline-head">{marker[1]}</div>); continue; }
+    const bullet = line.match(/^[-*•]\s+(.*)/);
+    if (bullet) { list.push(<li key={list.length}>{inlineRich(bullet[1], `li${list.length}`)}</li>); continue; }
+    flushList();
+    const numbered = line.match(/^\d+[.、)]\s+(.*)/);
+    out.push(<p key={out.length} className="explain-text">{inlineRich(numbered ? numbered[1] : line, `p${out.length}`)}</p>);
+  }
+  flushList();
+  return out;
 }
 
 // ─── 主组件 ──────────────────────────────────────────────
@@ -100,8 +130,56 @@ export default function Home() {
   const fetchInProgressRef = useRef(false);
   const goTimeoutRef = useRef(null);
   const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
+  // 小白解释：点击某条大师发言 → 浮层用大白话解释术语与思路
+  const [explain, setExplain] = useState(null); // { master, content, keyPoint }
+  const [explainText, setExplainText] = useState('');
+  const [explainLoading, setExplainLoading] = useState(false);
+  const [explainError, setExplainError] = useState('');
+  const explainCacheRef = useRef(new Map());
+  const explainLoadingRef = useRef(false);
+  const [selectMode, setSelectMode] = useState('smart'); // smart=智能匹配(默认) / manual=手动选择
+  const [masterGroup, setMasterGroup] = useState('__all__'); // 大师列表分组筛选（'__all__'=全部）
+  const [quoteTip, setQuoteTip] = useState(null); // 名言 hover 浮层 {text,x,y}
+  const [groupFilterExpanded, setGroupFilterExpanded] = useState(false); // 分组标签区是否展开
+  const [matchingHint, setMatchingHint] = useState(false); // 提交时智能选角反馈
 
   const allMasters = useMemo(() => [...customMasters, ...PRESET_MASTERS], [customMasters]); // 邀请的大师排在预置大师前面
+
+  // 一位大师可有多个标签：有 tags 数组用 tags，否则退回主标签
+  const masterTags = useCallback((m) => (Array.isArray(m.tags) && m.tags.length ? m.tags : [normalizeGroup(m.tag)]), []);
+
+  // 按主流派分组（分组顺序见 masterGroups.js，未知 tag 归入「其他」）
+  const groupedMasters = useMemo(() => {
+    const byKey = new Map();
+    for (const m of allMasters) {
+      const key = normalizeGroup(m.tag);
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key).push(m);
+    }
+    return MASTER_GROUP_ORDER
+      .filter((g) => byKey.has(g.key))
+      .map((g) => ({ ...g, masters: byKey.get(g.key) }));
+  }, [allMasters]);
+
+  // 筛选 chips：按任意标签计数（一位大师可命中多个标签）
+  const groupChips = useMemo(() => (
+    MASTER_GROUP_ORDER
+      .map((g) => ({ ...g, count: allMasters.filter((m) => masterTags(m).includes(g.key)).length }))
+      .filter((g) => g.count > 0)
+  ), [allMasters, masterTags]);
+
+  // 选中某标签：展示所有带该标签的大师（仍按主标签分组展示）
+  const filteredGroups = useMemo(() => {
+    if (masterGroup === '__all__') return groupedMasters;
+    const list = allMasters.filter((m) => masterTags(m).includes(masterGroup));
+    const byKey = new Map();
+    for (const m of list) {
+      const key = normalizeGroup(m.tag);
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key).push(m);
+    }
+    return MASTER_GROUP_ORDER.filter((g) => byKey.has(g.key)).map((g) => ({ ...g, masters: byKey.get(g.key) }));
+  }, [allMasters, masterGroup, groupedMasters, masterTags]);
   const CUSTOM_KEY = 'custom-masters-v1';
   const HISTORY_KEY = 'debate-history-v1';
   const currentSessionIdRef = useRef(null);
@@ -545,6 +623,112 @@ export default function Home() {
     return (data.content || []).map(c => c.text || '').join('').trim();
   }, []);
 
+  // 智能选角核心：返回匹配到的大师 id（最多 5 位；群聊至少 2 位，不足随机补足；失败/无问题回退随机）
+  const fetchMatchedIds = useCallback(async (question) => {
+    const q = String(question || '').trim();
+    const pickRandom = (n) => [...allMasters].sort(() => Math.random() - 0.5).slice(0, n).map((i) => i.id);
+    if (!q) return pickRandom(5);
+    try {
+      const res = await fetch('/api/match-masters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: q,
+          masters: allMasters.map((m) => ({ id: m.id, name: m.name, title: m.title, style: m.style, tags: masterTags(m) })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const ids = Array.isArray(data?.ids)
+        ? data.ids.filter((id) => allMasters.some((m) => m.id === id)).slice(0, 5)
+        : [];
+      while (ids.length < 2) {
+        const extra = pickRandom(1)[0];
+        if (extra && !ids.includes(extra)) ids.push(extra);
+        else break;
+      }
+      return ids;
+    } catch (e) {
+      return pickRandom(5);
+    }
+  }, [allMasters]);
+
+  // 打开某条发言的小白解释抽屉：走专用流式接口 /api/explain，边生成边显示（同一发言缓存结果）
+  const openExplain = useCallback(async (master, msg) => {
+    const speechText = String(msg?.content || '').trim();
+    if (!speechText) return;
+    const key = `${master?.id || 'x'}|${speechText.slice(0, 80)}`;
+    const cached = explainCacheRef.current.get(key);
+    setExplain({ master });
+    setExplainError('');
+    if (cached) {
+      setExplainText(cached);
+      setExplainLoading(false);
+      explainLoadingRef.current = false;
+      return;
+    }
+    setExplainText('');
+    setExplainLoading(true);
+    explainLoadingRef.current = true;
+    try {
+      const res = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          master: { name: master?.name, title: master?.title, style: master?.style },
+          speech: speechText,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error('解释服务不可用');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let full = '';
+      let failed = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          const payload = t.slice(5).trim();
+          if (!payload) continue;
+          try {
+            const j = JSON.parse(payload);
+            if (j.delta) {
+              full += j.delta;
+              if (explainLoadingRef.current) {
+                setExplainLoading(false);
+                explainLoadingRef.current = false;
+              }
+              setExplainText(full);
+            } else if (j.error) {
+              setExplainError(j.error);
+              failed = true;
+              break;
+            }
+          } catch (e) { /* 忽略半行 */ }
+        }
+        if (failed) break;
+      }
+      if (!failed && full) explainCacheRef.current.set(key, full);
+    } catch (e) {
+      setExplainError(e.message || '解释生成失败，请稍后重试');
+    } finally {
+      setExplainLoading(false);
+      explainLoadingRef.current = false;
+    }
+  }, []);
+
+  const closeExplain = useCallback(() => {
+    setExplain(null);
+    setExplainText('');
+    setExplainLoading(false);
+    setExplainError('');
+  }, []);
+
   const doRequest = useCallback(async (messages, userQuery, snapshot) => {
     const text = await getResponseText(messages, userQuery, snapshot);
     const match = text.match(/\{[\s\S]*\}/);
@@ -671,10 +855,25 @@ export default function Home() {
 
   const go = useCallback(async (force = false) => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
-    if (selected.size === 0) { setError(t('summonErrorNoMaster')); return; }
     const soloRequested = chatMode === 'solo';
-    if (soloRequested && selected.size !== 1) { setError(t('summonErrorSoloCount')); return; }
-    if (!soloRequested && selected.size < 2) { setError(t('summonErrorGroupCount')); return; }
+    let effectiveSelected = selected;
+    // 智能匹配模式（群聊）：提交时按问题自动选角，结果同步到 UI
+    if (!soloRequested && selectMode === 'smart') {
+      // 智能模式：每次提问自动按问题匹配（人选随问题变化）；先给用户即时反馈
+      setMatchingHint(true);
+      try {
+        const ids = await fetchMatchedIds(query);
+        if (ids.length) {
+          effectiveSelected = new Set(ids);
+          setSelected(effectiveSelected);
+        }
+      } catch (e) { /* 保持原选中 */ } finally {
+        setMatchingHint(false);
+      }
+    }
+    if (effectiveSelected.size === 0) { setError(t('summonErrorNoMaster')); return; }
+    if (soloRequested && effectiveSelected.size !== 1) { setError(t('summonErrorSoloCount')); return; }
+    if (!soloRequested && effectiveSelected.size < 2) { setError(t('summonErrorGroupCount')); return; }
 
     setError('');
     setNotice('');
@@ -715,7 +914,7 @@ export default function Home() {
       snapshotRef.current = '';
     }
 
-    const investors = allMasters.filter(i => selected.has(i.id));
+    const investors = allMasters.filter(i => effectiveSelected.has(i.id));
     const isSolo = soloRequested; // 单聊：一对一深聊
     const host = isSolo ? investors[0] : investors[Math.floor(Math.random() * investors.length)];
     const speechOrder = [...investors].sort(() => Math.random() - 0.5);
@@ -736,7 +935,7 @@ export default function Home() {
       setCurrentBlock({ type: isSolo ? 'speech' : 'hostOpening', speakerId: host.id });
       setLoading(false);
     }, showLoadingMinMs);
-  }, [query, selected, allMasters, chatMode]);
+  }, [query, selected, allMasters, chatMode, selectMode, fetchMatchedIds]);
   const goRef = useRef(null);
   goRef.current = go;
 
@@ -760,7 +959,7 @@ export default function Home() {
 
   // 弹窗 Escape 关闭（除二维码外统一处理）
   useEffect(() => {
-    const open = inviteOpen || historyOpen || supplementOpen || posterOpen || profileMaster;
+    const open = inviteOpen || historyOpen || supplementOpen || posterOpen || profileMaster || explain;
     if (!open) return undefined;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
@@ -769,10 +968,11 @@ export default function Home() {
       else if (historyOpen) setHistoryOpen(false);
       else if (posterOpen) setPosterOpen(false);
       else if (profileMaster) setProfileMaster(null);
+      else if (explain) closeExplain();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [inviteOpen, historyOpen, supplementOpen, posterOpen, profileMaster, skipSupplement, closeInvite]);
+  }, [inviteOpen, historyOpen, supplementOpen, posterOpen, profileMaster, explain, skipSupplement, closeInvite, closeExplain]);
 
   const sendFollowUp = useCallback(async () => {
     const msg = followUpInput.trim();
@@ -926,58 +1126,99 @@ export default function Home() {
         <aside className="sidebar">
           <Card title={t('membersTitle')} accent="var(--accent)">
             {chatMode === 'group' && (
-              <div className="sidebar-actions">
-                <MiniBtn onClick={() => setSelected(new Set([...allMasters].sort(() => Math.random() - 0.5).slice(0, 5).map(i => i.id)))}><span aria-hidden="true">🎲</span>{t('membersRandom5')}</MiniBtn>
-                <MiniBtn onClick={() => setSelected(new Set(allMasters.map(i => i.id)))}><span aria-hidden="true">✓</span>{t('membersSelectAll')}</MiniBtn>
-                <MiniBtn onClick={() => setSelected(new Set())}><span aria-hidden="true">✕</span>{t('membersClear')}</MiniBtn>
-              </div>
+              <>
+                <div className="sidebar-mode">
+                  <MiniBtn active={selectMode === 'smart'} onClick={() => setSelectMode('smart')}>{t('membersSmartMatch')}</MiniBtn>
+                  <MiniBtn active={selectMode === 'manual'} onClick={() => setSelectMode('manual')}>{t('membersManual')}</MiniBtn>
+                </div>
+                <div className="sidebar-mode-hint">{selectMode === 'smart' ? t('smartModeHint') : t('manualModeHint')}</div>
+              </>
             )}
-            <div className="sidebar-count">
-              {chatMode === 'solo'
-                ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
-                : t('selectedCount', selected.size, allMasters.length)}
+            <div className="sidebar-count-row">
+              <div className="sidebar-count">
+                {chatMode === 'solo'
+                  ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
+                  : t('selectedCount', selected.size, allMasters.length)}
+              </div>
+              {selectMode === 'manual' && (
+                <MiniBtn subtle onClick={() => setSelected(new Set())}><span aria-hidden="true">✕</span>{t('membersClear')}</MiniBtn>
+              )}
             </div>
             <button type="button" className="invite-entry" onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
             </button>
+            <div className={`master-group-filter-wrap${groupFilterExpanded ? '' : ' collapsed'}`}>
+              <div className={`master-group-filter${groupFilterExpanded ? '' : ' collapsed'}`}>
+                <button type="button" className={`mgroup-chip${masterGroup === '__all__' ? ' on' : ''}`} onClick={() => setMasterGroup('__all__')}>
+                  {locale === 'en' ? 'All' : '全部'} <span className="mgroup-count">{allMasters.length}</span>
+                </button>
+                {(groupFilterExpanded ? groupChips : groupChips.slice(0, 2)).map((g) => (
+                  <button key={g.key} type="button" className={`mgroup-chip${masterGroup === g.key ? ' on' : ''}`} onClick={() => setMasterGroup(g.key)}>
+                    {locale === 'en' ? g.en : g.key} <span className="mgroup-count">{g.count}</span>
+                  </button>
+                ))}
+                <button type="button" className={`mgroup-toggle${groupFilterExpanded ? ' expanded' : ''}`} onClick={() => setGroupFilterExpanded((v) => !v)}>
+                  <span className="mgroup-chevron">{groupFilterExpanded ? '▴' : '▾'}</span>
+                  {groupFilterExpanded ? t('groupFilterLess') : t('groupFilterMore')}
+                </button>
+              </div>
+            </div>
             <div className="master-list">
-              {allMasters.map(inv => {
-                const on = selected.has(inv.id);
-                return (
-                  <div
-                    key={inv.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggle(inv.id)}
-                    onKeyDown={e => e.key === 'Enter' && toggle(inv.id)}
-                    className="master-row"
-                    style={{
-                      borderLeft: on ? `3px solid ${inv.color}` : '3px solid transparent',
-                      background: on ? `${inv.color}12` : 'transparent',
-                    }}
-                  >
-                    <MasterAvatar master={inv} size={28} className="master-avatar" />
-                    <div className="master-info">
-                      <span className="master-name" style={{ color: on ? 'var(--text)' : 'var(--text-muted)' }}>
-                        {locale === 'en' && inv.nameEn ? inv.nameEn : inv.name}
-                      </span>
-                      <span className="master-style">
-                        {locale === 'en' && inv.titleEn ? inv.titleEn : (inv.title || inv.style.split('，')[0])}
-                      </span>
-                    </div>
-                    <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>
-                    <button
-                      type="button"
-                      className="master-more-btn"
-                      onClick={(e) => { e.stopPropagation(); setProfileMaster(inv); }}
-                      title={locale === 'en' ? 'Profile & actions' : '资料与操作'}
-                      aria-label={locale === 'en' ? 'Profile & actions' : '资料与操作'}
-                    >
-                      ⋯
-                    </button>
+              {filteredGroups.map((g) => (
+                <div key={g.key} className="master-group">
+                  <div className="master-group-head">
+                    {locale === 'en' ? g.en : g.key}
+                    <span className="master-group-count">{g.masters.length}</span>
                   </div>
-                );
-              })}
+                  {g.masters.map(inv => {
+                    const on = selected.has(inv.id);
+                    const locked = chatMode === 'group' && selectMode === 'smart';
+                    return (
+                      <div
+                        key={inv.id}
+                        role="button"
+                        tabIndex={locked ? -1 : 0}
+                        onClick={locked ? undefined : () => toggle(inv.id)}
+                        onKeyDown={locked ? undefined : (e) => e.key === 'Enter' && toggle(inv.id)}
+                        className={`master-row${locked ? ' smart-locked' : ''}`}
+                        style={{
+                          borderLeft: on ? `3px solid ${inv.color}` : '3px solid transparent',
+                          background: on ? `${inv.color}12` : 'transparent',
+                        }}
+                      >
+                        <MasterAvatar master={inv} size={28} className="master-avatar" />
+                        <div className="master-info">
+                          <span className="master-name" style={{ color: on ? 'var(--text)' : 'var(--text-muted)' }}>
+                            {locale === 'en' && inv.nameEn ? inv.nameEn : inv.name}
+                          </span>
+                          <span
+                            className="master-style"
+                            onMouseEnter={(e) => {
+                              if (!inv.quote) return;
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const x = Math.min(r.left, window.innerWidth - 280);
+                              setQuoteTip({ text: inv.quote, x: Math.max(8, x), y: r.bottom + 6 });
+                            }}
+                            onMouseLeave={() => setQuoteTip(null)}
+                          >
+                            {inv.quote ? (inv.quote.length > 22 ? `${inv.quote.slice(0, 22)}…` : inv.quote) : (locale === 'en' && inv.titleEn ? inv.titleEn : (inv.title || inv.style.split('，')[0]))}
+                          </span>
+                        </div>
+                        {!locked && <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>}
+                        <button
+                          type="button"
+                          className="master-more-btn"
+                          onClick={(e) => { e.stopPropagation(); setProfileMaster(inv); }}
+                          title={locale === 'en' ? 'Profile & actions' : '资料与操作'}
+                          aria-label={locale === 'en' ? 'Profile & actions' : '资料与操作'}
+                        >
+                          ⋯
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </Card>
           <p className="sidebar-hint">{chatMode === 'group' ? t('sidebarHintGroup') : t('sidebarHintSolo')}</p>
@@ -994,6 +1235,7 @@ export default function Home() {
             />
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
+            {matchingHint && <div className="summon-status">🔍 {t('summonMatching')}</div>}
             <div className="question-footer">
               <div className="question-aux">
                 <div className="chat-switch-wrap" aria-label="聊天方式">
@@ -1011,8 +1253,8 @@ export default function Home() {
                   <span className={`cs-label${chatMode === 'solo' ? ' on' : ''}`}>单聊</span>
                 </div>
               </div>
-              <button type="button" className="btn-submit" onClick={go} disabled={loading}>
-                {loading ? `⟳ ${t('summoning')}` : t('btnSummon')}
+              <button type="button" className="btn-submit" onClick={go} disabled={loading || matchingHint}>
+                {loading ? `⟳ ${t('summoning')}` : matchingHint ? `⟳ ${t('summonMatching')}` : t('btnSummon')}
               </button>
             </div>
           </Card>
@@ -1078,7 +1320,10 @@ export default function Home() {
                             </div>
                             <div className="speech-content">
                               {msg.content}
-                              {msg.keyPoint && <div className="speech-key">💡 {msg.keyPoint}</div>}
+                              <div className="speech-key">
+                                {msg.keyPoint && <span className="speech-key-text">💡 {msg.keyPoint}</span>}
+                                <button type="button" className="explain-btn" onClick={() => openExplain(inv, msg)}>{t('explainBtn')}</button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1179,7 +1424,12 @@ export default function Home() {
                             </div>
                             <div className="speech-content">
                               {currentText.slice(0, typeCharIndex)}{!done && <span className="caret" />}
-                              {done && msg?.keyPoint && <div className="speech-key">💡 {msg.keyPoint}</div>}
+                              {done && (
+                                <div className="speech-key">
+                                  {msg?.keyPoint && <span className="speech-key-text">💡 {msg.keyPoint}</span>}
+                                  <button type="button" className="explain-btn" onClick={() => openExplain(inv, msg)}>{t('explainBtn')}</button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1250,7 +1500,39 @@ export default function Home() {
         </main>
       </div>
 
+      <footer className="page-disclaimer">{t('disclaimer')}</footer>
+
+      {quoteTip && (
+        <div className="quote-tooltip" style={{ left: quoteTip.x, top: quoteTip.y }}>{quoteTip.text}</div>
+      )}
+
       {profileMaster && <MasterProfileModal master={profileMaster} onClose={() => setProfileMaster(null)} locale={locale} onStartChat={startSoloChat} onRemove={removeCustomMaster} />}
+
+      {explain && (
+        <div className="drawer-overlay" onClick={closeExplain}>
+          <aside className="explain-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="explain-drawer-head">
+              <div className="explain-head">
+                <MasterAvatar master={explain.master} size={38} />
+                <div className="explain-head-text">
+                  <div className="explain-title">{t('explainTitle')} · {explain.master?.name || ''}</div>
+                  <div className="explain-master-title">{explain.master?.title || ''}</div>
+                </div>
+              </div>
+              <button type="button" className="modal-close drawer-close" onClick={closeExplain} aria-label={t('explainClose')}>✕</button>
+            </div>
+            <div className="explain-drawer-body">
+              {explainError ? (
+                <div className="explain-error">{t('explainError')}</div>
+              ) : explainLoading ? (
+                <div className="explain-loading">{t('explainLoading')}</div>
+              ) : (
+                renderExplainText(explainText)
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {inviteOpen && (
         <>

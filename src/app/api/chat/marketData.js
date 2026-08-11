@@ -414,6 +414,9 @@ export async function resolveSymbols(query) {
     llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
   } catch (e) { /* 忽略，走启发式兜底 */ }
   if (llmNames && llmNames.length) {
+    // ST 股防误判：问题里同时出现"ST合力泰"和裸"ST"时，裸 ST 是美股 Sensata 代码，丢弃
+    const hasSTName = llmNames.some((n) => /^ST[\u4e00-\u9fa5]/.test(String(n).trim()));
+    if (hasSTName) llmNames = llmNames.filter((n) => !/^ST$/i.test(String(n).trim()));
     for (const raw of llmNames.slice(0, 5)) {
       const n = String(raw).trim();
       if (!n) continue;
@@ -437,10 +440,11 @@ export async function resolveSymbols(query) {
   }
 
   // 2) 英文代码匹配（美股代码 / 数字 A 股代码）
+  const hasSTNameInQuery = /ST[\u4e00-\u9fa5]/.test(query.toUpperCase());
   const tickers = new Set();
   const matches = query.match(/\b[A-Z]{2,5}\b/g) || [];
   matches.forEach((t) => {
-    if (!TICKER_STOPWORDS.has(t)) tickers.add(t);
+    if (!TICKER_STOPWORDS.has(t) && !(hasSTNameInQuery && t.toUpperCase() === 'ST')) tickers.add(t);
   });
   const codeMatches = query.match(/\b\d{6}\b/g) || [];
   codeMatches.forEach((c) => {
@@ -471,7 +475,7 @@ export async function resolveSymbols(query) {
 
 // ─── 实时行情（东方财富） ────────────────────────────────
 async function fetchQuoteEM(secid) {
-  const fields = 'f43,f57,f58,f59,f60,f116,f162,f167,f170';
+  const fields = 'f43,f57,f58,f59,f60,f116,f162,f167,f170,f127';
   const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}`;
   const json = await fetchJson(url);
   const d = json?.data;
@@ -487,12 +491,13 @@ async function fetchQuoteEM(secid) {
     pb: d.f167 && d.f167 > 0 ? d.f167 / 100 : null, // PB 固定两位小数
     marketCap: d.f116 || null,
     currency: null,
+    industry: d.f127 || null, // 东财行业板块名（如 白酒Ⅱ/通信设备）
   };
 }
 
 
 // 给 Promise 加超时（Yahoo 在某些网络不可达时可能卡住）
-function withTimeout(promise, ms) {
+export function withTimeout(promise, ms) {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error('Yahoo 请求超时')), ms)),
@@ -501,7 +506,7 @@ function withTimeout(promise, ms) {
 
 // ─── Yahoo Finance（美股/港股补充） ──────────────────────
 let yfPromise;
-function getYahoo() {
+export function getYahoo() {
   if (!yfPromise) {
     yfPromise = import('yahoo-finance2').then(
       (m) => new m.default({ suppressNotices: ['yahooSurvey'] }),
@@ -572,6 +577,7 @@ async function fetchFinancialsYahoo(symbol) {
     targetMeanPrice: fd.targetMeanPrice ?? null,
     recommendationKey: fd.recommendationKey ?? null,
     numberOfAnalystOpinions: fd.numberOfAnalystOpinions ?? null,
+    shares: fd.sharesOutstanding ?? null,
     forecast,
   };
 }
@@ -819,6 +825,9 @@ export async function getFinancials(info) {
           targetMeanPrice: y.targetMeanPrice,
           recommendationKey: y.recommendationKey,
           numberOfAnalystOpinions: y.numberOfAnalystOpinions,
+          freeCashflow: y.freeCashflow,
+          yahooNetMargin: y.netMargin,
+          shares: yfShares,
         };
       }
     } catch (e) { /* 忽略 */ }
