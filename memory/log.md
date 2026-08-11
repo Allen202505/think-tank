@@ -2125,3 +2125,11 @@
 ### 微调：名言 hover 浮层底色改深色
 - .quote-tooltip 由 var(--bg-card)（亮色下为白）改为深蓝灰 #1c2736 + 浅色文字 #e8eef8，与占位头像/整体深色冷调风格统一
 - dev 编译通过
+
+## 2026-08-12（第一百四十批）
+
+### 发版准备完成（提交 7477999），推送被网络阻塞
+- ✅ 整体检查：生产构建通过（`npm run build`）；冒烟测试全部通过——/api/context（含深度分析快照）、/api/match-masters（智能选角）、/api/explain（SSE 流式）、/api/chat（DeepSeek 回复 1607 字）、首页 200；无残留调试文件；memory/project.md（旧残留）未提交
+- ✅ 已提交：`7477999 feat: 移植 UZI-Skill 深度分析 + 大师库扩充至70位 + 智能选角等`（41 文件 +2628/-115）
+- ⚠️ **推送未完成**：github.com:443 从本机不可达（HTTPS 超时、SSH 端口 22/443 也不通、无代理、无 SSH key）；codeload/api.github.com 可达但无法用于 git push。符合旧约定"等用户能翻墙后执行 git push"
+- 下一步：开启代理/VPN 后重试 `git push origin main`（本地领先 origin 130 个提交）
