@@ -20,6 +20,7 @@ import {
   buildVerdictOnlyPrompt,
   buildChatPrompt,
   buildExplainPrompt,
+  buildReplyPrompt,
 } from '../lib/prompts';
 import { generatePoster } from '../lib/poster';
 import './page.css';
@@ -55,6 +56,7 @@ function renderExplainText(text) {
     if (!line) { flushList(); continue; }
     const marker = line.match(/^【(.+?)】$/);
     if (marker) { flushList(); out.push(<div key={out.length} className="explain-inline-head">{marker[1]}</div>); continue; }
+    if (/^[-*_]{3,}$/.test(line)) { flushList(); out.push(<div key={out.length} className="markdown-hr" />); continue; }
     const bullet = line.match(/^[-*•]\s+(.*)/);
     if (bullet) { list.push(<li key={list.length}>{inlineRich(bullet[1], `li${list.length}`)}</li>); continue; }
     flushList();
@@ -63,6 +65,22 @@ function renderExplainText(text) {
   }
   flushList();
   return out;
+}
+
+// 安全解析 AI 返回的 JSON：取首个 {...} 并容错解析，失败返回 null（由调用方降级为整段文字）
+function safeJsonParse(text) {
+  const m = String(text || '').match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]); } catch (e) { return null; }
+}
+
+// 解析单聊/回辩的 {content, keyPoint} JSON；失败降级为整段文字
+function parseChatResult(text, fallbackInvestorId) {
+  const parsed = safeJsonParse(text);
+  if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
+    return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: parsed.content.trim(), keyPoint: String(parsed.keyPoint || '').trim() };
+  }
+  return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: String(text || ''), keyPoint: '' };
 }
 
 // ─── 主组件 ──────────────────────────────────────────────
@@ -85,7 +103,7 @@ export default function Home() {
     },
   };
 
-  const [theme, setTheme] = useState('light'); // 默认亮色；SSR 与首帧一致，挂载后 effect 再读 localStorage
+  const [theme, setTheme] = useState('white'); // 默认纯白；SSR 与首帧一致，挂载后 effect 再读 localStorage
   const [qrOpen, setQrOpen] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
@@ -118,6 +136,13 @@ export default function Home() {
   const [historyList, setHistoryList] = useState([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
+  const [replyDrawer, setReplyDrawer] = useState(null); // 举手提问浮层 { master, context }
+  const [replyMessages, setReplyMessages] = useState([]); // [{role:'user'|'master', text, keyPoint}]
+  const [replyInput, setReplyInput] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [pendingReply, setPendingReply] = useState(null); // 正在逐字显示的大师回复 {text,keyPoint}
+  const [replyTypeIdx, setReplyTypeIdx] = useState(0);
+  const replyBodyRef = useRef(null);
   const [rounds, setRounds] = useState([]);
   const [sequence, setSequence] = useState([]);       // 本轮的请求顺序：hostOpening, speech, ..., hostClosing, verdict
   const [stepIndex, setStepIndex] = useState(0);
@@ -135,6 +160,7 @@ export default function Home() {
   const [explainText, setExplainText] = useState('');
   const [explainLoading, setExplainLoading] = useState(false);
   const [explainError, setExplainError] = useState('');
+  const [explainWarn, setExplainWarn] = useState(''); // 部分生成中断时的小提示
   const explainCacheRef = useRef(new Map());
   const explainLoadingRef = useRef(false);
   const [selectMode, setSelectMode] = useState('smart'); // smart=智能匹配(默认) / manual=手动选择
@@ -660,6 +686,7 @@ export default function Home() {
     const cached = explainCacheRef.current.get(key);
     setExplain({ master });
     setExplainError('');
+    setExplainWarn('');
     if (cached) {
       setExplainText(cached);
       setExplainLoading(false);
@@ -705,7 +732,9 @@ export default function Home() {
               }
               setExplainText(full);
             } else if (j.error) {
-              setExplainError(j.error);
+              // 已生成部分内容时保留文字，仅提示可重试；完全失败才整屏报错
+              if (full) setExplainWarn(j.error);
+              else setExplainError(j.error);
               failed = true;
               break;
             }
@@ -727,13 +756,14 @@ export default function Home() {
     setExplainText('');
     setExplainLoading(false);
     setExplainError('');
+    setExplainWarn('');
   }, []);
 
   const doRequest = useCallback(async (messages, userQuery, snapshot) => {
     const text = await getResponseText(messages, userQuery, snapshot);
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) {
-      // 如果没严格返回 JSON，就把整段文本当成一次总结性发言兜底返回，避免完全没回应
+    const parsed = safeJsonParse(text);
+    if (!parsed) {
+      // 没返回合法 JSON：把整段文本当成一次总结性发言兜底，避免完全没回应
       return {
         discussion: [{
           investorId: 'host-fallback',
@@ -744,7 +774,7 @@ export default function Home() {
         verdict: {},
       };
     }
-    return JSON.parse(match[0]);
+    return parsed;
   }, [getResponseText]);
 
   // 逐条请求：当前步在请求中则发起 API，收到后写入 currentBlock.content 并进入打字
@@ -779,10 +809,9 @@ export default function Home() {
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           let parsed;
           if (soloSpeech) {
-            parsed = { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
+            parsed = parseChatResult(text, step.speakerId);
           } else {
-            const match = text.match(/\{[\s\S]*\}/);
-            parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
+            parsed = safeJsonParse(text) || { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
           }
           setCurrentBlock(c => c ? { ...c, content: parsed } : c);
         } else if (step.type === 'hostClosing') {
@@ -797,8 +826,7 @@ export default function Home() {
           const discussionText = completedBlocks.filter(b => b.type === 'speech').map(b => b.content?.content).join('\n');
           const prompt = buildVerdictOnlyPrompt(query, opening, discussionText, closing);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
-          const match = text.match(/\{[\s\S]*\}/);
-          const parsed = match ? JSON.parse(match[0]) : {};
+          const parsed = safeJsonParse(text) || {};
           setCurrentBlock(b => b ? { ...b, content: parsed } : b);
         }
         setTypingPhase('typing');
@@ -1017,7 +1045,7 @@ export default function Home() {
           query,
           mergedSnapshot,
         );
-        parsedDiscussion = [{ investorId: investors[0].id, stance: 'NEUTRAL', content: text, keyPoint: '' }];
+        parsedDiscussion = [parseChatResult(text, investors[0].id)];
       } else {
         const payload = buildFollowUpPrompt(prevSummary, msg, investors);
         const parsed = await doRequest([{ role: 'user', content: payload }], query, mergedSnapshot);
@@ -1048,6 +1076,87 @@ export default function Home() {
     setLoadingFollowUp(false);
   }, [followUpInput, result, query, doRequest, loadingFollowUp, getResponseText]);
 
+  // 针对某位大师的发言回复 → 大师回辩（复用 followUp 轮次 + 打字机揭示）
+  // 举手提问：打开侧边浮层，与某位大师单聊
+  const openReplyDrawer = useCallback((master, context) => {
+    setReplyDrawer({ master, context: String(context?.content || context || '').slice(0, 300) });
+    setReplyMessages([]);
+    setPendingReply(null);
+    setReplyTypeIdx(0);
+    setReplyInput('');
+    setReplyLoading(false);
+  }, []);
+
+  const closeReplyDrawer = useCallback(() => {
+    setReplyDrawer(null);
+    setReplyMessages([]);
+    setPendingReply(null);
+    setReplyTypeIdx(0);
+    setReplyInput('');
+    setReplyLoading(false);
+  }, []);
+
+  // 逐字揭示大师回复（打字机）
+  useEffect(() => {
+    if (!pendingReply) return;
+    const full = pendingReply.text || '';
+    if (replyTypeIdx < full.length) {
+      const iv = setInterval(() => setReplyTypeIdx((i) => Math.min(i + 1, full.length)), TYPEWRITER_DELAY_MS);
+      return () => clearInterval(iv);
+    }
+    setReplyMessages((prev) => [...prev, { role: 'master', text: full, keyPoint: pendingReply.keyPoint }]);
+    setPendingReply(null);
+    setReplyTypeIdx(0);
+  }, [pendingReply, replyTypeIdx]);
+
+  // 新消息/打字时滚动到底部
+  useEffect(() => {
+    if (replyBodyRef.current) replyBodyRef.current.scrollTop = replyBodyRef.current.scrollHeight;
+  }, [replyMessages, pendingReply, replyTypeIdx]);
+
+  // 浮层内发送提问 → 大师回辩（可多轮）
+  const sendDrawerReply = useCallback(async () => {
+    const msg = replyInput.trim();
+    if (!msg || !replyDrawer?.master || replyLoading) return;
+    const master = replyDrawer.master;
+    setError('');
+    setReplyInput('');
+    setReplyMessages((prev) => [...prev, { role: 'user', text: msg }]);
+    setReplyLoading(true);
+    try {
+      // 提问可能提到新公司：合并快照
+      let mergedSnapshot = snapshotRef.current || '';
+      try {
+        const ctxRes = await fetch('/api/context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: msg }),
+        });
+        const ctx = await ctxRes.json();
+        if (ctx?.snapshot) mergedSnapshot = [mergedSnapshot, ctx.snapshot].filter(Boolean).join('\n');
+      } catch (e) { /* 忽略 */ }
+      const lastSpeech = [...(result.discussion || [])].reverse().find((m) => m.investorId === master.id);
+      const context = [
+        replyDrawer.context,
+        lastSpeech ? `${master.name}此前说：${String(lastSpeech.content || '').slice(0, 200)}` : '',
+      ].filter(Boolean).join('\n');
+      const text = await getResponseText(
+        [{ role: 'user', content: buildReplyPrompt(query, master, msg, context) }],
+        query,
+        mergedSnapshot,
+      );
+      const parsed = parseChatResult(text, master.id);
+      setPendingReply({ text: parsed.content, keyPoint: parsed.keyPoint });
+    } catch (e) {
+      setReplyMessages((prev) => [...prev, { role: 'master', text: `⚠️ ${e.message || '回复失败，请重试'}` }]);
+    }
+    setReplyLoading(false);
+  }, [replyInput, replyDrawer, result, query, getResponseText, replyLoading]);
+
+
+
+
+
   return (
     <>
       <script
@@ -1064,11 +1173,11 @@ export default function Home() {
           <button
             type="button"
             className="icon-btn theme-toggle"
-            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? '切换亮色' : '切换暗色'}
-            aria-label="切换主题"
+            onClick={() => setTheme(t => (t === 'dark' ? 'light' : t === 'light' ? 'white' : 'dark'))}
+            title={theme === 'dark' ? '切换亮色' : theme === 'light' ? '切换纯白' : '切换暗色'}
+            aria-label={theme === 'dark' ? '切换亮色' : theme === 'light' ? '切换纯白' : '切换暗色'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? '☀️' : theme === 'light' ? '⚪' : '🌙'}
           </button>
 
           <button
@@ -1328,12 +1437,14 @@ export default function Home() {
                               <span className="speech-stance" style={{ borderColor: st.border, color: st.color, background: st.bg }}>{st.label}</span>
                             </div>
                             <div className="speech-content">
-                              {msg.content}
+                              {renderExplainText(msg.content)}
                               <div className="speech-key">
                                 {msg.keyPoint && <span className="speech-key-text">💡 {msg.keyPoint}</span>}
+                                <button type="button" className="reply-btn" onClick={() => openReplyDrawer(inv, msg)}>✋ 举手提问</button>
                                 <button type="button" className="explain-btn" onClick={() => openExplain(inv, msg)}>{t('explainBtn')}</button>
                               </div>
                             </div>
+
                           </div>
                         </div>
                       );
@@ -1432,14 +1543,16 @@ export default function Home() {
                               <span className="speech-stance" style={{ borderColor: st.border, color: st.color, background: st.bg }}>{st.label}</span>
                             </div>
                             <div className="speech-content">
-                              {currentText.slice(0, typeCharIndex)}{!done && <span className="caret" />}
+                              {done ? renderExplainText(currentText) : (<>{currentText.slice(0, typeCharIndex)}{!done && <span className="caret" />}</>)}
                               {done && (
                                 <div className="speech-key">
                                   {msg?.keyPoint && <span className="speech-key-text">💡 {msg.keyPoint}</span>}
+                                  <button type="button" className="reply-btn" onClick={() => openReplyDrawer(inv, msg)}>✋ 举手提问</button>
                                   <button type="button" className="explain-btn" onClick={() => openExplain(inv, msg)}>{t('explainBtn')}</button>
                                 </div>
                               )}
                             </div>
+
                           </div>
                         </div>
                       );
@@ -1536,8 +1649,66 @@ export default function Home() {
               ) : explainLoading ? (
                 <div className="explain-loading">{t('explainLoading')}</div>
               ) : (
-                renderExplainText(explainText)
+                <>
+                  {renderExplainText(explainText)}
+                  {explainWarn && <div className="explain-warn">⚠️ {explainWarn}</div>}
+                </>
               )}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {replyDrawer && (
+        <div className="drawer-overlay" onClick={closeReplyDrawer}>
+          <aside className="explain-drawer chat-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="chat-drawer-head">
+              <MasterAvatar master={replyDrawer.master} size={38} />
+              <div className="chat-drawer-title-wrap">
+                <div className="chat-drawer-title">与 {replyDrawer.master?.name || '大师'} 单聊</div>
+                <div className="chat-drawer-sub">{replyDrawer.master?.title || ''}</div>
+              </div>
+              <button type="button" className="modal-close drawer-close" onClick={closeReplyDrawer} aria-label={t('explainClose')}>✕</button>
+            </div>
+            <div className="chat-drawer-body" ref={replyBodyRef}>
+              {replyDrawer.context && (
+                <div className="chat-drawer-context">
+                  <div className="chat-drawer-context-label">你在回复 {replyDrawer.master?.name} 的发言：</div>
+                  <div className="chat-drawer-context-body">{renderExplainText(replyDrawer.context)}</div>
+                </div>
+              )}
+              {replyMessages.map((m, i) => (
+                m.role === 'user' ? (
+                  <div key={i} className="chat-msg chat-user">✋ {m.text}</div>
+                ) : (
+                  <div key={i} className="chat-msg chat-master">
+                    <div className="chat-msg-head">{replyDrawer.master?.name}</div>
+                    <div className="speech-content">{renderExplainText(m.text)}</div>
+                    {m.keyPoint && <div className="speech-key"><span className="speech-key-text">💡 {m.keyPoint}</span></div>}
+                  </div>
+                )
+              ))}
+              {pendingReply && (
+                <div className="chat-msg chat-master">
+                  <div className="chat-msg-head">{replyDrawer.master?.name}</div>
+                  <div className="speech-content">
+                    {renderExplainText(pendingReply.text.slice(0, replyTypeIdx))}
+                    {replyTypeIdx < pendingReply.text.length && <span className="caret" />}
+                  </div>
+                </div>
+              )}
+              {replyLoading && !pendingReply && <div className="chat-drawer-loading">{replyDrawer.master?.name} 正在疯狂打字中....</div>}
+            </div>
+            <div className="chat-drawer-foot">
+              <textarea
+                className="chat-drawer-input"
+                rows={2}
+                placeholder={`向 ${replyDrawer.master?.name || '大师'} 提问…`}
+                value={replyInput}
+                onChange={(e) => setReplyInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDrawerReply(); } }}
+              />
+              <button type="button" className="btn-reply-send chat-drawer-send" onClick={sendDrawerReply} disabled={replyLoading || !replyInput.trim()}>{replyLoading ? '疯狂打字中…' : '发送'}</button>
             </div>
           </aside>
         </div>

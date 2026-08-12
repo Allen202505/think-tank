@@ -154,15 +154,59 @@ export async function getKline(info) {
   });
 }
 
+function _secidToCn(secid) {
+  // 东财 secid → 腾讯/新浪代码：1.600519→sh600519, 0.300308→sz300308
+  const [mkt, code] = String(secid).split('.');
+  if (mkt === '1') return `sh${code}`;
+  if (mkt === '0') return `sz${code}`;
+  return null;
+}
+
 async function fetchKlineEM(secid) {
-  const url = `${EM_KLINE}?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3&fields2=f51,f53,f54,f55,f56,f57&klt=101&fqt=1&end=20500101&lmt=320`;
-  const json = await fetchJson(url, 12000);
-  const kl = json?.data?.klines || [];
-  if (!kl.length) throw new Error('无K线');
-  return kl.map((k) => {
-    const [date, close, high, low, vol] = k.split(',');
-    return { date, close: Number(close), high: Number(high), low: Number(low), vol: Number(vol) };
-  });
+  let kl = null;
+
+  // 1) 东财 push2his（主源，大陆偶发反爬）
+  try {
+    const url = `${EM_KLINE}?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3&fields2=f51,f53,f54,f55,f56,f57&klt=101&fqt=1&end=20500101&lmt=320`;
+    const json = await fetchJson(url, 12000);
+    const rows = json?.data?.klines || [];
+    if (rows.length) {
+      kl = rows.map((k) => {
+        const [date, close, high, low, vol] = k.split(',');
+        return { date, close: Number(close), high: Number(high), low: Number(low), vol: Number(vol) };
+      });
+    }
+  } catch (e) { /* 走备用 */ }
+
+  // 2) 腾讯（备源）
+  if (!kl) {
+    const sym = _secidToCn(secid);
+    if (sym) {
+      try {
+        const json = await fetchJson(`https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${sym},day,,,320,qfq`, 10000);
+        const rows = (((json?.data || {})[sym] || {}).qfqday) || [];
+        if (rows.length) {
+          kl = rows.map((x) => ({ date: x[0], close: Number(x[2]), high: Number(x[3]), low: Number(x[4]), vol: Number(x[5] || 0) }));
+        }
+      } catch (e) { /* 继续 */ }
+    }
+  }
+
+  // 3) 新浪（兜底）
+  if (!kl) {
+    const sym = _secidToCn(secid);
+    if (sym) {
+      try {
+        const json = await fetchJson(`https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=${sym}&scale=240&ma=no&datalen=320`, 10000);
+        if (Array.isArray(json)) {
+          kl = json.map((x) => ({ date: x.day, close: Number(x.close), high: Number(x.high), low: Number(x.low), vol: Number(x.volume || 0) }));
+        }
+      } catch (e) { /* 放弃 */ }
+    }
+  }
+
+  if (!kl || !kl.length) throw new Error('K线源均失败');
+  return kl;
 }
 
 async function fetchKlineYahoo(symbol) {

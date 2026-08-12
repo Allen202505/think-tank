@@ -27,6 +27,34 @@
   --overlay: rgba(0, 0, 0, 0.7);
 }
 
+[data-theme="white"] {
+  --bg-page: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-sidebar: #ffffff;
+  --bg-card-main: #ffffff;
+  --bg-input: #fafafa;
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 26px -18px rgba(0, 0, 0, 0.12);
+  --shadow-bubble: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --border: #e0e0e0;
+  --border-subtle: #ececec;
+  --text: #1a1a1a;
+  --text-muted: #6b6b6b;
+  --accent: #7d5f1f;
+  --accent-strong: #6a5218;
+  --on-accent: #ffffff;
+  --accent-dim: rgba(125, 95, 31, 0.30);
+  --accent-bg: rgba(125, 95, 31, 0.06);
+  --bull: #2e7d57;
+  --bear: #c04040;
+  --neutral: #7d5f1f;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --overlay: rgba(0, 0, 0, 0.28);
+}
+
+/* 纯白主题：关掉羊皮纸颗粒与暖色晕影，保持干净白底 */
+[data-theme="white"] body::before { display: none; }
+
 [data-theme="light"] {
   --bg-page: #f5f0e6;
   --bg-card: #fffef9;
