@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { MasterAvatar } from './ui';
+import { getCapability } from '../data/capabilities';
 
 // 大师资料弹窗
 export default function MasterProfileModal({ master, onClose, locale, onStartChat, onRemove }) {
@@ -59,6 +60,20 @@ export default function MasterProfileModal({ master, onClose, locale, onStartCha
           <blockquote className="profile-quote" style={{ borderLeftColor: master.color }}>
             「{master.quote}」
           </blockquote>
+
+          {master.capability && (() => {
+            const cap = getCapability(master.capability);
+            const it = cap && cap.intro ? (isEn ? cap.intro.en : cap.intro.zh) : null;
+            if (!it) return null;
+            return (
+              <section className="profile-extra">
+                <h4>{isEn ? 'Capability Source' : '能力来源'}</h4>
+                <p className="profile-cap-headline">{it.headline}</p>
+                <p className="profile-cap-line"><strong>{isEn ? 'What it solves：' : '解决什么问题：'}</strong>{it.problems}</p>
+                <p className="profile-cap-line"><strong>{isEn ? 'Strengths：' : '擅长哪些：'}</strong>{it.strengths}</p>
+              </section>
+            );
+          })()}
 
           {master.styleSample && (
             <section className="profile-extra">

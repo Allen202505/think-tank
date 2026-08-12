@@ -592,3 +592,8 @@
   pointer-events: none;
   white-space: normal;
 }
+
+/* ── 角色详情：能力来源 ───────────────────────────────── */
+.profile-cap-headline { font-size: 12px; line-height: 1.8; margin: 0 0 8px; color: var(--accent); font-weight: 600; }
+.profile-cap-line { font-size: 12px; line-height: 1.8; margin: 0 0 6px; }
+.profile-cap-line strong { color: var(--text-muted); margin-right: 4px; font-weight: 700; }
