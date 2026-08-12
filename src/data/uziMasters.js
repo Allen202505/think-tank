@@ -67,4 +67,6 @@ export const UZI_MASTERS = [
 
   // ─── I · AI 卡位/瓶颈猎手（1 位） ───
   { id: 'serenity', name: 'Serenity', nameEn: 'Serenity (@aleabitoreddit)', emoji: '🔗', color: '#31405a', avatar: uziAvatar('Serenity'), status: 'alive', tag: 'AI卡位', tagEn: 'AI Bottleneck', title: 'AI 卡位猎手', titleEn: 'AI chokepoint hunter', style: 'AI卡位，供应链瓶颈，上游小盘，逆向埋伏', styleEn: 'AI bottlenecks, upstream supply chain, contrarian', personality: '极度集中、逆共识，只买"卡住别人脖子"的环节。', quote: '不买被定价的龙头，买全世界绕不过去的瓶颈。', biography: 'X 平台爆火的海外散户研究员（自述 AI 研究科学家背景），以 AI 产业链"卡脖子"理论闻名；身份与战绩均未经审计，本站仅将其方法论作为分析视角。', classicTheory: 'Chokepoint 瓶颈理论、供应链向上游拆解、供给最紧的小盘埋伏' },
+  // ─── 能力包大师（示例：缠论分析大师） ───
+  { id: 'chan_master', name: '缠论分析大师', nameEn: 'Chan Theory Master', emoji: '🧶', color: '#33415c', avatar: uziAvatar('缠论'), status: 'alive', tag: '技术趋势', tagEn: 'Technical', tags: ['技术趋势', '缠论'], title: '缠论体系分析师', titleEn: 'Chan Theory analyst', style: '缠论，分型/笔/中枢/背驰，三类买卖点', styleEn: 'Chan Theory: fractals, strokes, pivots, divergence', capability: 'chan_theory', personality: '严谨结构化，只按缠论体系解读走势，强调"先结构、后结论"。', quote: '走势终将完美，结构说明一切。', biography: '以缠论（缠中说禅原创的技术分析体系）为唯一分析框架的虚拟分析师，专注用分型、笔、中枢与背驰拆解走势结构。', classicTheory: '分型与笔、中枢理论、背驰判断、三类买卖点' },
 ];

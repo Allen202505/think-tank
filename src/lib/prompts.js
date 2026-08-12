@@ -1,5 +1,6 @@
 // 打字节奏、立场样式与 Prompt 构建
 // 对话模式：固定辩论（debate）——真实互怼、火药味十足
+import { getCapability } from '../data/capabilities.js';
 export const TYPING_INDICATOR_MS = 100;   // 「正在输入」显示时长
 export const TYPEWRITER_DELAY_MS = 16;    // 打字机每字间隔（毫秒）
 export const AFTER_TYPE_PAUSE_MS = 120;   // 打完字后停顿再出下一条
@@ -24,6 +25,10 @@ function masterProfileLine(i) {
   if (i.decisionHabits) line += ` | 决策习惯:${i.decisionHabits}`;
   if (i.riskPref) line += ` | 风险偏好:${i.riskPref}`;
   if ((i.source === 'custom' || i.source === 'preset') && i.styleSample) line += ` | 风格示范:${i.styleSample.slice(0, 160)}`;
+  if (i.capability) {
+    const cap = getCapability(i.capability);
+    if (cap) line += ` | 专属能力(${cap.name}):${cap.knowledge}`;
+  }
   return line;
 }
 

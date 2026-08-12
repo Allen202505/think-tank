@@ -13,6 +13,7 @@ export const MASTER_GROUP_ORDER = [
   { key: '敢死队', en: 'Daredevil' },
   { key: '量化投资', en: 'Quant' },
   { key: '技术趋势', en: 'Technical' },
+  { key: '缠论', en: 'Chan Theory' },
   { key: '维权投资', en: 'Activist' },
   { key: '科技领袖', en: 'Tech Leader' },
   { key: 'AI卡位', en: 'AI Bottleneck' },

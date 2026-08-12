@@ -311,6 +311,76 @@ export function computeIndicators(klines) {
   };
 }
 
+// ─── 缠论指标（分型/笔/中枢/背驰 · 能力包 chan_theory 的数据钩子） ───
+// 简化公开实现：三根K线确认分型 → 交替顶底分型连笔 → 最近三笔重叠区为中枢 →
+// 最近两笔力度（收盘-中价偏移累积）对比判背驰。仅移植公开数学规则，无第三方代码。
+export function computeChanIndicators(klines) {
+  if (!Array.isArray(klines) || klines.length < 30) return null;
+  const highs = klines.map((k) => k.high);
+  const lows = klines.map((k) => k.low);
+  const closes = klines.map((k) => k.close);
+  const mids = klines.map((k, i) => closes[i] - (highs[i] + lows[i]) / 2);
+
+  // 分型
+  const fractals = [];
+  for (let i = 1; i < klines.length - 1; i++) {
+    const isTop = highs[i] > highs[i - 1] && highs[i] > highs[i + 1] && lows[i] > lows[i - 1] && lows[i] > lows[i + 1];
+    const isBottom = lows[i] < lows[i - 1] && lows[i] < lows[i + 1] && highs[i] < highs[i - 1] && highs[i] < highs[i + 1];
+    if (isTop) fractals.push({ i, type: 'top', high: highs[i], low: lows[i] });
+    else if (isBottom) fractals.push({ i, type: 'bottom', high: highs[i], low: lows[i] });
+  }
+  if (fractals.length < 2) return { note: 'K线不足以构成有效分型' };
+
+  // 笔：交替顶底分型，间隔 ≥4 根K线
+  const pens = [];
+  let prev = fractals[0];
+  for (const f of fractals.slice(1)) {
+    if (f.type === prev.type) {
+      if ((f.type === 'top' && f.high > prev.high) || (f.type === 'bottom' && f.low < prev.low)) prev = f;
+      continue;
+    }
+    if (f.i - prev.i < 4) continue;
+    pens.push({ start: prev, end: f, up: f.type === 'top' });
+    prev = f;
+  }
+  if (pens.length < 2) return { note: 'K线不足以构成有效笔' };
+
+  // 中枢：连续三笔的【价格区间】重叠部分（ZG=三段最高点取小，ZD=三段最低点取大）
+  const zhongs = [];
+  for (let sIdx = 0; sIdx <= pens.length - 3; sIdx++) {
+    const seg = pens.slice(sIdx, sIdx + 3);
+    const hi = Math.min(...seg.map((p) => Math.max(p.start.high, p.end.high)));
+    const lo = Math.max(...seg.map((p) => Math.min(p.start.low, p.end.low)));
+    if (hi > lo) zhongs.push({ high: hi, low: lo });
+  }
+  const currentZhong = zhongs.length ? zhongs[zhongs.length - 1] : null;
+  const lastClose = closes[closes.length - 1];
+  const inZhong = currentZhong ? lastClose >= currentZhong.low && lastClose <= currentZhong.high : null;
+
+  // 背驰：最近两笔力度对比
+  let divergence = null;
+  const lastPen = pens[pens.length - 1];
+  const prevPen = pens[pens.length - 2];
+  const area = (p1, p2) => { let sum = 0; for (let i = p1.i; i <= p2.i; i++) sum += mids[i]; return sum; };
+  const a1 = area(prevPen.start, prevPen.end);
+  const a2 = area(lastPen.start, lastPen.end);
+  const lastHigh = Math.max(lastPen.start.high, lastPen.end.high);
+  const lastLow = Math.min(lastPen.start.low, lastPen.end.low);
+  const prevHigh = Math.max(prevPen.start.high, prevPen.end.high);
+  const prevLow = Math.min(prevPen.start.low, prevPen.end.low);
+  if (lastPen.up && lastHigh > prevHigh && Math.abs(a2) < Math.abs(a1) * 0.9) divergence = '顶背驰（上涨力度减弱）';
+  else if (!lastPen.up && lastLow < prevLow && Math.abs(a2) < Math.abs(a1) * 0.9) divergence = '底背驰（下跌力度减弱）';
+
+  return {
+    penDirection: lastPen.up ? '上升笔' : '下降笔',
+    lastFractal: lastPen.end.type === 'top' ? '顶分型' : '底分型',
+    currentZhong,
+    inZhong,
+    divergence,
+    price: lastClose,
+  };
+}
+
 // ─── 2. 估值分位（近 5 年 PE/PB 百分位） ──────────────────
 export async function getValuation(info, quote, finHistory) {
   if (!quote || !finHistory) return null;
@@ -805,6 +875,10 @@ export async function getDeepAnalysis(info, quote, fin) {
     })(),
   ]);
 
+  // 缠论指标（能力包 chan_theory 数据钩子，依赖 K线）
+  if (result.kline) {
+    result.chan = computeChanIndicators(result.kline);
+  }
   // 杀猪盘量化扫描
   result.trap = computeTrapSignals({ kline: result.kline, finHistory: result.finHistory, hotTrends: result.hotTrends, quote });
   // DCF（A股：经营现金流净额；美股/港股：Yahoo freeCashflow）
@@ -892,6 +966,15 @@ export function formatDeepSnapshot(info, quote, deep) {
       if (ind.volumeRatio != null) bits.push(`量比 ${ind.volumeRatio}`);
       if (bits.length) head(`技术面：${bits.join('，')}`);
     }
+  }
+  // 缠论视角（能力包 chan_theory）
+  if (deep.chan && deep.chan.penDirection) {
+    const bits = [`${deep.chan.penDirection}${deep.chan.lastFractal ? `，末端${deep.chan.lastFractal}` : ''}`];
+    if (deep.chan.currentZhong) {
+      bits.push(`最近中枢 ${deep.chan.currentZhong.low.toFixed(2)}–${deep.chan.currentZhong.high.toFixed(2)}${deep.chan.inZhong ? '（价格在中枢内）' : '（价格离开中枢）'}`);
+    }
+    if (deep.chan.divergence) bits.push(deep.chan.divergence);
+    head(`缠论视角：${bits.join('，')}`);
   }
   // 龙虎榜
   if (deep.lhb && deep.lhb.count > 0) {

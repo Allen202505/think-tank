@@ -2139,3 +2139,17 @@
 ### ✅ 推送成功，发版流程已触发
 - 用户开启 VPN 后重试，`git push origin main` 成功：`5ac4852..d807888`（130 个提交全部推送）
 - Vercel 已接入该仓库，推送后自动构建部署；线上域名验证待用户确认
+
+## 2026-08-12（第一百四十二批）
+
+### 新增：能力包注册层 + 缠论大师（第一个样例）+ 强制安全审查
+**背景**: 用户提出"万物皆可大师"：围绕主题/能力定义角色，从 GitHub 找热门 skill 匹配，角色直接调用该 skill 能力。评估结论：不直接执行 skill 代码，而是把 skill 消化成"能力包"（方法论 + 数据钩子）挂到大师上；风控与安全为必检项。
+**实现**:
+- 新增 `src/data/capabilities.js`：能力包注册中心（chan_theory 缠论分析），含 knowledge 方法论片段、dataHooks、**强制 review 安全审查记录**
+- `uziMasters.js`：新增「缠论分析大师」（capability: chan_theory，tag 技术趋势+缠论），大师总数 71
+- `masterGroups.js`：新增「缠论」分组
+- `uziSkills.js`：新增 `computeChanIndicators`（分型/笔/中枢/背驰，仅移植公开规则），getDeepAnalysis 计算、快照输出「缠论视角」行
+- `prompts.js`：masterProfileLine 自动注入大师的能力包知识域
+- 安全规则：只移植逻辑不执行第三方代码；每个能力包必须有 review 记录；输出有免责声明兜底
+**验证**: 缠论问题智能选角命中 chan_master；茅台快照输出「上升笔，末端顶分型，最近中枢 1279.58–1344.70（价格在中枢内）」；修复了中枢判定过严（端点重叠→价格区间重叠）与函数定义漏存两个 bug；生产构建通过。
+**文档**: memory/PRD.md 新增 §13 能力包注册与安全审查。
