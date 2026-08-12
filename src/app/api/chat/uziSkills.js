@@ -316,14 +316,38 @@ export function computeIndicators(klines) {
 // 最近两笔力度（收盘-中价偏移累积）对比判背驰。仅移植公开数学规则，无第三方代码。
 export function computeChanIndicators(klines) {
   if (!Array.isArray(klines) || klines.length < 30) return null;
-  const highs = klines.map((k) => k.high);
-  const lows = klines.map((k) => k.low);
-  const closes = klines.map((k) => k.close);
-  const mids = klines.map((k, i) => closes[i] - (highs[i] + lows[i]) / 2);
 
-  // 分型
+  // K线包含关系处理（缠论标准步骤）：按方向合并包含的K线，避免分型被包含K线干扰
+  const merged = [];
+  for (const k of klines) {
+    if (!merged.length) { merged.push({ high: k.high, low: k.low }); continue; }
+    const last = merged[merged.length - 1];
+    const lastContainsB = last.high >= k.high && last.low <= k.low;
+    const bContainsLast = k.high >= last.high && k.low <= last.low;
+    if (lastContainsB || bContainsLast) {
+      const prev = merged[merged.length - 2];
+      let dir = 'up';
+      if (prev) dir = last.high > prev.high ? 'up' : 'down';
+      if (dir === 'up') {
+        last.high = Math.max(last.high, k.high);
+        last.low = Math.max(last.low, k.low);
+      } else {
+        last.high = Math.min(last.high, k.high);
+        last.low = Math.min(last.low, k.low);
+      }
+    } else {
+      merged.push({ high: k.high, low: k.low });
+    }
+  }
+
+  const highs = merged.map((m) => m.high);
+  const lows = merged.map((m) => m.low);
+  const closes = klines.map((k) => k.close);
+  const mids = klines.map((k, i) => closes[i] - (klines[i].high + klines[i].low) / 2);
+
+  // 分型（基于合并后的K线）
   const fractals = [];
-  for (let i = 1; i < klines.length - 1; i++) {
+  for (let i = 1; i < merged.length - 1; i++) {
     const isTop = highs[i] > highs[i - 1] && highs[i] > highs[i + 1] && lows[i] > lows[i - 1] && lows[i] > lows[i + 1];
     const isBottom = lows[i] < lows[i - 1] && lows[i] < lows[i + 1] && highs[i] < highs[i - 1] && highs[i] < highs[i + 1];
     if (isTop) fractals.push({ i, type: 'top', high: highs[i], low: lows[i] });
@@ -331,7 +355,7 @@ export function computeChanIndicators(klines) {
   }
   if (fractals.length < 2) return { note: 'K线不足以构成有效分型' };
 
-  // 笔：交替顶底分型，间隔 ≥4 根K线
+  // 笔：交替顶底分型，合并K线间隔 ≥4（即一笔至少 5 根合并K线）
   const pens = [];
   let prev = fractals[0];
   for (const f of fractals.slice(1)) {
@@ -345,7 +369,7 @@ export function computeChanIndicators(klines) {
   }
   if (pens.length < 2) return { note: 'K线不足以构成有效笔' };
 
-  // 中枢：连续三笔的【价格区间】重叠部分（ZG=三段最高点取小，ZD=三段最低点取大）
+  // 中枢：连续三笔价格区间重叠（ZG=三段高点取小，ZD=三段低点取大）
   const zhongs = [];
   for (let sIdx = 0; sIdx <= pens.length - 3; sIdx++) {
     const seg = pens.slice(sIdx, sIdx + 3);
@@ -357,7 +381,7 @@ export function computeChanIndicators(klines) {
   const lastClose = closes[closes.length - 1];
   const inZhong = currentZhong ? lastClose >= currentZhong.low && lastClose <= currentZhong.high : null;
 
-  // 背驰：最近两笔力度对比
+  // 背驰：最近两笔力度（收盘-中价偏移累积）对比
   let divergence = null;
   const lastPen = pens[pens.length - 1];
   const prevPen = pens[pens.length - 2];
@@ -378,6 +402,8 @@ export function computeChanIndicators(klines) {
     inZhong,
     divergence,
     price: lastClose,
+    // 诊断信息（对比用）
+    _debug: { mergedBars: merged.length, pens: pens.length, zhongs: zhongs.length },
   };
 }
 
