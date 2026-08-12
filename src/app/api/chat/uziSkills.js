@@ -167,8 +167,10 @@ async function fetchKlineEM(secid) {
 
 async function fetchKlineYahoo(symbol) {
   const yf = await getYahoo();
-  // 用 chart() 直接取 2 年日 K（historical() 的 options 校验已废弃）
-  const chart = await withTimeout(yf.chart(symbol, { range: '2y', interval: '1d' }), 8000);
+  // yahoo-finance2 的 chart() 要求 period1/period2（Date 对象），range 会被 schema 拒绝
+  const period2 = new Date();
+  const period1 = new Date(period2.getTime() - 2 * 365 * 24 * 3600000);
+  const chart = await withTimeout(yf.chart(symbol, { period1, period2, interval: '1d' }), 8000);
   const res = chart && chart.result && chart.result[0];
   if (!res || !res.timestamp || !res.indicators || !res.indicators.quote) throw new Error('Yahoo 无K线');
   const ts = res.timestamp;

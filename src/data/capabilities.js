@@ -35,6 +35,11 @@ export const CAPABILITIES = {
       ],
     },
     dataHooks: ['kline', 'chan_indicators'],
+    // 流派数据偏好（方向B：发言时按自身流派引用数据，不硬性引用基本面）
+    dataFocus: {
+      zh: '优先引用与自身流派相关的数据：结构和技术面为主——【深度分析快照】中的「缠论视角」（分型/笔/中枢/背驰/买卖点）与「技术面」（均线、RSI、MACD、量能、关键位），用K线结构说话；财报、估值、同行、DCF等基本面数据不主动引用，仅在需要提示基本面风险时用一句话带过，不作为主要论据。',
+      en: 'Prefer structure & technical data: the Chan view (fractals/strokes/pivots/divergence) and technicals (MAs, RSI, MACD, volume, key levels) from the deep snapshot; do not actively cite fundamentals (earnings, valuation, comps, DCF) — mention them only as a one-line risk note.',
+    },
     // 角色详情页展示（不出现具体项目名）
     intro: {
       zh: {

@@ -771,10 +771,19 @@ export default function Home() {
             if (b.type === 'speech') return { type: 'speech', investorId: b.speakerId, content: b.content?.content };
             return null;
           }).filter(Boolean);
-          const prompt = buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
+          // 单聊：用「小专题」式问答；群聊：用辩论式发言
+          const soloSpeech = investors.length === 1;
+          const prompt = soloSpeech
+            ? buildChatPrompt(query, invMapLocal[step.speakerId] || investors[0])
+            : buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
-          const match = text.match(/\{[\s\S]*\}/);
-          const parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
+          let parsed;
+          if (soloSpeech) {
+            parsed = { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
+          } else {
+            const match = text.match(/\{[\s\S]*\}/);
+            parsed = match ? JSON.parse(match[0]) : { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
+          }
           setCurrentBlock(c => c ? { ...c, content: parsed } : c);
         } else if (step.type === 'hostClosing') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';

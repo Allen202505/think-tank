@@ -32,6 +32,15 @@ function masterProfileLine(i) {
   return line;
 }
 
+// 方向B：按大师流派决定"用什么数据"（有能力包数据偏好的用偏好，否则用通用估值指标）
+export function buildDataRule(master) {
+  if (master && master.capability) {
+    const cap = getCapability(master.capability);
+    if (cap && cap.dataFocus && cap.dataFocus.zh) return cap.dataFocus.zh;
+  }
+  return '用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点';
+}
+
 export function buildOpeningOnlyPrompt(question, host, investors) {
   const list = investors.map(masterProfileLine).join('\n');
   const tone = '风趣、幽默、毒舌，可点名挑事、预言待会要吵起来';
@@ -42,7 +51,12 @@ export function buildOneSpeechPrompt(question, investors, previousParts, nextSpe
   const list = investors.map(masterProfileLine).join('\n');
   const context = previousParts.map(p => p.type === 'hostOpening' ? `开场白：${p.text}` : p.type === 'speech' ? `${p.investorId}说：${p.content}` : '').filter(Boolean).join('\n');
   const replyStyle = '要直接反驳或回应前面观点，有争吵感';
-  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，${replyStyle}。${MODE_RULES}**发言必须有数据支撑**：用具体数据、估值指标（如 PE/PB/ROE、增速）、历史案例或可比公司等举证，避免只讲空泛观点。**时间要求**：如需引用数据，优先引用上面注入的【最新市场数据快照】中的数字；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁用记忆中的旧数字冒充最新。**深度数据**：如果快照里有【深度分析快照】（估值分位、DCF安全边际、龙虎榜游资、研报评级、社交热榜、杀猪盘信号、同行对标），优先引用这些数据点举证，并点明命中项（如「PE处于近5年87%分位」「DCF安全边际-28%」「龙虎榜游资接力」「杀猪盘扫描🟡注意」）。只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证（尽量用2025口径）","keyPoint":"核心观点一句话"}`;
+  const speaker = investors.find(i => i.id === nextSpeakerId);
+  const dataRule = buildDataRule(speaker);
+  const deepDataNote = speaker && speaker.capability
+    ? ''
+    : '**深度数据**：如果快照里有【深度分析快照】（估值分位、DCF安全边际、龙虎榜游资、研报评级、社交热榜、杀猪盘信号、同行对标），优先引用这些数据点举证，并点明命中项（如「PE处于近5年87%分位」「DCF安全边际-28%」「龙虎榜游资接力」「杀猪盘扫描🟡注意」）。';
+  return `大师吵股。用户问题：${question}。参与大师：${list}。此前内容：${context}。请让 ID 为 ${nextSpeakerId} 的大师作为下一位发言，${replyStyle}。${MODE_RULES}**发言必须有数据支撑**：${dataRule}。**时间要求**：如需引用数据，优先引用上面注入的【最新市场数据快照】中的数字；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁用记忆中的旧数字冒充最新。${deepDataNote}只输出一个 JSON，不要其他内容：{"investorId":"${nextSpeakerId}","stance":"BULL或BEAR或NEUTRAL","content":"发言内容120-180字，含数据或案例举证（尽量用2025口径）","keyPoint":"核心观点一句话"}`;
 }
 
 export function buildClosingOnlyPrompt(question, hostName, opening, discussionSummary) {
@@ -64,7 +78,7 @@ export function buildFollowUpPrompt(previousSummary, userFollowUp, investors) {
 参与大师（同一批人）：
 ${list}
 
-请让各位大师针对追问 **轮流发言、互相补充**（每人 60-100 字），后发言的要引用或直接批驳前面的观点，有火药味。发言时尽量用 **数据、估值指标、历史或可比案例** 举证支撑观点。最后更新裁决。
+请让各位大师针对追问 **轮流发言、互相补充**（每人 60-100 字），后发言的要引用或直接批驳前面的观点，有火药味。发言时尽量用数据举证，且**按自身流派优先引用相关数据**：价值派用财报与估值，缠论派用结构与技术面（缠论视角/笔/中枢/背驰），游资派用量能与龙虎榜；不要堆砌与自身流派无关的数字。最后更新裁决。
 时间要求：如需引用数据，优先引用上面注入的【最新市场数据快照】（含【深度分析快照】的估值分位/DCF/龙虎榜/研报/杀猪盘信号/同行对标）；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁用记忆中的旧数字冒充最新。
 
 只输出一个 JSON：
@@ -74,7 +88,8 @@ ${list}
 // 点对点深聊：单独一位大师直接回答
 export function buildChatPrompt(question, master) {
   const profile = masterProfileLine(master);
-  return `你是「大师吵股」中的 ${master.name}（${master.title}），正在与用户一对一深聊。\n\n你的画像：\n${profile}\n\n用户问题：${question}\n\n要求：\n1. 以 ${master.name} 的身份直接、完整地回答用户，语气符合你的性格。\n2. 回答要有结构（观点 → 理由 → 证据 → 建议），150-300 字。\n3. 如需引用数据，优先引用注入的【最新市场数据快照】；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁编造或用旧数据冒充最新。\n4. 只输出回答正文，不要 JSON、不要任何额外标记。`;
+  const dataRule = buildDataRule(master);
+  return `你是「大师吵股」中的 ${master.name}（${master.title}），正在与用户一对一深聊。\n\n你的画像：\n${profile}\n\n用户问题：${question}\n\n要求：\n1. 以 ${master.name} 的身份直接、完整地回答用户，语气符合你的性格。\n2. 回答要像一篇「小专题」：先一句话给结论，再按用户关心的维度分节展开（如短期/中期/中长期，或结构/关键位/买卖点），最后给操作或风险提示；结构清晰、娓娓道来，篇幅 400-550 字，避免重复啰嗦。\n3. 数据引用：${dataRule}。如需引用快照数据，优先引用【最新市场数据快照】；快照里没有的精确数字用「大约/约/可能」等模糊表述，严禁编造或用旧数据冒充最新。\n4. 只输出回答正文，不要 JSON、不要任何额外标记。`;
 }
 
 // 小白解释：把大师发言翻译成大白话（专业术语 + 思路）
