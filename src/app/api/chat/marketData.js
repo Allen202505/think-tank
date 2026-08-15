@@ -404,15 +404,45 @@ async function resolveTicker(t) {
  * 从用户问题中解析出要拉取的公司列表（最多 5 个）
  * @returns {Promise<Array<{symbol, market, secid, name?, source?}>>}
  */
+// 用腾讯行情补 A 股代码的真实名称（GBK 解码；失败返回 null）
+export async function fetchACodeName(code) {
+  if (!/^\d{6}$/.test(String(code))) return null;
+  const prefix = /^(60|68|90)/.test(code) ? 'sh' : (/^(00|30|20)/.test(code) ? 'sz' : '');
+  if (!prefix) return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`https://qt.gtimg.cn/q=${prefix}${code}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36', Referer: 'https://gu.qq.com/' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const text = new TextDecoder('gbk').decode(buf);
+    const m = text.match(/v_[a-z]{2}\d{6}="([^"]*)"/);
+    if (!m || !m[1]) return null;
+    const name = String(m[1].split('~')[1] || '').trim();
+    return name || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function resolveSymbols(query) {
   if (!query || typeof query !== 'string') return [];
+  const q = query.trim();
+  // 纯 6 位 A 股代码无需 AI/公司名提取，走代码解析即可（避免每个代码一次 LLM 调用拖慢首载）
+  const isPureCode = /^\d{6}$/.test(q);
   const found = new Map(); // secid -> info
 
-  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）
+  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）；纯代码跳过
   let llmNames = null;
-  try {
-    llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
-  } catch (e) { /* 忽略，走启发式兜底 */ }
+  if (!isPureCode) {
+    try {
+      llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
+    } catch (e) { /* 忽略，走启发式兜底 */ }
+  }
   if (llmNames && llmNames.length) {
     // ST 股防误判：问题里同时出现"ST合力泰"和裸"ST"时，裸 ST 是美股 Sensata 代码，丢弃
     const hasSTName = llmNames.some((n) => /^ST[\u4e00-\u9fa5]/.test(String(n).trim()));
@@ -460,8 +490,9 @@ export async function resolveSymbols(query) {
     }
   }
 
-  // 3) 词典外的中文公司名：按后缀启发式提取 → 东财搜索解析（A股优先）
-  for (const name of extractCompanyCandidates(query)) {
+  // 3) 词典外的中文公司名：按后缀启发式提取 → 东财搜索解析（A股优先）；纯代码跳过
+  const companyCandidates = isPureCode ? [] : extractCompanyCandidates(query);
+  for (const name of companyCandidates) {
     try {
       const info = await resolveName(name);
       if (info && !found.has(info.secid)) found.set(info.secid, { ...info, name, source: 'name' });
@@ -470,7 +501,15 @@ export async function resolveSymbols(query) {
     }
   }
 
-  return Array.from(found.values()).slice(0, 5);
+  const list = Array.from(found.values());
+  // 兜底补 A 股名称：名称缺失或等于代码本身时，用行情补真实名称
+  await Promise.all(list.map(async (info) => {
+    if (info.market === 'CN' && (!info.name || /^\d{6}$/.test(String(info.name)))) {
+      const nm = await fetchACodeName(info.symbol);
+      if (nm) info.name = nm;
+    }
+  }));
+  return list.slice(0, 5);
 }
 
 // ─── 实时行情（东方财富） ────────────────────────────────
@@ -787,6 +826,60 @@ export async function getForecast(info) {
 /**
  * 获取单只股票的行情（东财为主，美股/港股用 Yahoo 补字段）
  */
+// ─── 大盘环境快照（指数点位/涨跌幅/成交额/沪市涨跌家数） ──────
+const EM_INDICES = [
+  { secid: '1.000001', name: '上证指数' },
+  { secid: '0.399001', name: '深证成指' },
+  { secid: '0.399006', name: '创业板指' },
+  { secid: '1.000688', name: '科创50' },
+];
+
+function fmtYi(v) {
+  if (v == null || !isFinite(Number(v))) return '';
+  const n = Number(v);
+  return n >= 1e8 ? `${(n / 1e8).toFixed(0)}亿` : `${n.toLocaleString()}`;
+}
+
+async function fetchIndexQuote(secid) {
+  const fields = 'f2,f3,f4,f6,f12,f14,f104,f105,f106';
+  const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}&fltt=2`;
+  const json = await fetchJson(url);
+  const d = json?.data;
+  if (!d || d.f12 == null) throw new Error('无指数数据');
+  return {
+    code: String(d.f12),
+    name: d.f14 || null,
+    price: d.f2,
+    changePct: d.f3,
+    amount: d.f6,   // 成交额（元）
+    up: d.f104,     // 上涨家数
+    down: d.f105,   // 下跌家数
+    flat: d.f106,   // 平盘家数
+  };
+}
+
+/**
+ * 大盘环境文本：三大指数 + 科创50 点位/涨跌幅/成交额，上证口径涨跌家数。
+ * 任一指数失败自动跳过；全部失败返回空串（不影响主快照）。
+ */
+export async function getMarketOverview() {
+  const results = await Promise.allSettled(EM_INDICES.map((i) => fetchIndexQuote(i.secid)));
+  const lines = [];
+  let upDown = '';
+  for (const r of results) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const q = r.value;
+    const pct = q.changePct != null ? `${Number(q.changePct) > 0 ? '+' : ''}${Number(q.changePct).toFixed(2)}%` : '—';
+    const amt = q.amount ? ` 成交额 ${fmtYi(q.amount)}` : '';
+    lines.push(`${q.name || q.code} ${q.price ?? '—'}（${pct}）${amt}`);
+    if (q.up != null && q.down != null && !upDown) {
+      upDown = `沪市 上涨 ${q.up} / 下跌 ${q.down} / 平盘 ${q.flat ?? 0}`;
+    }
+  }
+  if (upDown) lines.push(upDown);
+  return lines.join('\n');
+}
+
 export async function getQuote(info) {
   let em = null;
   try {

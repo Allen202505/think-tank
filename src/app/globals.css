@@ -17,6 +17,7 @@
   --on-accent: #0a0a0f; /* 金色/强调色背景上的文字（暗色主题用深字） */
   --accent-dim: rgba(165, 131, 42, 0.30);
   --accent-bg: rgba(165, 131, 42, 0.10);
+  --accent-bg-strong: rgba(165, 131, 42, 0.20);
   --bull: #4caf7d;
   --bear: #e05555;
   --neutral: #a5832a;
@@ -45,6 +46,7 @@
   --on-accent: #ffffff;
   --accent-dim: rgba(125, 95, 31, 0.30);
   --accent-bg: rgba(125, 95, 31, 0.06);
+  --accent-bg-strong: rgba(125, 95, 31, 0.13);
   --bull: #2e7d57;
   --bear: #c04040;
   --neutral: #7d5f1f;
@@ -73,6 +75,7 @@
   --on-accent: #ffffff; /* 金色/强调色背景上的文字（亮色主题用白字） */
   --accent-dim: rgba(125, 95, 31, 0.35);
   --accent-bg: rgba(125, 95, 31, 0.08);
+  --accent-bg-strong: rgba(125, 95, 31, 0.16);
   --bull: #2e7d57;
   --bear: #c04040;
   --neutral: #7d5f1f;
@@ -155,3 +158,4 @@ body::before {
     transition-duration: 0.001s !important;
   }
 }
+

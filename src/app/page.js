@@ -24,6 +24,12 @@ import {
 } from '../lib/prompts';
 import { generatePoster } from '../lib/poster';
 import './page.css';
+import './breakfast/page.css';
+import BreakfastRoundtable from '../components/BreakfastRoundtable';
+import SidebarNav from '../components/SidebarNav';
+import MungerFinance from '../components/MungerFinance';
+import ZenShortTerm from '../components/ZenShortTerm';
+import StockPools from '../components/StockPools';
 
 // 从发言的实际立场统计票数（不信任 AI 裁决里的数字，避免数错）
 function countVotes(items) {
@@ -83,9 +89,6 @@ function parseChatResult(text, fallbackInvestorId) {
   return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: String(text || ''), keyPoint: '' };
 }
 
-// ─── 主组件 ──────────────────────────────────────────────
-
-// 自定义风格下拉（原生 select 的下拉面板是系统配色，暗色下偏紫不可控，改用自绘面板）
 export default function Home() {
   // 结构化数据 JSON-LD
   const jsonLd = {
@@ -110,6 +113,10 @@ export default function Home() {
   const [locale, setLocale] = useState('zh');
   // 默认 5 位（SSR 固定，避免水合不一致；挂载后再随机/恢复）
   const [selected, setSelected] = useState(() => new Set(['buffett', 'munger', 'soros', 'lynch', 'dalio']));
+  // 顶部 Tab：提问智囊团 / 早餐圆桌（同页切换，圆桌首次激活后常驻挂载以保留状态）
+  const [tab, setTab] = useState('ask');
+  const [showBreakfast, setShowBreakfast] = useState(false);
+
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -119,7 +126,6 @@ export default function Home() {
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterUrl, setPosterUrl] = useState('');
   const [posterBusy, setPosterBusy] = useState(false);
-  const [chatMode, setChatMode] = useState('group'); // 群聊 / 单聊
   const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -163,7 +169,6 @@ export default function Home() {
   const [explainWarn, setExplainWarn] = useState(''); // 部分生成中断时的小提示
   const explainCacheRef = useRef(new Map());
   const explainLoadingRef = useRef(false);
-  const [selectMode, setSelectMode] = useState('smart'); // smart=智能匹配(默认) / manual=手动选择
   const [masterGroup, setMasterGroup] = useState('__all__'); // 大师列表分组筛选（'__all__'=全部）
   const [quoteTip, setQuoteTip] = useState(null); // 名言 hover 浮层 {text,x,y}
   const [groupFilterExpanded, setGroupFilterExpanded] = useState(false); // 分组标签区是否展开
@@ -258,19 +263,36 @@ export default function Home() {
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', theme);
     if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
-    // 恢复聊天方式
-    try {
-      const cm = localStorage.getItem('chat-mode-v1');
-      if (cm === 'group' || cm === 'solo') setChatMode(cm);
-    } catch (e) { /* ignore */ }
   }, [theme]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try { localStorage.setItem('chat-mode-v1', chatMode); } catch (e) { /* ignore */ }
-  }, [chatMode]);
-
   // ─── 讨论持久化（#6）：刷新/重开页面可恢复最近一场 ───
+  // Tab：从 URL ?tab=breakfast 恢复；切换时同步 URL（不跳转）
+  useEffect(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      if (t === 'breakfast') {
+        setTab('breakfast');
+        setShowBreakfast(true);
+      } else if (t === 'munger') {
+        setTab('munger');
+      } else if (t === 'zen') {
+        setTab('zen');
+      } else if (t === 'pools') {
+        setTab('pools');
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
+  const switchTab = (next) => {
+    setTab(next);
+    if (next === 'breakfast') setShowBreakfast(true);
+    try {
+      const url = new URL(window.location.href);
+      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools') url.searchParams.set('tab', next);
+      else url.searchParams.delete('tab');
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) { /* ignore */ }
+  };
+
   const STORAGE_KEY = 'master-debate-state-v1';
 
   // 恢复上次讨论（仅首次挂载）：URL 指定大师 > 本地历史 > 随机 5 位
@@ -480,7 +502,6 @@ export default function Home() {
 
   // 一键进入与某位大师的一对一单聊
   const startSoloChat = useCallback((master) => {
-    setChatMode('solo');
     setSelected(new Set([master.id]));
     setProfileMaster(null);
     setQuery('');
@@ -618,18 +639,14 @@ export default function Home() {
   }, [useStreamingMode, currentBlockFromRounds, typingPhase, typeCharIndex, currentLenRounds]);
 
   const toggle = (id) => {
-    if (chatMode === 'solo') {
-      // 单聊：只能选 1 位对象，点其他大师即替换
-      setSelected((prev) => (prev.has(id) ? new Set() : new Set([id])));
-    } else {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
-        return next;
-      });
-    }
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
-  const soloTarget = chatMode === 'solo' && selected.size === 1
+  // 自动判定：未选人时提交自动匹配；选 1 位 = 单聊，≥2 位 = 群聊
+  const soloTarget = selected.size === 1
     ? allMasters.find((m) => m.id === Array.from(selected)[0]) || null
     : null;
 
@@ -892,11 +909,9 @@ export default function Home() {
 
   const go = useCallback(async (force = false) => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
-    const soloRequested = chatMode === 'solo';
     let effectiveSelected = selected;
-    // 智能匹配模式（群聊）：提交时按问题自动选角，结果同步到 UI
-    if (!soloRequested && selectMode === 'smart') {
-      // 智能模式：每次提问自动按问题匹配（人选随问题变化）；先给用户即时反馈
+    // 未手动选择 → 提交时按问题自动匹配最合适的大师（结果同步到 UI）
+    if (effectiveSelected.size === 0) {
       setMatchingHint(true);
       try {
         const ids = await fetchMatchedIds(query);
@@ -909,8 +924,7 @@ export default function Home() {
       }
     }
     if (effectiveSelected.size === 0) { setError(t('summonErrorNoMaster')); return; }
-    if (soloRequested && effectiveSelected.size !== 1) { setError(t('summonErrorSoloCount')); return; }
-    if (!soloRequested && effectiveSelected.size < 2) { setError(t('summonErrorGroupCount')); return; }
+    // 自动判定聊天方式：1 位大师 = 单聊，≥2 位 = 群聊
 
     setError('');
     setNotice('');
@@ -952,7 +966,7 @@ export default function Home() {
     }
 
     const investors = allMasters.filter(i => effectiveSelected.has(i.id));
-    const isSolo = soloRequested; // 单聊：一对一深聊
+    const isSolo = effectiveSelected.size === 1; // 1 位大师 = 一对一深聊
     const host = isSolo ? investors[0] : investors[Math.floor(Math.random() * investors.length)];
     const speechOrder = [...investors].sort(() => Math.random() - 0.5);
     const seq = isSolo
@@ -972,7 +986,7 @@ export default function Home() {
       setCurrentBlock({ type: isSolo ? 'speech' : 'hostOpening', speakerId: host.id });
       setLoading(false);
     }, showLoadingMinMs);
-  }, [query, selected, allMasters, chatMode, selectMode, fetchMatchedIds]);
+  }, [query, selected, allMasters, fetchMatchedIds]);
   const goRef = useRef(null);
   goRef.current = go;
 
@@ -1164,12 +1178,24 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="page-root">
-        <header className="header">
-          <div className="header-main">
-            <h1 className="header-title">{t('title')}</h1>
-            <p className="header-desc">{t('subtitle')}</p>
+
+
+
+
+
+      <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : '/bg-argue.jpg'} alt="" />
+      </div>
+
+      <div className="app-shell">
+        <aside className="app-sidebar">
+          <div className="sb-brand">
+            <h1 className="sb-brand-title">{t('title')}</h1>
+            <p className="sb-brand-desc">{String(t('subtitle')).split('·').join('\n')}</p>
           </div>
-        <div className="header-actions">
+          <SidebarNav tab={tab} onSwitch={switchTab} t={t} />
+          <div className="app-sidebar-foot">
+        <div className="sb-foot-row">
           <button
             type="button"
             className="icon-btn theme-toggle"
@@ -1177,7 +1203,21 @@ export default function Home() {
             title={theme === 'dark' ? '切换亮色' : theme === 'light' ? '切换纯白' : '切换暗色'}
             aria-label={theme === 'dark' ? '切换亮色' : theme === 'light' ? '切换纯白' : '切换暗色'}
           >
-            {theme === 'dark' ? '☀️' : theme === 'light' ? '⚪' : '🌙'}
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </svg>
+            ) : theme === 'light' ? (
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="6" />
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+              </svg>
+            )}
           </button>
 
           <button
@@ -1205,62 +1245,23 @@ export default function Home() {
               <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-5.972 2.932-7.715 1.386-.87 3.052-1.306 4.71-1.306.527 0 1.054.047 1.572.132-.616-3.461-4.11-5.743-8.027-5.743zm-2.23 3.817a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zm4.466 0a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zM24 14.876c0-3.374-3.178-6.115-7.098-6.115-3.92 0-7.098 2.74-7.098 6.115 0 3.374 3.178 6.115 7.098 6.115.836 0 1.643-.12 2.393-.335a.7.7 0 0 1 .589.08l1.566.916a.268.268 0 0 0 .137.044.243.243 0 0 0 .239-.243c0-.06-.024-.117-.04-.176l-.322-1.218a.485.485 0 0 1 .176-.549C23.076 18.658 24 16.853 24 14.876zm-9.753-1.044a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686zm5.31 0a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686z"/>
             </svg>
           </button>
-
-          {qrOpen && (
-            <>
-              <div className="qr-backdrop" onClick={() => setQrOpen(false)} />
-              <div
-                className="qr-popover"
-                role="dialog"
-                aria-label="二维码"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="qr-title">微信二维码</div>
-                {!qrImgError ? (
-                  <img
-                    className="qr-img"
-                    src={qrSrc}
-                    alt="我的二维码"
-                    onError={() => setQrImgError(true)}
-                  />
-                ) : (
-                  <div className="qr-fallback">
-                    <div>未找到二维码图片。</div>
-                    <div className="qr-fallback-hint">把二维码放到 `public/my-qr.jpg`，或设置 `NEXT_PUBLIC_QR_CODE_URL`。</div>
-                  </div>
-                )}
-                <a className="qr-open" href={qrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
-              </div>
-            </>
-          )}
         </div>
-      </header>
+        </div>
+        </aside>
+        <div className="app-main">
+      
 
-      <div className="bg-master-layer" aria-hidden="true">
-        <img src="/bg-argue.jpg" alt="" />
-      </div>
-
-      <div className="main-layout">
+      <div className={`main-layout${tab === 'ask' ? '' : ' ws-hidden'}`}>
         <aside className="sidebar">
           <Card title={t('membersTitle')} accent="var(--accent)">
-            {chatMode === 'group' && (
-              <>
-                <div className="sidebar-mode">
-                  <MiniBtn active={selectMode === 'smart'} onClick={() => setSelectMode('smart')}>{t('membersSmartMatch')}</MiniBtn>
-                  <MiniBtn active={selectMode === 'manual'} onClick={() => setSelectMode('manual')}>{t('membersManual')}</MiniBtn>
-                </div>
-                <div className="sidebar-mode-hint">{selectMode === 'smart' ? t('smartModeHint') : t('manualModeHint')}</div>
-              </>
-            )}
+            <div className="sidebar-mode-hint">{t('membersAutoHint')}</div>
             <div className="sidebar-count-row">
               <div className="sidebar-count">
-                {chatMode === 'solo'
-                  ? (soloTarget ? `单聊对象：${soloTarget.name}` : '单聊对象：未选择')
+                {soloTarget
+                  ? `单聊对象：${soloTarget.name}`
                   : t('selectedCount', selected.size, allMasters.length)}
               </div>
-              {selectMode === 'manual' && (
-                <MiniBtn subtle onClick={() => setSelected(new Set())}><span aria-hidden="true">✕</span>{t('membersClear')}</MiniBtn>
-              )}
+              <MiniBtn subtle onClick={() => setSelected(new Set())}><span aria-hidden="true">✕</span>{t('membersClear')}</MiniBtn>
             </div>
             <button type="button" className="invite-entry" onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
@@ -1270,7 +1271,7 @@ export default function Home() {
                 <button type="button" className={`mgroup-chip${masterGroup === '__all__' ? ' on' : ''}`} onClick={() => setMasterGroup('__all__')}>
                   {locale === 'en' ? 'All' : '全部'} <span className="mgroup-count">{allMasters.length}</span>
                 </button>
-                {(groupFilterExpanded ? groupChips : groupChips.slice(0, 2)).map((g) => (
+                {(groupFilterExpanded ? groupChips : groupChips.slice(0, 6)).map((g) => (
                   <button key={g.key} type="button" className={`mgroup-chip${masterGroup === g.key ? ' on' : ''}`} onClick={() => setMasterGroup(g.key)}>
                     {locale === 'en' ? g.en : g.key} <span className="mgroup-count">{g.count}</span>
                   </button>
@@ -1290,15 +1291,14 @@ export default function Home() {
                   </div>
                   {g.masters.map(inv => {
                     const on = selected.has(inv.id);
-                    const locked = chatMode === 'group' && selectMode === 'smart';
                     return (
                       <div
                         key={inv.id}
                         role="button"
-                        tabIndex={locked ? -1 : 0}
-                        onClick={locked ? undefined : () => toggle(inv.id)}
-                        onKeyDown={locked ? undefined : (e) => e.key === 'Enter' && toggle(inv.id)}
-                        className={`master-row${locked ? ' smart-locked' : ''}`}
+                        tabIndex={0}
+                        onClick={() => toggle(inv.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && toggle(inv.id)}
+                        className="master-row" 
                         style={{
                           borderLeft: on ? `3px solid ${inv.color}` : '3px solid transparent',
                           background: on ? `${inv.color}12` : 'transparent',
@@ -1322,7 +1322,7 @@ export default function Home() {
                             {inv.quote ? (inv.quote.length > 22 ? `${inv.quote.slice(0, 22)}…` : inv.quote) : (locale === 'en' && inv.titleEn ? inv.titleEn : (inv.title || inv.style.split('，')[0]))}
                           </span>
                         </div>
-                        {!locked && <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>}
+                        <span className={`master-check${on ? ' on' : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>
                         <button
                           type="button"
                           className="master-more-btn"
@@ -1339,7 +1339,7 @@ export default function Home() {
               ))}
             </div>
           </Card>
-          <p className="sidebar-hint">{chatMode === 'group' ? t('sidebarHintGroup') : t('sidebarHintSolo')}</p>
+          <p className="sidebar-hint">{soloTarget ? t('sidebarHintSolo') : t('sidebarHintGroup')}</p>
         </aside>
 
         <main className="main">
@@ -1355,22 +1355,6 @@ export default function Home() {
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             {matchingHint && <div className="summon-status">🔍 {t('summonMatching')}</div>}
             <div className="question-footer">
-              <div className="question-aux">
-                <div className="chat-switch-wrap" aria-label="聊天方式">
-                  <span className={`cs-label${chatMode === 'group' ? ' on' : ''}`}>群聊</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={chatMode === 'solo'}
-                    aria-label="切换群聊/单聊"
-                    className="chat-switch"
-                    onClick={() => setChatMode((m) => (m === 'group' ? 'solo' : 'group'))}
-                  >
-                    <span className="chat-switch-thumb" />
-                  </button>
-                  <span className={`cs-label${chatMode === 'solo' ? ' on' : ''}`}>单聊</span>
-                </div>
-              </div>
               <button type="button" className="btn-submit" onClick={go} disabled={loading || matchingHint}>
                 {loading ? `⟳ ${t('summoning')}` : matchingHint ? `⟳ ${t('summonMatching')}` : t('btnSummon')}
               </button>
@@ -1622,7 +1606,56 @@ export default function Home() {
         </main>
       </div>
 
+      {showBreakfast && (
+        <div className={`bk-workspace${tab === 'breakfast' ? '' : ' ws-hidden'}`}>
+          <BreakfastRoundtable active={tab === 'breakfast'} />
+        </div>
+      )}
+
+      <div className={`mg-workspace-wrap${tab === 'munger' ? '' : ' ws-hidden'}`}>
+        <MungerFinance />
+      </div>
+
+      <div className={`mg-workspace-wrap${tab === 'zen' ? '' : ' ws-hidden'}`}>
+        <ZenShortTerm />
+      </div>
+
+      <div className={`mg-workspace-wrap${tab === 'pools' ? '' : ' ws-hidden'}`}>
+        <StockPools />
+      </div>
+
+
       <footer className="page-disclaimer">{t('disclaimer')}</footer>
+        </div>
+      </div>
+
+      {qrOpen && (
+        <>
+          <div className="qr-backdrop" onClick={() => setQrOpen(false)} />
+          <div
+            className="qr-popover"
+            role="dialog"
+            aria-label="二维码"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="qr-title">微信二维码</div>
+            {!qrImgError ? (
+              <img
+                className="qr-img"
+                src={qrSrc}
+                alt="我的二维码"
+                onError={() => setQrImgError(true)}
+              />
+            ) : (
+              <div className="qr-fallback">
+                <div>未找到二维码图片。</div>
+                <div className="qr-fallback-hint">把二维码放到 `public/my-qr.jpg`，或设置 `NEXT_PUBLIC_QR_CODE_URL`。</div>
+              </div>
+            )}
+            <a className="qr-open" href={qrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
+          </div>
+        </>
+      )}
 
       {quoteTip && (
         <div className="quote-tooltip" style={{ left: quoteTip.x, top: quoteTip.y }}>{quoteTip.text}</div>

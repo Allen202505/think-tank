@@ -1,0 +1,641 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SAMPLE_NEWS } from '../data/sampleNews';
+import { getHost, pickGuestsByStyle, findMasterById } from '../lib/breakfast';
+import { FRAMEWORK_STEPS } from '../lib/framework';
+import { MasterAvatar } from './ui';
+
+// 轻量渲染：AI 输出里的 **加粗** 转成 <strong>（避免露出裸 **）
+function renderInline(text, keyBase) {
+  const normalized = String(text || '').replace(/\*\*\*/g, '**');
+  const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+}
+
+// 轻量指纹：同一段输入内容复用已生成结果
+function hashText(s) {
+  let h = 5381;
+  const t = String(s || '').trim();
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return `n${(h >>> 0).toString(36)}`;
+}
+
+// 初始状态：大师头像压在一圈圆环上（12点=主持 / 3点 / 6点 / 9点）
+// 解析输入：单行 URL → 链接；多行文本 → 第一行标题、其余正文
+function parseNews(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  const lines = t.split('\n').map((l) => l.trim()).filter(Boolean);
+  const isLink = lines.length === 1 && /^https?:\/\/\S+$/i.test(lines[0]);
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const title = isLink ? lines[0] : (lines[0].length > 60 ? `${lines[0].slice(0, 60)}…` : lines[0]);
+  const content = isLink ? lines[0] : (lines.slice(1).join('\n') || lines[0]);
+  return { title, content, source: '用户输入', time, tags: ['用户输入'] };
+}
+
+// 框架步骤负责人角色（host/guestN）→ 大师 id（用于 loading 时显示「某某大师正在进行新闻分析」）
+function resolveLeadId(lead, guestList) {
+  if (lead === 'host') return 'buffett';
+  const m = /^guest(\d+)$/.exec(String(lead || ''));
+  if (m && guestList && guestList[Number(m[1])]) return guestList[Number(m[1])].master.id;
+  return 'buffett';
+}
+
+
+export default function BreakfastRoundtable({ active = true }) {
+  const [inputText, setInputText] = useState('');
+  // 新闻输入弹窗：左侧「输入新闻源」强入口 → 点击弹窗粘贴链接/文本
+  const [newsModalOpen, setNewsModalOpen] = useState(false);
+  const [newsModalText, setNewsModalText] = useState('');
+  // 推理强度：quick=快速解读（每人一句，过滤+初步讨论） / deep=事件穿透框架逐步解读；默认快速
+  const [mode, setMode] = useState('quick');
+  // 默认进页面即随机就座 3 位大师；只抽有真人头像的大师，避免出现字母占位头像
+  // 默认每次随机 9 位大师（含巴菲特）：巴菲特主持 + 8 位嘉宾
+  const [guests, setGuests] = useState(() => pickGuestsByStyle(8, [], { realAvatarOnly: true }));
+  const [cache, setCache] = useState({}); // key → {status, steps, currentAction?, currentLead?, error?, stopped?}
+
+  // 左侧新闻列表：真实 API（财联社 + 东方财富 7x24），失败/为空时回退内置示例
+  const [newsList, setNewsList] = useState([]);
+  const [activeNewsId, setActiveNewsId] = useState(null);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState('');
+  const [newsPage, setNewsPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [newsFallback, setNewsFallback] = useState(false);
+
+  const loadNews = useCallback(async (page = 1, append = false) => {
+    setNewsLoading(true);
+    setNewsError('');
+    try {
+      const res = await fetch(`/api/news?page=${page}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || '获取新闻失败');
+      const items = data.items || [];
+      if (items.length === 0) {
+        setNewsFallback(true);
+        setNewsList([]);
+        setHasMore(false);
+      } else {
+        setNewsFallback(false);
+        setNewsList((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(Boolean(data.hasMore));
+        setNewsPage(page);
+      }
+    } catch (e) {
+      setNewsError(e.message || '获取新闻失败');
+      setNewsFallback(true);
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadNews(1, false); }, [loadNews]);
+
+  const host = useMemo(() => getHost(), []);
+  const guestKey = useMemo(() => guests.map((g) => g.master.id).join('-'), [guests]);
+  const news = useMemo(() => parseNews(inputText), [inputText]);
+  const currentKey = useMemo(() => (news ? hashText(`${news.title}\n${news.content}`) : ''), [news]);
+  const cacheKey = currentKey ? `${currentKey}::${guestKey}::${mode}` : '';
+  const entry = cacheKey ? (cache[cacheKey] || { status: 'idle', steps: [] }) : { status: 'idle', steps: [] };
+
+  const abortRefs = useRef({});
+  // 详情步骤折叠状态（结论卡始终展开；生成中步骤展开，完成后默认折叠）
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
+  useEffect(() => { setExpandedKeys(new Set()); }, [cacheKey]);
+
+  const toggleStep = (k) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+  // 完成后把「核心结论」置顶展示，详情步骤排在后面
+  const items = useMemo(() => {
+    const list = entry.steps || [];
+    if (entry.status !== 'done') return list;
+    const idx = list.findIndex((st) => st.type === 'conclusion' || st.stepKey === 'conclusion');
+    if (idx < 0) return list;
+    return [list[idx], ...list.filter((_, i) => i !== idx)];
+  }, [entry]);
+
+  // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
+  const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
+    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
+    setCache((prev) => {
+      const cur = prev[key];
+      if (!force && cur && (cur.status === 'loading' || cur.status === 'done')) return prev;
+      return {
+        ...prev,
+        [key]: {
+          status: 'loading',
+          steps: [],
+          currentAction: runMode === 'quick' ? '正在进行快速解读' : FRAMEWORK_STEPS[0].loading,
+          currentLead: runMode === 'quick' ? 'buffett' : resolveLeadId(FRAMEWORK_STEPS[0].lead, guestList),
+        },
+      };
+    });
+    if (force && abortRefs.current[key]) abortRefs.current[key].abort();
+    const controller = new AbortController();
+    abortRefs.current[key] = controller;
+
+    const payload = {
+      news: { title: newsObj.title, content: newsObj.content, source: newsObj.source, time: newsObj.time },
+      hostId: 'buffett',
+      guests: guestList.map((g) => ({ id: g.master.id, groupKey: g.groupKey })),
+      mode: runMode,
+    };
+
+    const steps = [];
+    try {
+      if (runMode === 'quick') {
+        // 快速：一人一条逐条生成（边分析边出结论），不是一次性返回
+        const turnSeq = [
+          { key: 'host_open', speaker: 'host' },
+          ...guestList.map((_, i) => ({ key: `guest${i}`, speaker: `guest${i}` })),
+          { key: 'host_close', speaker: 'host' },
+          { key: 'summary', speaker: 'host' },
+        ];
+        const quickTurns = [];
+        let quickSummary = '';
+        const setQuickStep = (pending) => {
+          setCache((prev) => {
+            const cur = prev[key] || {};
+            return {
+              ...prev,
+              [key]: {
+                ...cur,
+                status: 'loading',
+                steps: [{
+                  stepKey: 'quick',
+                  title: '快速解读',
+                  type: 'quick',
+                  turns: [...quickTurns],
+                  summary: quickSummary,
+                  pending,
+                }],
+              },
+            };
+          });
+        };
+        for (const t of turnSeq) {
+          setQuickStep({ speaker: t.speaker, action: t.key === 'summary' ? '正在总结…' : '正在解读…' });
+          const res = await fetch('/api/breakfast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              stepKey: 'quickturn',
+              turnKey: t.key,
+              prevTurns: quickTurns.map((x) => ({ speaker: x.speaker, text: x.text })),
+            }),
+            signal: controller.signal,
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
+          if (t.key === 'summary') {
+            quickSummary = data.result.summary || '';
+          } else {
+            quickTurns.push({ speaker: data.result.speaker || t.speaker, text: data.result.text || '' });
+          }
+          setQuickStep(null);
+        }
+        steps.push({ stepKey: 'quick', title: '快速解读', type: 'quick', turns: quickTurns, summary: quickSummary, pending: null });
+        setCache((prev) => ({ ...prev, [key]: { status: 'done', steps } }));
+      } else {
+        // 深度：事件穿透框架逐步推演
+        for (const step of FRAMEWORK_STEPS) {
+          const res = await fetch('/api/breakfast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              stepKey: step.key,
+              prevSteps: steps.map((s) => ({ title: s.title, content: s.content, pool: s.pool })),
+            }),
+            signal: controller.signal,
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
+          steps.push(data.result);
+          setCache((prev) => {
+            const cur = prev[key];
+            const nextDef = FRAMEWORK_STEPS[steps.length];
+            return {
+              ...prev,
+              [key]: {
+                status: 'loading',
+                steps: [...steps],
+                currentAction: nextDef ? nextDef.loading : '',
+                currentLead: nextDef ? resolveLeadId(nextDef.lead, guestList) : '',
+              },
+            };
+          });
+          // 初筛闸门：⚪ 暂不相关 → 停止后续步骤，直接完成
+          if (data.result && data.result.stop) break;
+        }
+        setCache((prev) => ({ ...prev, [key]: { status: 'done', steps } }));
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setCache((prev) => ({ ...prev, [key]: { status: 'error', error: '已停止生成，可重试', stopped: true, steps } }));
+      } else {
+        setCache((prev) => ({ ...prev, [key]: { status: 'error', error: e.message || '生成失败，请重试', steps } }));
+      }
+    } finally {
+      if (abortRefs.current[key] === controller) delete abortRefs.current[key];
+    }
+  }, []);
+
+  const start = () => {
+    if (news) runAnalysis(news, guestKey, guests, mode);
+  };
+  const redoCurrent = () => {
+    if (news) runAnalysis(news, guestKey, guests, mode, true);
+  };
+  const stopLoading = () => {
+    const c = abortRefs.current[cacheKey];
+    if (c) c.abort();
+  };
+  const switchMode = (m) => {
+    if (m === mode) return;
+    const c = abortRefs.current[cacheKey];
+    if (c) c.abort();
+    setMode(m);
+  };
+
+  // ── 新闻输入弹窗 ──
+  const openNewsModal = (prefill) => {
+    setNewsModalText(prefill != null ? prefill : inputText);
+    setNewsModalOpen(true);
+  };
+  const closeNewsModal = () => setNewsModalOpen(false);
+  const submitNewsModal = () => {
+    const parsed = parseNews(newsModalText);
+    if (!parsed) return;
+    const cur = abortRefs.current[cacheKey];
+    if (cur) cur.abort();
+    setInputText(newsModalText);
+    setNewsModalOpen(false);
+    runAnalysis(parsed, guestKey, guests, mode);
+  };
+  // 座位：横向一排（人数变化自动换行）；统一为 {master, groupKey, isHost}
+  const seats = useMemo(
+    () => [
+      { master: host, groupKey: '价值投资', isHost: true },
+      ...guests.map((g) => ({ master: g.master, groupKey: g.groupKey, isHost: false })),
+    ],
+    [host, guests],
+  );
+
+  const speakerOf = (leadId) => findMasterById(leadId) || host;
+  // 快速模式的短发言轮次：speaker 角色 → 具体大师（host=巴菲特，guestN=第 N+1 位嘉宾）
+  const turnSpeaker = (role) => {
+    if (role === 'host') return host;
+    const m = /^guest(\d+)$/.exec(String(role || ''));
+    if (m && guests[Number(m[1])]) return guests[Number(m[1])].master;
+    return host;
+  };
+  // 追问：点击「想深挖？」里的问题，直接向该步骤负责人提问（圆桌内追加一轮简短问答）
+  const askFollowUp = useCallback((q, leadId, fuId) => {
+    const key = cacheKey;
+    if (!key || !news) return;
+    const id = fuId || `f-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    setCache((prev) => {
+      const cur = prev[key] || { status: 'done', steps: [] };
+      const followups = [...(cur.followups || [])];
+      const fu = { id, q, leadId, status: 'loading', content: '', hostNote: '', error: '' };
+      const i = followups.findIndex((f) => f.id === id);
+      if (i >= 0) followups[i] = fu; else followups.push(fu);
+      // 只追加追问轮次，不改动当前步骤生成状态
+      return { ...prev, [key]: { ...cur, followups } };
+    });
+    (async () => {
+      try {
+        const res = await fetch('/api/breakfast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            news: { title: news.title, content: news.content, source: news.source, time: news.time },
+            hostId: 'buffett',
+            guests: guests.map((g) => ({ id: g.master.id, groupKey: g.groupKey })),
+            mode,
+            stepKey: 'followup',
+            followUp: q,
+            followUpLead: leadId,
+            prevSteps: (entry.steps || []).map((st) => ({ title: st.title, content: st.content, pool: st.pool })),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
+        setCache((prev) => {
+          const cur = prev[key] || {};
+          const followups = (cur.followups || []).map((f) => (f.id === id
+            ? { ...f, status: 'done', content: (data.result && data.result.content) || '', hostNote: (data.result && data.result.hostNote) || '' }
+            : f));
+          return { ...prev, [key]: { ...cur, followups } };
+        });
+      } catch (e) {
+        setCache((prev) => {
+          const cur = prev[key] || {};
+          const followups = (cur.followups || []).map((f) => (f.id === id
+            ? { ...f, status: 'error', error: e.message || '追问失败，请重试' }
+            : f));
+          return { ...prev, [key]: { ...cur, followups } };
+        });
+      }
+    })();
+  }, [cacheKey, news, guests, mode, entry]);
+
+  const btnLabel = entry.status === 'loading' ? '■ 停止'
+    : entry.status === 'done' ? '↻ 再来一轮'
+    : entry.status === 'error' ? '↻ 重试'
+    : (news ? '▶ 开始解读' : '＋ 输入新闻');
+  const onBtnClick = entry.status === 'loading' ? stopLoading
+    : (entry.status === 'done' || entry.status === 'error') ? redoCurrent
+    : (news ? start : () => openNewsModal(''));
+
+  // loading 卡：深度模式显示当前步骤负责人（快速模式在卡内逐条显示「正在解读」）
+  const loadingMaster = (entry.currentLead && findMasterById(entry.currentLead)) || host;
+  const loadingAction = entry.currentAction || '正在进行新闻分析…';
+
+  return (
+    <div className="bk-workspace">
+      <div className="bk-layout">
+        <aside className="bk-news-col">
+          {/* 今日快讯：真实 API 拉取，点击弹窗预填后解读 */}
+          <div className="bk-news-list-head">
+            <span>📰 消息面解读</span>
+            <div className="bk-news-head-actions">
+              {newsFallback && newsList.length === 0 && !newsLoading && (
+                <span className="bk-news-fallback-tip" title={newsError || ''}>实时源暂不可用，展示示例</span>
+              )}
+              <button
+                type="button"
+                className="bk-news-refresh"
+                onClick={() => loadNews(1, false)}
+                disabled={newsLoading}
+                title="刷新新闻列表"
+              >
+                {newsLoading && newsList.length === 0 ? '···' : '↻ 刷新'}
+              </button>
+            </div>
+          </div>
+          {/* 强入口：点击弹窗输入自定义新闻 */}
+          <button
+            type="button"
+            className="bk-news-entry"
+            onClick={() => openNewsModal('')}
+            disabled={entry.status === 'loading'}
+            title="粘贴新闻链接或文本，开启解读"
+          >
+            <span className="bk-news-entry-icon">✎</span> 输入新闻源
+          </button>
+
+          {(newsList.length ? newsList : SAMPLE_NEWS).map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              className={`bk-news-row${activeNewsId === n.id ? ' active' : ''}`}
+              onClick={() => { setActiveNewsId(n.id); openNewsModal(`${n.title}\n${n.summary}`); }}
+            >
+              <span className="bk-news-row-arrow" aria-hidden="true">›</span>
+              <span className="bk-news-row-main">
+                <span className="bk-news-row-title">{n.title}</span>
+                <span className="bk-news-row-meta">
+                  {n.source} · {n.time}
+                  {(n.tags || []).map((t) => <span key={t} className="bk-tag">{t}</span>)}
+                </span>
+              </span>
+            </button>
+          ))}
+          {!newsFallback && hasMore && (
+            <button type="button" className="bk-news-more" onClick={() => loadNews(newsPage + 1, true)} disabled={newsLoading}>
+              {newsLoading ? '加载中…' : '加载更多'}
+            </button>
+          )}
+        </aside>
+
+        <section className={`bk-main-col${entry.status === 'idle' ? ' bk-main-idle' : ''}`}>
+        {/* 顶部信息行：巴菲特带你读新闻 + 功能按钮（固定在顶部） */}
+        <div className="bk-roundtable-head">
+          <span className="bk-roundtable-title">巴菲特带你读新闻</span>
+          <div className="bk-roundtable-actions">
+            {(news || entry.status !== 'idle') && (
+              <button type="button" className={`bk-mini bk-start-mini${entry.status === 'loading' ? ' is-loading' : ''}`} onClick={onBtnClick} title={news ? '开始解读 / 停止 / 再来一轮' : '输入新闻链接或文本'}>
+                {btnLabel}
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="bk-intro">从左侧挑一条财经新闻（或点「✎ 输入新闻源」自己贴一条），点「开始解读」——巴菲特与嘉宾会用「事件穿透投资框架」逐层解读，帮你捕捉值得关注的投资机会点。</p>
+
+        {/* 座位：初始 3×3 块状；解读中/后一行放全部大师 */}
+        {entry.status === 'idle' ? (
+          <div className="bk-seats-wrap center">
+            <div className="bk-seats-grid">
+              {seats.map((p) => (
+                <div key={p.master.id} className={`bk-seat-block${p.isHost ? ' host' : ''}`}>
+                  <span className="bk-seat-block-avatar">
+                    <MasterAvatar master={p.master} size={60} />
+                  </span>
+                  <div className="bk-seat-block-name">
+                    {p.isHost ? '巴菲特' : p.master.name}
+                    <span className={`bk-seat-role${p.isHost ? '' : ' bk-seat-guest'}`}>{p.isHost ? '主持' : '嘉宾'}</span>
+                  </div>
+                  <div className="bk-seat-block-style">{p.isHost ? '价值投资' : p.groupKey}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bk-roundtable-seats">
+            {seats.map((p) => (
+              <div key={p.master.id} className={`bk-seat${p.isHost ? ' bk-seat-host' : ''}`}>
+                <span className="bk-seat-avatar">
+                  <MasterAvatar master={p.master} size={36} />
+                </span>
+                <div className="bk-seat-name">{p.isHost ? '巴菲特' : p.master.name}</div>
+                <div className="bk-seat-style">{p.isHost ? '价值投资' : p.groupKey}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 分析区：无内容时不显示空容器 */}
+        {entry.status !== 'idle' && (
+        <div className="bk-dialog" role="region" aria-label="事件穿透分析">
+          {entry.status === 'error' && (
+            <div className="bk-error">
+              <div>⚠ {entry.error || '生成失败'}</div>
+            </div>
+          )}
+
+          {(items || []).map((s, i) => {
+            const speaker = speakerOf(s.leadId);
+            const isConclusion = s.type === 'conclusion' || s.stepKey === 'conclusion';
+            const isGate = s.type === 'gate' || s.stepKey === 'gate';
+            const isQuick = s.type === 'quick' || s.stepKey === 'quick';
+            const pinned = isConclusion || isQuick || isGate;
+            const expanded = pinned || entry.status !== 'done' || expandedKeys.has(s.stepKey);
+            const cls = `bk-step bk-step-speech${isConclusion ? ' bk-step-conclusion' : ''}${isGate ? ' bk-step-gate' : ''}${!expanded ? ' bk-step-folded' : ''}`;
+            const fuBlock = (keyBase) => (Array.isArray(s.followUps) && s.followUps.length > 0 ? (
+              <div className="bk-step-followups">
+                <div className="bk-fu-label">想深挖？点击即可追问：</div>
+                {s.followUps.map((f, fi) => (
+                  <button key={fi} type="button" className="bk-fu-item" onClick={() => askFollowUp(f, speaker.id)} title="点击直接向该大师提问，无需复制">
+                    <span className="bk-fu-ask">＋</span>
+                    <span className="bk-fu-text">{renderInline(f, `${keyBase}-${i}-${fi}`)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null);
+            return (
+              <div key={`${s.stepKey}-${i}`} className={cls}>
+                <button type="button" className="bk-step-head" onClick={() => toggleStep(s.stepKey)} aria-expanded={expanded}>
+                  <MasterAvatar master={speaker} size={30} />
+                  <span className="bk-step-title">{s.title}</span>
+                  <span className="bk-step-speaker">{speaker.name}</span>
+                  <span className="bk-step-toggle">{expanded ? '▾' : '▸'}</span>
+                </button>
+                {expanded && (
+                  <>
+                    {isQuick ? (
+                      <>
+                        <div className="bk-quick-turns">
+                          {(s.turns || []).map((t, ti) => {
+                            const sp = turnSpeaker(t.speaker);
+                            const isH = sp.id === host.id;
+                            return (
+                              <div key={ti} className={`bk-turn-row${isH ? ' bk-turn-row-host' : ''}`}>
+                                <span className="bk-turn-row-avatar"><MasterAvatar master={sp} size={24} /></span>
+                                <div className="bk-turn-row-body">
+                                  <span className="bk-turn-row-name">{sp.name}</span>
+                                  <div className="bk-turn-row-text">{renderInline(t.text, `qt-${i}-${ti}`)}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {s.pending && (
+                            <div className="bk-turn-row bk-turn-row-pending">
+                              <span className="bk-turn-row-avatar"><MasterAvatar master={turnSpeaker(s.pending.speaker)} size={24} /></span>
+                              <div className="bk-turn-row-body">
+                                <span className="bk-turn-row-name">{turnSpeaker(s.pending.speaker).name}</span>
+                                <div className="bk-turn-row-text">
+                                  <span className="bk-loading-speech-dots"><span /><span /><span /></span>
+                                  <span>{s.pending.action}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {s.summary && (
+                          <div className="bk-quick-summary">
+                            <div className="bk-quick-summary-label">总结</div>
+                            <div className="bk-quick-summary-text">{renderInline(s.summary, `qs-${i}`)}</div>
+                          </div>
+                        )}
+                      </>
+                    ) : (s.content && <div className="bk-step-body">{renderInline(s.content, `c-${i}`)}</div>)}
+                    {isGate && s.stop && <div className="bk-gate-stopnote">⚪ 该事件暂不相关，未继续深挖。</div>}
+                    {fuBlock('f')}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {/* 正在发言的大师：loading 放在其发言位内（快速模式在卡内逐条显示，不占这里） */}
+          {entry.status === 'loading' && mode !== 'quick' && (
+            <div className="bk-loading-speech">
+              <MasterAvatar master={loadingMaster} size={32} />
+              <div className="bk-loading-speech-body">
+                <div className="bk-loading-speech-name">{loadingMaster.name}</div>
+                <div className="bk-loading-speech-line">
+                  <span className="bk-loading-speech-dots"><span /><span /><span /></span>
+                  <span>{loadingAction}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 追问：点击「想深挖？」后追加的问答轮次 */}
+          {Array.isArray(entry.followups) && entry.followups.length > 0 && (
+            <div className="bk-followups">
+              <div className="bk-followups-label">💬 追问</div>
+              {entry.followups.map((f, i) => {
+                const fuSpeaker = speakerOf(f.leadId);
+                return (
+                  <div key={f.id || i} className="bk-fu-round">
+                    <div className="bk-fu-q"><span className="bk-fu-q-badge">问</span>{renderInline(f.q, `fq-${i}`)}</div>
+                    {f.status === 'loading' && (
+                      <div className="bk-fu-loading">
+                        <span className="bk-fu-dots"><span /><span /><span /></span>
+                        <span>正在追问 {fuSpeaker.name}…</span>
+                      </div>
+                    )}
+                    {f.status === 'error' && (
+                      <div className="bk-fu-error">
+                        <span>⚠ {f.error}</span>
+                        <button type="button" className="bk-fu-retry" onClick={() => askFollowUp(f.q, f.leadId, f.id)}>↻ 重试</button>
+                      </div>
+                    )}
+                    {f.status === 'done' && (
+                      <div className="bk-fu-answer">
+                        <div className="bk-fu-answer-head">
+                          <MasterAvatar master={fuSpeaker} size={26} />
+                          <span className="bk-fu-answer-name">{fuSpeaker.name}</span>
+                        </div>
+                        <div className="bk-fu-answer-body">{renderInline(f.content, `fa-${i}`)}</div>
+                        {f.hostNote && f.leadId !== 'buffett' && (
+                          <div className="bk-fu-hostnote">
+                            <MasterAvatar master={host} size={20} />
+                            <span><strong>{host.name}：</strong>{renderInline(f.hostNote, `fh-${i}`)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        )}
+        </section>
+      </div>
+
+      {/* 新闻输入弹窗：左侧强入口点击后弹出 */}
+      {newsModalOpen && (
+        <div className="bk-modal-overlay" onClick={closeNewsModal}>
+          <div className="bk-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="bk-modal-head">
+              <span className="bk-modal-title">输入新闻源</span>
+              <button type="button" className="bk-modal-close" onClick={closeNewsModal} aria-label="关闭">✕</button>
+            </div>
+            <textarea
+              className="bk-news-input bk-modal-input"
+              value={newsModalText}
+              onChange={(e) => setNewsModalText(e.target.value)}
+              placeholder={'粘贴新闻链接或新闻文本（文本第一行作为标题）\n例如：\n英伟达发布新一代 AI 训练芯片，推理成本再降三成\n英伟达在 GTC 上发布新一代芯片，官方称训练成本下降约 30%…'}
+              rows={6}
+              autoFocus
+            />
+            <div className="bk-modal-foot">
+              <div className="bk-mode-switch" role="group" aria-label="推理强度">
+                <button type="button" className={mode === 'quick' ? 'active' : ''} onClick={() => setMode('quick')}>快速</button>
+                <button type="button" className={mode === 'deep' ? 'active' : ''} onClick={() => setMode('deep')}>深度</button>
+              </div>
+              <div className="bk-modal-actions">
+                <button type="button" className="bk-modal-cancel" onClick={closeNewsModal}>取消</button>
+                <button type="button" className="bk-start-btn" disabled={!parseNews(newsModalText)} onClick={submitNewsModal}>▶ 开始解读</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

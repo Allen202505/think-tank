@@ -7,7 +7,7 @@
  *
  * 依赖：marketData.js（统一数据层）
  */
-import { resolveSymbols, getQuote, getFinancials, getForecast, needsCompanyData, withTimeout } from './marketData.js';
+import { resolveSymbols, getQuote, getFinancials, getForecast, needsCompanyData, withTimeout, getMarketOverview } from './marketData.js';
 import { getDeepAnalysis, formatDeepSnapshot } from './uziSkills.js';
 
 // ─── 格式化工具 ──────────────────────────────────────────
@@ -179,6 +179,13 @@ export async function getQuoteContextInfo(userQuery) {
     return { snapshot: '', notice: '' };
   }
 
+  // 大盘环境：指数点位/涨跌幅/成交额/涨跌家数（失败不致命，为空则跳过）
+  let marketBlock = '';
+  try {
+    const mo = await getMarketOverview();
+    if (mo) marketBlock = `【大盘环境】\n${mo}`;
+  } catch (e) { /* 大盘数据失败不影响主流程 */ }
+
   let symbols = [];
   try {
     symbols = await resolveSymbols(userQuery);
@@ -204,7 +211,7 @@ export async function getQuoteContextInfo(userQuery) {
         } catch (e) { /* 判定失败不提示 */ }
       }
     }
-    return { snapshot: '', notice };
+    return { snapshot: marketBlock, notice };
   }
 
   const entries = await Promise.all(
@@ -249,6 +256,8 @@ export async function getQuoteContextInfo(userQuery) {
     '- 各公司数据以快照标注的报告期为准（例如 2026 年一季报），不要自行假设有更新的报告期。',
     '- 【业绩预告】与【机构预测/一致预期】属于预测、预估数据：引用时**必须明确标注为"预测/预计/约"**，不得当作已披露的实际数据，也不要用机构预测反推"实际业绩已公布"。',
     '- 如需引用历史情况，可以用「过去几年」「上一轮周期」等整体描述；不要给出快照之外的具体年份精确数字。',
+    '',
+    marketBlock || '（暂未获取到大盘环境数据）',
     '',
     ...valid.map((e, i) => {
       const head = `${i + 1}) ${formatEntry(e.info, e.quote, e.fin, e.forecast)}`;
