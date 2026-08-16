@@ -170,6 +170,7 @@ export default function Home() {
   const explainCacheRef = useRef(new Map());
   const explainLoadingRef = useRef(false);
   const [masterGroup, setMasterGroup] = useState('__all__'); // 大师列表分组筛选（'__all__'=全部）
+  const [masterQuery, setMasterQuery] = useState(''); // 大师列表搜索
   const [quoteTip, setQuoteTip] = useState(null); // 名言 hover 浮层 {text,x,y}
   const [groupFilterExpanded, setGroupFilterExpanded] = useState(false); // 分组标签区是否展开
   const [matchingHint, setMatchingHint] = useState(false); // 提交时智能选角反馈
@@ -211,6 +212,21 @@ export default function Home() {
     }
     return MASTER_GROUP_ORDER.filter((g) => byKey.has(g.key)).map((g) => ({ ...g, masters: byKey.get(g.key) }));
   }, [allMasters, masterGroup, groupedMasters, masterTags]);
+  // 搜索过滤：按名称/英文名/称号/风格/流派匹配
+  const searchedGroups = useMemo(() => {
+    const q = masterQuery.trim().toLowerCase();
+    if (!q) return filteredGroups;
+    return filteredGroups
+      .map((g) => ({
+        ...g,
+        masters: g.masters.filter((m) =>
+          [m.name, m.nameEn, m.title, m.titleEn, m.style, m.styleEn, m.tag, m.tagEn, m.biography]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q))
+        ),
+      }))
+      .filter((g) => g.masters.length);
+  }, [filteredGroups, masterQuery]);
   const CUSTOM_KEY = 'custom-masters-v1';
   const HISTORY_KEY = 'debate-history-v1';
   const currentSessionIdRef = useRef(null);
@@ -1282,8 +1298,21 @@ export default function Home() {
                 </button>
               </div>
             </div>
+            <div className="master-search">
+              <svg className="master-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input
+                type="text"
+                value={masterQuery}
+                onChange={(e) => setMasterQuery(e.target.value)}
+                placeholder={t('searchMasters')}
+                aria-label={t('searchMasters')}
+              />
+              {masterQuery && (
+                <button type="button" className="master-search-clear" onClick={() => setMasterQuery('')} title={locale === 'en' ? 'Clear' : '清空'} aria-label={locale === 'en' ? 'Clear' : '清空'}>✕</button>
+              )}
+            </div>
             <div className="master-list">
-              {filteredGroups.map((g) => (
+              {searchedGroups.map((g) => (
                 <div key={g.key} className="master-group">
                   <div className="master-group-head">
                     {locale === 'en' ? g.en : g.key}
