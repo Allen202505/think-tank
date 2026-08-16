@@ -2718,3 +2718,4 @@
 - 2026-08-16（推送状态）：用户确认推送后，GitHub（github.com:443）持续连接超时（api.github.com 正常，属线路波动）。本地 4 个提交（8638b1d/e276bde/a12b186/159a178，均为百度验证日志）安全保留，待网络恢复后执行 git push origin main。
 - 2026-08-16（生产环境美股无数据修复）：根因=美股/港股 K 线只靠东财，而东财在 Vercel 海外服务器被屏蔽（本地正常、生产 12 只美股全无数据，仅 A 股正常）。修复=新增 fetchYahooKline（yahoo-finance2 chart，美股 105/106、港股 116→xxxx.HK），在东财失败后兜底（腾讯/新浪不支持美股/港股）。本地因中国 IP 无法访问 Yahoo，需部署后在生产验证。已验证构建通过。
 - 2026-08-16（美股无数据修复·第二版）：Yahoo 从 Vercel 数据中心 IP 可能也被限 → 新增 Nasdaq 官方历史日K（api.nasdaq.com/api/quote/{code}/historical，本地直连可用、美国源不拦数据中心 IP，需 UA+Origin+Referer 头，返回倒序需 reverse）。美股链=东财→Nasdaq→Yahoo；港股链=东财→Yahoo。另加 lastUSKlineErr 诊断（无数据时错误里带原因，便于生产排查）。本地实测 AAPL 305.93 / KO 87.71 恢复。
+- 2026-08-16（生产验证）：Nasdaq 兜底部署后，巴菲特池 13/13 全部有行情（比亚迪88.9 / AAPL305.93 / AXP342.48 / GOOGL345.9 / KO87.71 / BAC64.49 / CVX200 / OXY58.36 / CB343.64 / MCO484.96 / KHC25.51 / DAL89.35 / LEN86.83）。美股问题解决。注：港股（腾讯/中国宏桥）仍依赖 Yahoo，若生产也拿不到后续再补源。
