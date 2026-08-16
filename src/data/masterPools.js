@@ -3,7 +3,7 @@
 export const PRESET_POOLS = [
   {
     id: 'pool_buffett',
-    name: '巴菲特 · 伯克希尔',
+    name: '巴菲特',
     source: '伯克希尔 13F 持仓（2026-06-30 披露）',
     preset: true,
     note: '以美股为主（美元计价，组合统计为混合口径、vs 沪深300 仅参考）；持仓价为公开报道的估算成本，仅部分重仓股可查',
@@ -12,7 +12,7 @@ export const PRESET_POOLS = [
   },
   {
     id: 'pool_cambrian',
-    name: '寒武纪的鳄鱼 · 生产资料池',
+    name: '寒武纪的鳄鱼',
     source: '寒武纪的鳄鱼笔记/公开选股（用户整理）',
     preset: true,
     note: '央企资源/民爆/军工/化工为主，按笔记与公开资料整理',
@@ -38,7 +38,7 @@ export const PRESET_POOLS = [
   },
   {
     id: 'pool_danbin',
-    name: '但斌 · 东方港湾',
+    name: '但斌',
     source: '东方港湾公开持仓/路演（公开资料）',
     preset: true,
     note: '白酒 + 新能源 + 全球科技',
@@ -46,7 +46,7 @@ export const PRESET_POOLS = [
   },
   {
     id: 'pool_duanyongping',
-    name: '段永平 · H&H',
+    name: '段永平',
     source: 'H&H 13F 持仓（2026-06-30 披露）/ 公开访谈',
     preset: true,
     note: '苹果为第一大重仓；含美股/港股（美元/港元计价，混合口径 vs 沪深300 仅参考）；腾讯、茅台为其访谈自述核心',
