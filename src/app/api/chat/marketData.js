@@ -435,11 +435,12 @@ export async function resolveSymbols(query) {
   // 纯 6 位 A 股代码无需 AI/公司名提取，走代码解析即可（避免每个代码一次 LLM 调用拖慢首载）
   const isPureCode = /^\d{6}$/.test(q);
   const isPureTicker = /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(q); // 纯美股代码（AAPL/BRK.B 等）无需 LLM 提取
+  const exactDict = COMMON_SYMBOLS[q]; // 整串命中词典（如「伯克希尔」→ BRK-B），以词典为准，避免 LLM/搜索把港股等排前面
   const found = new Map(); // secid -> info
 
-  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）；纯 A 股代码/纯美股代码跳过
+  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）；纯 A 股代码/纯美股代码/词典整串命中跳过
   let llmNames = null;
-  if (!isPureCode && !isPureTicker) {
+  if (!isPureCode && !isPureTicker && !exactDict) {
     try {
       llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
     } catch (e) { /* 忽略，走启发式兜底 */ }

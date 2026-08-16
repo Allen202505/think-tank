@@ -1,5 +1,5 @@
 // src/data/masterPools.js —— 大师选股池·预置池（按公开资料整理，可能不完整或过时，仅供参考）
-// 仅供学习演示；池内为大师公开重仓/公开推荐过的 A 股，6 位代码
+// 仅供学习演示；池内为大师公开重仓/公开推荐过的标的（A股 6 位代码 / 美股代码 / 港股代码）
 export const PRESET_POOLS = [
   {
     id: 'pool_buffett',
@@ -29,22 +29,6 @@ export const PRESET_POOLS = [
     ],
   },
   {
-    id: 'pool_munger',
-    name: '芒格 · Daily Journal',
-    source: 'Daily Journal 持仓（公开资料）',
-    preset: true,
-    note: 'Daily Journal 近年持有比亚迪',
-    symbols: ['002594'],
-  },
-  {
-    id: 'pool_zhanglei',
-    name: '张磊 · 高瓴',
-    source: '高瓴 A 股重仓（公开资料）',
-    preset: true,
-    note: '按 2024-2025 年公开持仓整理',
-    symbols: ['300750', '601012', '000651', '600585', '600276'],
-  },
-  {
     id: 'pool_linyuan',
     name: '林园',
     source: '林园公开持仓/访谈（公开资料）',
@@ -61,43 +45,11 @@ export const PRESET_POOLS = [
     symbols: ['600519', '300750', '002594'],
   },
   {
-    id: 'pool_fengliu',
-    name: '冯柳 · 高毅',
-    source: '高毅资产公开持仓（公开资料）',
+    id: 'pool_duanyongping',
+    name: '段永平 · H&H',
+    source: 'H&H 13F 持仓（2026-06-30 披露）/ 公开访谈',
     preset: true,
-    note: '持仓较分散、变化快，按近期公开披露整理',
-    symbols: ['002415', '601899', '600085'],
-  },
-  {
-    id: 'pool_dengxiaofeng',
-    name: '邓晓峰 · 高毅',
-    source: '高毅资产公开持仓（公开资料）',
-    preset: true,
-    note: '制造业/周期成长为主',
-    symbols: ['601899', '600031', '600019'],
-  },
-  {
-    id: 'pool_zhangkun',
-    name: '张坤 · 易方达',
-    source: '易方达蓝筹/优质精选季报（公开资料）',
-    preset: true,
-    note: '消费白酒为底仓',
-    symbols: ['600519', '000858', '000568', '002304'],
-  },
-  {
-    id: 'pool_geweidong',
-    name: '葛卫东',
-    source: '葛卫东公开持仓/举牌（公开资料）',
-    preset: true,
-    note: '科技成长 + 周期',
-    symbols: ['002230', '600745'],
-  },
-  {
-    id: 'pool_qiuguogen',
-    name: '裘国根 · 重阳',
-    source: '重阳投资公开持仓（公开资料）',
-    preset: true,
-    note: '高股息/公用/优质制造',
-    symbols: ['600406', '600900', '000002'],
+    note: '苹果为第一大重仓；含美股/港股（美元/港元计价，混合口径 vs 沪深300 仅参考）；腾讯、茅台为其访谈自述核心',
+    symbols: ['AAPL', '伯克希尔', 'PDD', 'TSLA', 'GOOG', 'BABA', '00700', '600519'],
   },
 ];
