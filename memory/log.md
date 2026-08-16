@@ -2714,3 +2714,4 @@
   - 模拟 Baiduspider UA 连续 5 次抓取首页与验证文件均 HTTP 200，无任何 cf 拦截特征（无 403/挑战页/Just a moment）。结论：Cloudflare 没有拦截百度，报错「无法连接」= 百度大陆爬虫 → 海外服务器(Vercel+Cloudflare) 的线路连通问题（百度自己也提示网通电信线路）。
   - Cloudflare 后台自动导航受阻（SPA 把 /security/* 都重定向到 /access），未能逐项查看 Bot Fight Mode，但外测已排除拦截可能。
   - 方案：①过段时间重试百度验证（线路波动可能恢复）；②若需稳定被百度收录，需中国大陆可达托管/CDN（需 ICP 备案）；③Google/Bing 收录不受影响。
+- 待办（用户确认暂缓）：百度「不带 www 站点」https://yieldglide.com 验证未通过——原因=百度大陆爬虫连不上海外服务器（Vercel+Cloudflare 线路问题），非配置错误、无任何惩罚后果，仅该站点无法使用 sitemap/API 推送等站长工具（www 站点已验证、不受影响）。后续在网络较好时段重试：站点管理 → https://yieldglide.com → 验证站点 → 点击这里 → 完成验证。若多次失败，长期方案=中国大陆可达托管/CDN（需 ICP 备案）。验证文件 baidu_verify_codeva-yLkIid7GFu.html 已上线保留。
