@@ -467,7 +467,9 @@ export default function StockPools() {
                     <tbody>
                       {detail.stocks.map((s) => {
                         const cost = costs[active.id] && costs[active.id][s.code];
-                        const pnl = cost > 0 && s.price != null ? ((s.price - cost) / cost) * 100 : null;
+                        // 持仓价：优先用户已保存的成本；否则默认用现价（网上可查到），查不到则留空手动填
+                        const effCost = cost != null ? cost : s.price != null ? s.price : null;
+                        const pnl = effCost != null && effCost > 0 && s.price != null ? ((s.price - effCost) / effCost) * 100 : null;
                         return (
                           <tr key={s.code || s.name}>
                             <td className="mono">{s.code}</td>
@@ -482,7 +484,7 @@ export default function StockPools() {
                                 type="number"
                                 step="0.01"
                                 placeholder="—"
-                                value={cost != null ? cost : ''}
+                                value={effCost != null ? effCost : ''}
                                 onChange={(e) => setCost(active.id, s.code, e.target.value)}
                                 title="填入你的持仓成本价"
                               />
