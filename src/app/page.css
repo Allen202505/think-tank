@@ -1007,7 +1007,7 @@
 /* ── 大师的选股池 ── */
 .sp-workspace { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .sp-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; align-items: start; }
-.sp-side { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 20px; }
+.sp-side { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
 .sp-side-actions { display: flex; flex-direction: column; gap: 8px; }
 .sp-side-actions .sp-new { width: 100%; }
 .sp-new-ai { background: var(--accent-bg); border-color: var(--accent-dim); }
