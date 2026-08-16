@@ -6,8 +6,9 @@ export const PRESET_POOLS = [
     name: '巴菲特 · 伯克希尔',
     source: '伯克希尔 13F 持仓（2026-06-30 披露）',
     preset: true,
-    note: '以美股为主（美元计价，组合统计为混合口径、vs 沪深300 仅参考）；比亚迪为 A 股映射、近年持续减持',
+    note: '以美股为主（美元计价，组合统计为混合口径、vs 沪深300 仅参考）；持仓价为公开报道的估算成本，仅部分重仓股可查',
     symbols: ['002594', 'AAPL', 'AXP', 'GOOGL', 'KO', 'BAC', 'CVX', 'OXY', 'CB', 'MCO', 'KHC', 'DAL', 'LEN'],
+    costs: { AAPL: 35, KO: 3.25, AXP: 8.49, MCO: 10.05 }, // 公开报道的估算成本（13F 不披露成本，仅供参考）
   },
   {
     id: 'pool_cambrian',

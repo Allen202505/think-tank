@@ -467,8 +467,9 @@ export default function StockPools() {
                     <tbody>
                       {detail.stocks.map((s) => {
                         const cost = costs[active.id] && costs[active.id][s.code];
-                        // 持仓价：优先用户已保存的成本；否则默认用现价（网上可查到），查不到则留空手动填
-                        const effCost = cost != null ? cost : s.price != null ? s.price : null;
+                        // 持仓价：优先用户已保存的成本；其次预置池已知的持仓价（如巴菲特公开报道的估算成本）；查不到则留空手动填
+                        const poolCost = active.costs && active.costs[s.code] != null ? active.costs[s.code] : null;
+                        const effCost = cost != null ? cost : poolCost;
                         const pnl = effCost != null && effCost > 0 && s.price != null ? ((s.price - effCost) / effCost) * 100 : null;
                         return (
                           <tr key={s.code || s.name}>
