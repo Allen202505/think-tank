@@ -2707,3 +2707,6 @@
   - 已注册 https://yieldglide.com（协议 https、领域金融），验证文件 baidu_verify_codeva-yLkIid7GFu.html 内容已改为百度官方 32 位哈希（83f37ae8a39afcfac38c84ca152bc63e，与下载原版逐字节一致），已部署上线、HTTP 200、百度爬虫 UA 可访问。
   - 状态：站点仍显示「未验证」；自动化多次点「完成验证」未确认（百度反自动化滑块验证 + 页面 ERR_EMPTY_RESPONSE 连接波动）。待用户在 Chrome 手动完成验证；若仍失败，备用方案=改用 HTML标签验证（百度给 meta code，加到 layout.js 再部署）。
   - 经验：百度「文件验证」的文件内容是 32 位哈希（不是 meta 标签格式），务必下载官方文件逐字节替换。
+- 2026-08-16（百度不带www站点验证：第二次失败原因=连接不上）：
+  - 百度报错「无法连接到您网站的服务器，网络或线路（网通电信）问题」。文件内容已正确，问题在百度大陆爬虫 → 海外服务器（Vercel+Cloudflare）的线路连通性。
+  - 待办：①用户检查 Cloudflare 安全设置（Bot Fight Mode / Under Attack 关闭，允许 Baiduspider）；②过段时间重试验证；③若持续失败，考虑中国大陆可达的托管/CDN（需备案）或接受主动推送慢收录。
