@@ -428,9 +428,11 @@ export default function StockPools() {
                       ].map((it) => (
                         <div key={it.key} className="sp-stat sp-stat-short">
                           <div className="sp-stat-label">{it.label}{it.d && it.d.date ? <span className="sp-stat-date"> · {it.range ? weekRange(it.d.date) : it.d.date.slice(5)}</span> : null}</div>
-                          <div className={`sp-stat-val${it.d && it.d.ret != null && it.d.ret >= 0 ? ' up' : ' down'}`}>{fmtPct(it.d ? it.d.ret : null)}</div>
-                          <div className="sp-stat-sub">vs 沪深300 {fmtPct(it.d ? it.d.indexRet : null)}</div>
-                          <div className="sp-stat-sub">{it.d ? `${it.d.up} 涨 / ${it.d.down} 跌` : ''}</div>
+                          <div className="sp-stat-val-row">
+                            <div className={`sp-stat-val${it.d && it.d.ret != null && it.d.ret >= 0 ? ' up' : ' down'}`}>{fmtPct(it.d ? it.d.ret : null)}</div>
+                            <div className="sp-stat-count">{it.d ? `${it.d.up} 涨 / ${it.d.down} 跌` : ''}</div>
+                          </div>
+                          <div className="sp-stat-sub">vs 上证指数 {fmtPct(it.d ? it.d.indexRet : null)}</div>
                         </div>
                       ))}
                     </div>
@@ -439,7 +441,7 @@ export default function StockPools() {
                       <div className="sp-stat">
                         <div className="sp-stat-label">区间等权涨幅</div>
                         <div className={`sp-stat-val${stats.intervalRet >= 0 ? ' up' : ' down'}`}>{fmtPct(stats.intervalRet)}</div>
-                        <div className="sp-stat-sub">vs 沪深300 {fmtPct(stats.indexRet)}</div>
+                        <div className="sp-stat-sub">vs 上证指数 {fmtPct(stats.indexRet)}</div>
                       </div>
                       <div className="sp-stat">
                         <div className="sp-stat-label">跑赢大盘天数</div>

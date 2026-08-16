@@ -1163,6 +1163,9 @@
 .sp-stat-short.active { border-color: var(--accent); background: var(--accent-bg-strong); }
 .sp-stat-date { color: var(--text-muted); font-weight: 400; }
 .sp-stat { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px 16px; }
+.sp-stat-val-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 6px 0 4px; }
+.sp-stat-val-row .sp-stat-val { margin: 0; }
+.sp-stat-count { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
 .sp-stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .sp-stat-val { font-size: 24px; font-weight: 800; color: var(--text); margin: 6px 0 4px; font-family: var(--font-mono); }
 .sp-stat-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; }

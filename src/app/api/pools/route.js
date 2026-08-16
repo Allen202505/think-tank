@@ -173,7 +173,7 @@ export async function POST(request) {
 
     // 拉每只股票 + 沪深300 的日K
     const data = await Promise.all(valid.map(async (info) => ({ info, bars: await fetchKline(info.secid, days + 1) })));
-    const indexBars = await fetchKline('1.000300', days + 1);
+    const indexBars = await fetchKline('1.000001', days + 1); // 上证指数
 
     // 短周期：今天 / 昨天 / 本周（等权，自动取最近交易日）
     const periods = { today: [], yesterday: [], week: [] };
@@ -261,7 +261,7 @@ export async function POST(request) {
         window: { days, start: okStocks[0]?.startDate || null, end: okStocks[0]?.endDate || null },
         stocks,
         index: {
-          name: '沪深300',
+          name: '上证指数',
           ret: indexRet,
           last: indexBars ? indexBars[indexBars.length - 1].close : null,
         },
