@@ -1,0 +1,10 @@
+# 用法：cp .env.local .env.production && docker compose up -d
+services:
+  think-tank:
+    build: .
+    container_name: think-tank
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production

@@ -2693,3 +2693,7 @@
   - 反扒③防提示词泄漏：新增 src/lib/security.js 的 SYSTEM_GUARD，在 chat/breakfast/munger/zen 的消息入口注入 system 保密指令。
   - 反扒结论：核心「事件穿透框架」(src/lib/framework.js) 与大师PK提示词 (src/lib/prompts.js) 目前在客户端 bundle（客户端驱动多步调用），可被扒；真正的根治是把编排/提示词移到服务端（建议后续做）。
   - SEO：layout.js 元数据（title/description/keywords/OG/Twitter）纳入 5 项能力；新增 JSON-LD（WebSite + WebApplication + ItemList 能力列表）；sitemap 加入 /breakfast（priority 0.8）。已验证 sitemap.xml、JSON-LD 渲染、限流 429。
+- 2026-08-16（自建服务器/百度SEO 准备）：用户想拥有自己的服务器并在百度站长平台提交 sitemap（外部账户操作需用户本人，我备好一切本地可做项）：
+  - next.config 开启 output:'standalone'（Docker 部署用，Vercel 兼容；已验证 .next/standalone 生成）
+  - 新增 Dockerfile / .dockerignore / docker-compose.yml / deploy/nginx.conf.example / scripts/baidu-push.sh（百度主动推送，BAIDU_SITE_URL + BAIDU_PUSH_TOKEN 环境变量）/ DEPLOY.md（服务器购买建议[香港/海外免备案+Cloudflare]、Docker 部署、Nginx+HTTPS、百度 sitemap 提交与主动推送、Google Search Console）。
+  - 待用户提供：百度 HTML 验证 meta 的 content 值（替换 layout.js 里的旧占位 codeva 值）。
