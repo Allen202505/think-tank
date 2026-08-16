@@ -2710,3 +2710,7 @@
 - 2026-08-16（百度不带www站点验证：第二次失败原因=连接不上）：
   - 百度报错「无法连接到您网站的服务器，网络或线路（网通电信）问题」。文件内容已正确，问题在百度大陆爬虫 → 海外服务器（Vercel+Cloudflare）的线路连通性。
   - 待办：①用户检查 Cloudflare 安全设置（Bot Fight Mode / Under Attack 关闭，允许 Baiduspider）；②过段时间重试验证；③若持续失败，考虑中国大陆可达的托管/CDN（需备案）或接受主动推送慢收录。
+- 2026-08-16（百度验证第三次排查：Cloudflare 未拦截百度爬虫）：
+  - 模拟 Baiduspider UA 连续 5 次抓取首页与验证文件均 HTTP 200，无任何 cf 拦截特征（无 403/挑战页/Just a moment）。结论：Cloudflare 没有拦截百度，报错「无法连接」= 百度大陆爬虫 → 海外服务器(Vercel+Cloudflare) 的线路连通问题（百度自己也提示网通电信线路）。
+  - Cloudflare 后台自动导航受阻（SPA 把 /security/* 都重定向到 /access），未能逐项查看 Bot Fight Mode，但外测已排除拦截可能。
+  - 方案：①过段时间重试百度验证（线路波动可能恢复）；②若需稳定被百度收录，需中国大陆可达托管/CDN（需 ICP 备案）；③Google/Bing 收录不受影响。
