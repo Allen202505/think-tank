@@ -9,6 +9,7 @@ function tencentCode(secid) {
   const [m, code] = String(secid || '').split('.');
   if (m === '105' || m === '106') return 'us' + code;
   if (m === '116') return 'hk' + code;
+  if (m === '0' && /^[489]/.test(code)) return 'bj' + code; // 北交所
   return (m === '1' ? 'sh' : 'sz') + code;
 }
 

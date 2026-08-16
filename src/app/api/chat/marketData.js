@@ -407,7 +407,7 @@ async function resolveTicker(t) {
 // 用腾讯行情补 A 股代码的真实名称（GBK 解码；失败返回 null）
 export async function fetchACodeName(code) {
   if (!/^\d{6}$/.test(String(code))) return null;
-  const prefix = /^(60|68|90)/.test(code) ? 'sh' : (/^(00|30|20)/.test(code) ? 'sz' : '');
+  const prefix = /^(60|68|90)/.test(code) ? 'sh' : (/^(00|30|20)/.test(code) ? 'sz' : (/^[489]/.test(code) ? 'bj' : '')); // 北交所 bj 前缀
   if (!prefix) return null;
   try {
     const ctrl = new AbortController();
@@ -480,7 +480,7 @@ export async function resolveSymbols(query) {
   });
   const codeMatches = query.match(/\b\d{6}\b/g) || [];
   codeMatches.forEach((c) => {
-    if (/^(6|0|3)\d{5}$/.test(c)) tickers.add(c);
+    if (/^(6|0|3|4|8|9)\d{5}$/.test(c)) tickers.add(c); // 含北交所(4/8/9 开头)
   });
 
   for (const t of tickers) {
