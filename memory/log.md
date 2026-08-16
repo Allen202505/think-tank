@@ -2717,3 +2717,4 @@
 - 待办（用户确认暂缓）：百度「不带 www 站点」https://yieldglide.com 验证未通过——原因=百度大陆爬虫连不上海外服务器（Vercel+Cloudflare 线路问题），非配置错误、无任何惩罚后果，仅该站点无法使用 sitemap/API 推送等站长工具（www 站点已验证、不受影响）。后续在网络较好时段重试：站点管理 → https://yieldglide.com → 验证站点 → 点击这里 → 完成验证。若多次失败，长期方案=中国大陆可达托管/CDN（需 ICP 备案）。验证文件 baidu_verify_codeva-yLkIid7GFu.html 已上线保留。
 - 2026-08-16（推送状态）：用户确认推送后，GitHub（github.com:443）持续连接超时（api.github.com 正常，属线路波动）。本地 4 个提交（8638b1d/e276bde/a12b186/159a178，均为百度验证日志）安全保留，待网络恢复后执行 git push origin main。
 - 2026-08-16（生产环境美股无数据修复）：根因=美股/港股 K 线只靠东财，而东财在 Vercel 海外服务器被屏蔽（本地正常、生产 12 只美股全无数据，仅 A 股正常）。修复=新增 fetchYahooKline（yahoo-finance2 chart，美股 105/106、港股 116→xxxx.HK），在东财失败后兜底（腾讯/新浪不支持美股/港股）。本地因中国 IP 无法访问 Yahoo，需部署后在生产验证。已验证构建通过。
+- 2026-08-16（美股无数据修复·第二版）：Yahoo 从 Vercel 数据中心 IP 可能也被限 → 新增 Nasdaq 官方历史日K（api.nasdaq.com/api/quote/{code}/historical，本地直连可用、美国源不拦数据中心 IP，需 UA+Origin+Referer 头，返回倒序需 reverse）。美股链=东财→Nasdaq→Yahoo；港股链=东财→Yahoo。另加 lastUSKlineErr 诊断（无数据时错误里带原因，便于生产排查）。本地实测 AAPL 305.93 / KO 87.71 恢复。

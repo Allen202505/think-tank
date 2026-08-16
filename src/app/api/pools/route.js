@@ -4,6 +4,7 @@ import { resolveSymbols, getYahoo } from '../chat/marketData.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+let lastUSKlineErr = ''; // 诊断：最近一次美股/港股 K 线失败原因
 const TENCENT = (code, days) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${code},day,,,${days},qfq`;
 
 function tencentCode(secid) {
@@ -95,6 +96,43 @@ async function fetchSinaKline(secid, days) {
   }
 }
 
+// Nasdaq 官方历史日K：美股（东财在海外被屏蔽、Yahoo 有时限流时用这个）
+async function fetchNasdaqKline(secid, days) {
+  const [m, code] = String(secid || '').split('.');
+  if (m !== '105' && m !== '106') return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 2 * 86400 * 1000);
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(code)}/historical?assetclass=stocks&fromdate=${fmt(start)}&todate=${fmt(end)}&limit=${days + 1}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json', Origin: 'https://www.nasdaq.com', Referer: 'https://www.nasdaq.com/' },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) { lastUSKlineErr = `nasdaq http ${res.status}`; return null; }
+    const json = await res.json();
+    const rows = json?.data?.tradesTable?.rows || [];
+    const bars = rows
+      .map((r) => {
+        const parts = String(r.date || '').split('/');
+        if (parts.length < 3) return null;
+        const close = parseFloat(String(r.close || '').replace(/[^0-9.]/g, ''));
+        if (!(close > 0)) return null;
+        return { date: `${parts[2]}-${parts[0]}-${parts[1]}`, close };
+      })
+      .filter(Boolean)
+      .reverse(); // Nasdaq 返回倒序（最新在前），转成时间正序
+    return bars.slice(-(days + 1));
+  } catch (e) {
+    lastUSKlineErr = `nasdaq: ${String(e.message || e).slice(0, 60)}`;
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Yahoo 兜底：美股/港股日K（Vercel 海外服务器可访问；东财在海外常被屏蔽）
 async function fetchYahooKline(secid, days) {
   const [m, code] = String(secid || '').split('.');
@@ -112,6 +150,7 @@ async function fetchYahooKline(secid, days) {
       .filter((b) => b.close > 0);
     return bars.slice(-(days + 1));
   } catch (e) {
+    lastUSKlineErr = `yahoo: ${String(e.message || e).slice(0, 60)}`;
     return null;
   }
 }
@@ -121,7 +160,14 @@ async function fetchKline(secid, days) {
   const em = await Promise.race([emP, new Promise((r) => setTimeout(() => r(null), 1200))]);
   if (em && em.length > 1) return em;
   // 美股/港股：东财在海外常被屏蔽，东财失败后直接走 Yahoo（腾讯/新浪不支持或不可靠）
-  if (/^(105|106|116)\./.test(String(secid))) {
+  if (/^(105|106)\./.test(String(secid))) {
+    lastUSKlineErr = '';
+    const nd = await fetchNasdaqKline(secid, days);
+    if (nd && nd.length > 1) return nd;
+    const yh = await fetchYahooKline(secid, days);
+    if (yh && yh.length > 1) return yh;
+  } else if (/^116\./.test(String(secid))) {
+    lastUSKlineErr = '';
     const yh = await fetchYahooKline(secid, days);
     if (yh && yh.length > 1) return yh;
   }
@@ -225,7 +271,7 @@ export async function POST(request) {
 
     // 每只股票：现价/当日涨跌/上涨天数/区间涨幅
     const stocks = data.map(({ info, bars }) => {
-      if (!bars || bars.length < 2) return { code: info.symbol, name: info.name, error: '无行情数据' };
+      if (!bars || bars.length < 2) return { code: info.symbol, name: info.name, error: /^(105|106|116)\./.test(info.secid || '') && lastUSKlineErr ? `无行情数据（${lastUSKlineErr}）` : '无行情数据' };
       const wb = sliceWindow(bars, period);
       if (wb.length < 2) return { code: info.symbol, name: info.name, error: '区间数据不足' };
       const closes = wb.map((b) => b.close);
