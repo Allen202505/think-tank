@@ -2698,3 +2698,8 @@
   - 新增 Dockerfile / .dockerignore / docker-compose.yml / deploy/nginx.conf.example / scripts/baidu-push.sh（百度主动推送，BAIDU_SITE_URL + BAIDU_PUSH_TOKEN 环境变量）/ DEPLOY.md（服务器购买建议[香港/海外免备案+Cloudflare]、Docker 部署、Nginx+HTTPS、百度 sitemap 提交与主动推送、Google Search Console）。
   - 待用户提供：百度 HTML 验证 meta 的 content 值（替换 layout.js 里的旧占位 codeva 值）。
 - 2026-08-16（推送部署 yieldglide.com）：用户确认后推送 14 个本地提交（79a530f..744e82c），Vercel 自动部署成功。已线上验证：sitemap 含 https://yieldglide.com 与 /breakfast；新元数据标题上线；JSON-LD 为 WebSite+WebApplication+ItemList。百度后台用户可提交 sitemap 并做 API 主动推送。
+- 2026-08-16（百度收录实操）：通过浏览器扩展认领用户 Chrome 中的百度站长后台标签页（站点 https://www.yieldglide.com，带 www），并完成：
+  - API 主动推送：提交 https://www.yieldglide.com/ 与 /breakfast，返回 success:2（百度规则：有跳转提交跳转后链接；www 301 到不带 www 主域）。
+  - sitemap 提交被卡：该站点无 ICP 备案号 → 今日 sitemap 配额 0，输入框禁用，无法提交；备案号可提高配额。
+  - 结论：无备案时靠 API 推送即可收录；日后有备案号再补 sitemap。另提示：百度注册的是 www 站点，主域实际为不带 www 的 yieldglide.com（www 301），可考虑在百度再添加验证不带 www 的站点。
+  - 备注：浏览器操控用的是 codex browser-client（chrome extension, user.openTabs/claimTab + playwright API）。
