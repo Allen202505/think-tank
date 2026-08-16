@@ -85,11 +85,7 @@ export default function StockPools() {
   const [suggestResult, setSuggestResult] = useState(null);
   const [suggestError, setSuggestError] = useState('');
   const [suggestEmptied, setSuggestEmptied] = useState(false);
-  // 默认区间：交易日默认「今天」；周末非交易日默认「本周」，避免「今天」回退数据块被默认高亮
-  const [days, setDays] = useState(() => {
-    const dow = new Date().getDay(); // 0=周日 6=周六
-    return dow === 0 || dow === 6 ? 'week' : 'today';
-  });
+  const [days, setDays] = useState('today'); // 默认选中今天（非交易日自动取最近交易日数据）
   const [daysMenuOpen, setDaysMenuOpen] = useState(false);
   const [costs, setCosts] = useState({});
   const [detail, setDetail] = useState(null);
