@@ -2716,3 +2716,4 @@
   - 方案：①过段时间重试百度验证（线路波动可能恢复）；②若需稳定被百度收录，需中国大陆可达托管/CDN（需 ICP 备案）；③Google/Bing 收录不受影响。
 - 待办（用户确认暂缓）：百度「不带 www 站点」https://yieldglide.com 验证未通过——原因=百度大陆爬虫连不上海外服务器（Vercel+Cloudflare 线路问题），非配置错误、无任何惩罚后果，仅该站点无法使用 sitemap/API 推送等站长工具（www 站点已验证、不受影响）。后续在网络较好时段重试：站点管理 → https://yieldglide.com → 验证站点 → 点击这里 → 完成验证。若多次失败，长期方案=中国大陆可达托管/CDN（需 ICP 备案）。验证文件 baidu_verify_codeva-yLkIid7GFu.html 已上线保留。
 - 2026-08-16（推送状态）：用户确认推送后，GitHub（github.com:443）持续连接超时（api.github.com 正常，属线路波动）。本地 4 个提交（8638b1d/e276bde/a12b186/159a178，均为百度验证日志）安全保留，待网络恢复后执行 git push origin main。
+- 2026-08-16（生产环境美股无数据修复）：根因=美股/港股 K 线只靠东财，而东财在 Vercel 海外服务器被屏蔽（本地正常、生产 12 只美股全无数据，仅 A 股正常）。修复=新增 fetchYahooKline（yahoo-finance2 chart，美股 105/106、港股 116→xxxx.HK），在东财失败后兜底（腾讯/新浪不支持美股/港股）。本地因中国 IP 无法访问 Yahoo，需部署后在生产验证。已验证构建通过。

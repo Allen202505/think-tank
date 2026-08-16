@@ -1,6 +1,6 @@
 // src/app/api/pools/route.js —— 大师的选股池
 // POST { symbols: ['300750','600519',...], days: 60 } → 当日涨跌 + 区间统计（vs 沪深300）
-import { resolveSymbols } from '../chat/marketData.js';
+import { resolveSymbols, getYahoo } from '../chat/marketData.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
@@ -95,10 +95,36 @@ async function fetchSinaKline(secid, days) {
   }
 }
 
+// Yahoo 兜底：美股/港股日K（Vercel 海外服务器可访问；东财在海外常被屏蔽）
+async function fetchYahooKline(secid, days) {
+  const [m, code] = String(secid || '').split('.');
+  if (m !== '105' && m !== '106' && m !== '116') return null;
+  try {
+    const yf = await getYahoo();
+    const symbol = m === '116' ? `${String(Number(code)).padStart(4, '0')}.HK` : code;
+    const end = Math.floor(Date.now() / 1000);
+    const start = end - days * 2 * 86400; // 多取一些，保证足够交易日
+    const res = await yf.chart(symbol, { period1: start, period2: end, interval: '1d' });
+    const ts = res?.timestamp || [];
+    const close = res?.indicators?.quote?.[0]?.close || [];
+    const bars = ts
+      .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), close: close[i] != null ? Number(close[i]) : 0 }))
+      .filter((b) => b.close > 0);
+    return bars.slice(-(days + 1));
+  } catch (e) {
+    return null;
+  }
+}
+
 async function fetchKline(secid, days) {
   const emP = fetchEmKline(secid, days);
   const em = await Promise.race([emP, new Promise((r) => setTimeout(() => r(null), 1200))]);
   if (em && em.length > 1) return em;
+  // 美股/港股：东财在海外常被屏蔽，东财失败后直接走 Yahoo（腾讯/新浪不支持或不可靠）
+  if (/^(105|106|116)\./.test(String(secid))) {
+    const yh = await fetchYahooKline(secid, days);
+    if (yh && yh.length > 1) return yh;
+  }
   const tc = await fetchTencentKline(secid, days);
   if (tc && tc.length > 1) return tc;
   const sn = await fetchSinaKline(secid, days);
