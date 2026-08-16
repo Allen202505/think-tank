@@ -1,6 +1,7 @@
 // src/app/api/pools/resolve-names —— 把股票名称列表解析成 6 位代码
 // POST { names: ["齐翔腾达", "安 纳 达", ...] } → { ok, result: { found: [{code,name}], missing: [names] } }
 import { fetchACodeName } from '../../chat/marketData.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
 const EM_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8';
@@ -97,6 +98,9 @@ async function resolveWithLimit(names, limit = 10) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('pools-resolve:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     // 兼容两种入参：{ names: [...] }（已拆好）或 { text: "原始粘贴文本" }（后端智能拆分）
     const rawNames = Array.isArray(body.names)

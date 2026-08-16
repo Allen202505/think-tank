@@ -2,10 +2,14 @@
 // 小白解释 · 流式接口：边生成边推送（SSE），避免等整段返回
 // 比 /api/chat 轻量：不走快照注入、max_tokens 更小；含 45s 超时 + 首次请求重试
 import { buildExplainPrompt } from '../../../lib/prompts.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export async function POST(request) {
+
+  const _rl = rateLimit('explain:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json().catch(() => ({}));
   const speech = typeof body?.speech === 'string' ? body.speech : '';
   const master = body?.master && typeof body.master === 'object' ? body.master : null;

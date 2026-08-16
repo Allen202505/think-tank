@@ -2687,3 +2687,9 @@
   2. 卡片统计布局：今天/昨天/本周卡片的「X 涨 / Y 跌」从数值下方子行移到与数值同一行、右对齐（.sp-stat-val-row + .sp-stat-count）。
   3. 对比指数：沪深300 → 上证指数（接口 1.000300 → 1.000001，文案「vs 沪深300」→「vs 上证指数」）。
 - 2026-08-16（选股池背景）：切换到「大师的选股池」(tab=pools) 时背景图使用 /bg-debate.png，其余设置与大师PK/财报等默认一致（滤镜/遮罩/透明度不变）。已验证各 Tab：PK→bg-argue、早餐→bg-breakfast、财报→bg-munger、禅→bg-argue、选股池→bg-debate。
+- 2026-08-16（反扒 + SEO）：
+  - 反扒①API 限流：新增 src/lib/rateLimit.js（进程内 IP+路由 滑动窗口），13 个 API 路由接入（chat20/breakfast10/munger10/zen10/virtual-master15/context30/explain20/match-masters30/news30/pools30/extract15/resolve-names20/suggest10，单位 次/分钟）；超限返回 429 + Retry-After。注意：Vercel 无服务器多实例，进程内计数仅基线防护，生产建议叠加 Cloudflare/Upstash。
+  - 反扒②next.config 显式 productionBrowserSourceMaps:false。
+  - 反扒③防提示词泄漏：新增 src/lib/security.js 的 SYSTEM_GUARD，在 chat/breakfast/munger/zen 的消息入口注入 system 保密指令。
+  - 反扒结论：核心「事件穿透框架」(src/lib/framework.js) 与大师PK提示词 (src/lib/prompts.js) 目前在客户端 bundle（客户端驱动多步调用），可被扒；真正的根治是把编排/提示词移到服务端（建议后续做）。
+  - SEO：layout.js 元数据（title/description/keywords/OG/Twitter）纳入 5 项能力；新增 JSON-LD（WebSite + WebApplication + ItemList 能力列表）；sitemap 加入 /breakfast（priority 0.8）。已验证 sitemap.xml、JSON-LD 渲染、限流 429。

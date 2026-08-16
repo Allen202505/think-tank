@@ -2,6 +2,7 @@
 // POST { query: '巴菲特' } → { ok, result: { name, source, stocks: [{code,name,reason}] } }
 // 原则：只返回有公开依据的真实持仓/推荐；搜不到就返回空列表，绝不按风格推断编造。
 import { generateJson } from '../../../../lib/ai';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 import { PRESET_POOLS } from '../../../../data/masterPools';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
@@ -58,6 +59,9 @@ function matchPreset(query) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('pools-suggest:' + getClientIp(request), { limit: 10, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const query = String(body.query || '').trim();
     if (!query) return Response.json({ error: '请输入大师关键词' }, { status: 400 });

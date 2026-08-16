@@ -2,7 +2,9 @@
 // 巴菲特的早餐 · 事件穿透框架：一次生成一步（逐步推演）
 // POST { news, hostId, guests:[{id,groupKey}], mode:'quick'|'deep', stepKey, prevSteps:[{title,content}] }
 // mode='quick' → 快速解读（单次返回）；mode='deep'（默认）→ 框架逐步推演
+import { SYSTEM_GUARD } from '../../../lib/security';
 import { getQuoteContext } from '../chat/quoteContext.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPrompt, buildQuickTurnPrompt } from '../../../lib/prompts';
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
@@ -116,7 +118,7 @@ async function generateJson(messages, schemaHint = '{"content":"本步完整分�
 }
 
 function buildMessages(prompt, snapshot, userAsk) {
-  const messages = [];
+  const messages = [{ role: 'system', content: SYSTEM_GUARD }];
   if (snapshot) {
     messages.push(
       { role: 'user', content: snapshot },
@@ -132,6 +134,9 @@ function buildMessages(prompt, snapshot, userAsk) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('breakfast:' + getClientIp(request), { limit: 10, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const news = body.news;
     const hostId = body.hostId || 'buffett';

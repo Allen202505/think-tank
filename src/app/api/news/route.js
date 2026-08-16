@@ -4,6 +4,7 @@
 // 数据源：财联社电报（CLS，公开缓存接口，需签名） + 东方财富 7x24 快讯（免签名）
 // 容错：任一源失败自动降级；两者都失败返回空（前端回退内置示例）。
 import { createHash } from 'node:crypto';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const CLS_CACHE = 'https://www.cls.cn/api/cache';
 const EM_KUAIXUN = (n, p) => `https://newsapi.eastmoney.com/kuaixun/v1/getlist_102_ajaxResult_${n}_${p}_.html`;
@@ -162,6 +163,9 @@ async function fetchEmKuaixun(page = 1) {
 }
 
 export async function GET(request) {
+  const _rl = rateLimit('news:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
   try {
     const url = new URL(request.url);
     const page = Math.max(1, Number(url.searchParams.get('page') || 1) || 1);

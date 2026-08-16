@@ -1,6 +1,7 @@
 // src/app/api/pools/route.js —— 大师的选股池
 // POST { symbols: ['300750','600519',...], days: 60 } → 当日涨跌 + 区间统计（vs 沪深300）
 import { resolveSymbols } from '../chat/marketData.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const TENCENT = (code, days) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${code},day,,,${days},qfq`;
@@ -160,6 +161,9 @@ function poolPeriodStat(stockRets) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('pools:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const symbols = Array.isArray(body.symbols) ? body.symbols.map((s) => String(s).trim()).filter(Boolean).slice(0, 100) : []; // 上限 100 只（寒武纪等预置池超 50 只）
     const days = Math.min(800, Math.max(2, Number(body.days) || 60));

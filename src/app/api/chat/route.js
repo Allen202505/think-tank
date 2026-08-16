@@ -4,9 +4,14 @@
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 import { getQuoteContext } from './quoteContext.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { SYSTEM_GUARD } from '../../../lib/security';
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('chat:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
@@ -18,6 +23,7 @@ export async function POST(request) {
     }
 
     let messages = Array.isArray(body.messages) ? [...body.messages] : [];
+    messages = [{ role: 'system', content: SYSTEM_GUARD }, ...messages];
 
     // 信息层梳理：优先使用前端已生成的最新数据快照；否则按 query 现拉
     const userQuery = body.query || body.userQuery || '';

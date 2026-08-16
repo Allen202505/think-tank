@@ -9,5 +9,11 @@ export default function sitemap() {
       changeFrequency: 'daily',
       priority: 1,
     },
+    {
+      url: `${baseUrl}/breakfast`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
   ]
 }

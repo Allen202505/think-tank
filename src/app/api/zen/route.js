@@ -2,6 +2,8 @@
 // 缠中说禅 · 看短线：用缠论方法对单只股票做短线分析评估
 // POST { query: '股票名称或代码' }
 import { extractJson, generateJson } from '../../../lib/ai';
+import { SYSTEM_GUARD } from '../../../lib/security';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { masterProfileLine } from '../../../lib/prompts';
 import { resolveSymbols, getQuote, getMarketOverview } from '../chat/marketData.js';
 
@@ -102,6 +104,9 @@ function unwrapNested(parsed) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('zen:' + getClientIp(request), { limit: 10, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const query = String(body.query || '').trim();
     if (!query) return Response.json({ error: '请先输入股票名称或代码' }, { status: 400 });
@@ -140,7 +145,7 @@ ${dataBlock}
 {"content":"你的分析发言","followUps":["追问方向1","方向2"]}
 注意：所有引号用中文引号「」或“”，禁止英文双引号。`;
     const { raw, parsed } = await generateJson(
-      [{ role: 'system', content: prompt }, { role: 'user', content: `请对 ${info.name || info.symbol} 做缠论短线分析。` }],
+      [{ role: 'system', content: SYSTEM_GUARD }, { role: 'system', content: prompt }, { role: 'user', content: `请对 ${info.name || info.symbol} 做缠论短线分析。` }],
       '{"content":"分析","followUps":["追问1"]}',
       1800,
     );

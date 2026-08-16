@@ -1,6 +1,7 @@
 // src/app/api/pools/extract —— 从报道文本 / 云文档·网页链接中提取 A 股标的
 // POST { text } 或 { url } → { ok, result: { stocks: [{code,name}], source } }
 import { generateJson } from '../../../../lib/ai';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const MAX_TEXT = 12000;
@@ -56,6 +57,9 @@ function regexCodes(text) {
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('pools-extract:' + getClientIp(request), { limit: 15, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json().catch(() => ({}));
     const textRaw = String(body.text || '').trim();
     const url = String(body.url || '').trim();

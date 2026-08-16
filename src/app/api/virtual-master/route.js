@@ -2,6 +2,7 @@
 // 邀请大师：根据昵称"全网检索"该人物的公开内容与评价，构建"虚拟大师画像"
 // 返回流式（NDJSON）事件：search → research → build → done/error，前端可展示阶段进度
 import { ReadableStream } from 'node:stream/web';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { snapColorToPalette } from '../../../data/masters';
 import { RECIPES } from '../../../data/recipes';
 
@@ -164,6 +165,9 @@ async function callDeepSeek(messages, maxTokens = 1500, temperature = 0.7) {
 }
 
 export async function POST(request) {
+
+  const _rl = rateLimit('virtual-master:' + getClientIp(request), { limit: 15, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json();
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
   const hint = typeof body?.hint === 'string' ? body.hint.trim() : '';

@@ -2,6 +2,7 @@
 // 智能选角：根据用户问题，从大师名单中挑选最适合回答的 1-5 位（最多 5 位）
 // 用 DeepSeek 做语义匹配（风格/能力圈 vs 问题类型）；失败时返回空数组，前端回退随机
 import { PRESET_MASTERS } from '../../../data/masters.js';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const CACHE_TTL_MS = 30 * 60000; // 同一问题 30 分钟缓存
@@ -9,6 +10,9 @@ const CACHE_TTL_MS = 30 * 60000; // 同一问题 30 分钟缓存
 const cache = new Map();
 
 export async function POST(request) {
+
+  const _rl = rateLimit('match-masters:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json().catch(() => ({}));
   const question = String(body?.question || '').trim();
   const requestMasters = Array.isArray(body?.masters) && body.masters.length ? body.masters : null;

@@ -3,6 +3,8 @@
 // POST { mode: 'report', link|file|content, note } → 芒格深入浅出解读财报
 // POST { mode: 'followup', question, report, prevContent } → 举手提问追加回答
 import { spawn } from 'child_process';
+import { SYSTEM_GUARD } from '../../../lib/security';
+import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -70,11 +72,14 @@ async function fetchLinkText(url) {
 }
 
 function buildMessages(prompt, userAsk) {
-  return [{ role: 'system', content: prompt }, { role: 'user', content: userAsk }];
+  return [{ role: 'system', content: SYSTEM_GUARD }, { role: 'system', content: prompt }, { role: 'user', content: userAsk }];
 }
 
 export async function POST(request) {
   try {
+  const _rl = rateLimit('munger:' + getClientIp(request), { limit: 10, windowMs: 60000 });
+  if (!_rl.ok) return limitResponse(_rl.retryAfter);
+
     const body = await request.json();
     const mode = body.mode === 'followup' ? 'followup' : 'report';
     const munger = findMasterById('munger');
