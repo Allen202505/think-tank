@@ -1200,7 +1200,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
       </div>
 
       <div className="app-shell">
