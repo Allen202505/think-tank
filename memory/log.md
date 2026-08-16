@@ -2703,3 +2703,7 @@
   - sitemap 提交被卡：该站点无 ICP 备案号 → 今日 sitemap 配额 0，输入框禁用，无法提交；备案号可提高配额。
   - 结论：无备案时靠 API 推送即可收录；日后有备案号再补 sitemap。另提示：百度注册的是 www 站点，主域实际为不带 www 的 yieldglide.com（www 301），可考虑在百度再添加验证不带 www 的站点。
   - 备注：浏览器操控用的是 codex browser-client（chrome extension, user.openTabs/claimTab + playwright API）。
+- 2026-08-16（百度添加不带www站点：进度）：
+  - 已注册 https://yieldglide.com（协议 https、领域金融），验证文件 baidu_verify_codeva-yLkIid7GFu.html 内容已改为百度官方 32 位哈希（83f37ae8a39afcfac38c84ca152bc63e，与下载原版逐字节一致），已部署上线、HTTP 200、百度爬虫 UA 可访问。
+  - 状态：站点仍显示「未验证」；自动化多次点「完成验证」未确认（百度反自动化滑块验证 + 页面 ERR_EMPTY_RESPONSE 连接波动）。待用户在 Chrome 手动完成验证；若仍失败，备用方案=改用 HTML标签验证（百度给 meta code，加到 layout.js 再部署）。
+  - 经验：百度「文件验证」的文件内容是 32 位哈希（不是 meta 标签格式），务必下载官方文件逐字节替换。
