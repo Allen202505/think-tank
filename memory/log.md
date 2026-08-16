@@ -2697,3 +2697,4 @@
   - next.config 开启 output:'standalone'（Docker 部署用，Vercel 兼容；已验证 .next/standalone 生成）
   - 新增 Dockerfile / .dockerignore / docker-compose.yml / deploy/nginx.conf.example / scripts/baidu-push.sh（百度主动推送，BAIDU_SITE_URL + BAIDU_PUSH_TOKEN 环境变量）/ DEPLOY.md（服务器购买建议[香港/海外免备案+Cloudflare]、Docker 部署、Nginx+HTTPS、百度 sitemap 提交与主动推送、Google Search Console）。
   - 待用户提供：百度 HTML 验证 meta 的 content 值（替换 layout.js 里的旧占位 codeva 值）。
+- 2026-08-16（推送部署 yieldglide.com）：用户确认后推送 14 个本地提交（79a530f..744e82c），Vercel 自动部署成功。已线上验证：sitemap 含 https://yieldglide.com 与 /breakfast；新元数据标题上线；JSON-LD 为 WebSite+WebApplication+ItemList。百度后台用户可提交 sitemap 并做 API 主动推送。
