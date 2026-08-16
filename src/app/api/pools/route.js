@@ -7,6 +7,8 @@ const TENCENT = (code, days) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/
 
 function tencentCode(secid) {
   const [m, code] = String(secid || '').split('.');
+  if (m === '105' || m === '106') return 'us' + code;
+  if (m === '116') return 'hk' + code;
   return (m === '1' ? 'sh' : 'sz') + code;
 }
 
@@ -36,6 +38,8 @@ async function fetchEmKline(secid, days) {
 
 // 腾讯兜底：短区间前复权，长区间不复权（东财不稳时）
 async function fetchTencentKline(secid, days) {
+  const [m] = String(secid || '').split('.');
+  if (m === '105' || m === '106' || m === '116') return null; // 腾讯美股/港股K线接口不可靠，仅 A 股兜底
   const code = tencentCode(secid);
   const useQfq = days <= 250;
   const url = `${TENCENT(code, days)}${useQfq ? '' : ''}`;
@@ -62,6 +66,8 @@ async function fetchTencentKline(secid, days) {
 // 正常时只发东财 1 个请求；东财慢/挂时 ~1.5s 内拿到腾讯数据，避免干等超时
 // 新浪兜底：东财/腾讯被限流时使用（日K，scale=240 表示日线）
 async function fetchSinaKline(secid, days) {
+  const [m] = String(secid || '').split('.');
+  if (m !== '0' && m !== '1') return null; // 新浪仅支持 A 股
   const symbol = tencentCode(secid);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 6000);
@@ -154,7 +160,7 @@ function poolPeriodStat(stockRets) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const symbols = Array.isArray(body.symbols) ? body.symbols.map((s) => String(s).trim()).filter(Boolean).slice(0, 50) : [];
+    const symbols = Array.isArray(body.symbols) ? body.symbols.map((s) => String(s).trim()).filter(Boolean).slice(0, 100) : []; // 上限 100 只（寒武纪等预置池超 50 只）
     const days = Math.min(800, Math.max(2, Number(body.days) || 60));
     const period = String(body.period || 'today'); // today | yesterday | week | 30/60/120/250/500/750
     if (!symbols.length) return Response.json({ error: '请先提供股票代码列表' }, { status: 400 });

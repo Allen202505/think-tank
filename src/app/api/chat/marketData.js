@@ -377,13 +377,13 @@ function extractCompanyCandidates(query) {
 async function resolveName(name) {
   return cached(`resolve:${name}`, 86400000, async () => {
     const list = await searchEastMoney(name);
-    if (!list.length) return null;
+    if (!list.length) throw new Error('not found'); // 空结果按错误缓存（短TTL），避免偶发失败毒化24h
     const order = ['CN', 'HK', 'US'];
     for (const m of order) {
       const hit = list.find((x) => x.market === m && x.symbol.length <= 6);
       if (hit) return hit;
     }
-    return list[0] || null;
+    return list[0];
   });
 }
 
@@ -394,7 +394,7 @@ async function resolveTicker(t) {
   }
   return cached(`resolve:${t}`, 86400000, async () => {
     const list = await searchEastMoney(t);
-    if (!list.length) return null;
+    if (!list.length) throw new Error('not found'); // 空结果按错误缓存（短TTL），避免偶发失败毒化24h
     const exact = list.find((x) => x.symbol.toUpperCase() === t.toUpperCase());
     return exact || list[0];
   });
@@ -434,11 +434,12 @@ export async function resolveSymbols(query) {
   const q = query.trim();
   // 纯 6 位 A 股代码无需 AI/公司名提取，走代码解析即可（避免每个代码一次 LLM 调用拖慢首载）
   const isPureCode = /^\d{6}$/.test(q);
+  const isPureTicker = /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(q); // 纯美股代码（AAPL/BRK.B 等）无需 LLM 提取
   const found = new Map(); // secid -> info
 
-  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）；纯代码跳过
+  // 0) AI 信息层梳理：先用 LLM 提取公司名（结果按 query 缓存 1 小时）；纯 A 股代码/纯美股代码跳过
   let llmNames = null;
-  if (!isPureCode) {
+  if (!isPureCode && !isPureTicker) {
     try {
       llmNames = await cached(`llmext:${query}`, 3600000, () => extractCompaniesViaLLM(query));
     } catch (e) { /* 忽略，走启发式兜底 */ }

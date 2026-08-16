@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
 import { PRESET_MASTERS } from '../data/masters';
 
@@ -121,8 +121,10 @@ export default function StockPools() {
     if (pools.length && !pools.find((p) => p.id === activeId)) setActiveId(pools[0].id);
   }, [pools, activeId, hydrated]);
 
+  const loadSeq = useRef(0); // 请求序号：丢弃过期响应，避免大池子加载慢时旧数据覆盖新选中的池子
   const loadDetail = useCallback(async (pool, d) => {
     if (!pool || !pool.symbols || !pool.symbols.length) return;
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
     setDetail(null);
@@ -133,12 +135,14 @@ export default function StockPools() {
         body: JSON.stringify({ symbols: pool.symbols, days: typeof d === 'number' ? d : 30, period: String(d) }),
       });
       const data = await res.json();
+      if (loadSeq.current !== seq) return; // 已切到别的池子，丢弃
       if (!res.ok || data.error) throw new Error(data.error || '加载失败，请重试');
       setDetail(data.result);
     } catch (e) {
+      if (loadSeq.current !== seq) return;
       setError(e.message || '加载失败，请重试');
     } finally {
-      setLoading(false);
+      if (loadSeq.current === seq) setLoading(false);
     }
   }, []);
 
