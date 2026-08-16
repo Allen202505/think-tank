@@ -1282,6 +1282,19 @@ export default function Home() {
             <button type="button" className="invite-entry" onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
             </button>
+            <div className="master-search">
+              <svg className="master-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input
+                type="text"
+                value={masterQuery}
+                onChange={(e) => setMasterQuery(e.target.value)}
+                placeholder={t('searchMasters')}
+                aria-label={t('searchMasters')}
+              />
+              {masterQuery && (
+                <button type="button" className="master-search-clear" onClick={() => setMasterQuery('')} title={locale === 'en' ? 'Clear' : '清空'} aria-label={locale === 'en' ? 'Clear' : '清空'}>✕</button>
+              )}
+            </div>
             <div className={`master-group-filter-wrap${groupFilterExpanded ? '' : ' collapsed'}`}>
               <div className={`master-group-filter${groupFilterExpanded ? '' : ' collapsed'}`}>
                 <button type="button" className={`mgroup-chip${masterGroup === '__all__' ? ' on' : ''}`} onClick={() => setMasterGroup('__all__')}>
@@ -1297,19 +1310,6 @@ export default function Home() {
                   {groupFilterExpanded ? t('groupFilterLess') : t('groupFilterMore')}
                 </button>
               </div>
-            </div>
-            <div className="master-search">
-              <svg className="master-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input
-                type="text"
-                value={masterQuery}
-                onChange={(e) => setMasterQuery(e.target.value)}
-                placeholder={t('searchMasters')}
-                aria-label={t('searchMasters')}
-              />
-              {masterQuery && (
-                <button type="button" className="master-search-clear" onClick={() => setMasterQuery('')} title={locale === 'en' ? 'Clear' : '清空'} aria-label={locale === 'en' ? 'Clear' : '清空'}>✕</button>
-              )}
             </div>
             <div className="master-list">
               {searchedGroups.map((g) => (

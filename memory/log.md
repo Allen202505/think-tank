@@ -2679,3 +2679,4 @@
   - 北交所支持：resolveSymbols 纯代码识别加 4/8/9 开头；fetchACodeName 名称查询加 bj 前缀；pools tencentCode 加 bj 前缀（东财 secid 0.920599 原生支持）。
   - 注意：大师列表英文界面显示 nameEn（MR Dang），中文界面显示 Dang大；tag 必须用 masterGroups.js 里的合法 key（周期），否则被归入「其他」。
 - 2026-08-16（大师PK 大师列表搜索）：在流派筛选与大师列表之间新增紧凑搜索框（放大镜图标 + 一键清空），按 名称/英文名/称号/风格/流派 实时过滤；i18n 增加 searchMasters 文案；CSS .master-search 圆角胶囊样式与整体一致。已验证：搜 Dang→MR Dang、搜 周期→周期流派、清空恢复 73 位。
+- 2026-08-16（搜索框位置与样式调整）：大师PK 搜索框从流派筛选下方移到「邀请一位大师」按钮正下方；样式从白底胶囊改为与 invite-entry 同款（透明底 + accent 金边 + 6px 圆角 + 金色图标/占位符，hover/focus 金色浅底）。
