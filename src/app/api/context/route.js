@@ -6,7 +6,7 @@ import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 
 export async function POST(request) {
   try {
-  const _rl = rateLimit('context:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  const _rl = rateLimit('context:' + getClientIp(request), { limit: 90, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();

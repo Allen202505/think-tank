@@ -98,7 +98,7 @@ async function resolveWithLimit(names, limit = 10) {
 
 export async function POST(request) {
   try {
-  const _rl = rateLimit('pools-resolve:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  const _rl = rateLimit('pools-resolve:' + getClientIp(request), { limit: 60, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();

@@ -57,7 +57,7 @@ function regexCodes(text) {
 
 export async function POST(request) {
   try {
-  const _rl = rateLimit('pools-extract:' + getClientIp(request), { limit: 15, windowMs: 60000 });
+  const _rl = rateLimit('pools-extract:' + getClientIp(request), { limit: 40, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json().catch(() => ({}));

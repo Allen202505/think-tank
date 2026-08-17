@@ -9,7 +9,7 @@ import { SYSTEM_GUARD } from '../../../lib/security';
 
 export async function POST(request) {
   try {
-  const _rl = rateLimit('chat:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  const _rl = rateLimit('chat:' + getClientIp(request), { limit: 40, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();

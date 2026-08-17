@@ -166,7 +166,7 @@ async function callDeepSeek(messages, maxTokens = 1500, temperature = 0.7) {
 
 export async function POST(request) {
 
-  const _rl = rateLimit('virtual-master:' + getClientIp(request), { limit: 15, windowMs: 60000 });
+  const _rl = rateLimit('virtual-master:' + getClientIp(request), { limit: 30, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json();
   const name = typeof body?.name === 'string' ? body.name.trim() : '';

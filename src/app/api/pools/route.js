@@ -233,7 +233,7 @@ function poolPeriodStat(stockRets) {
 
 export async function POST(request) {
   try {
-  const _rl = rateLimit('pools:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  const _rl = rateLimit('pools:' + getClientIp(request), { limit: 120, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();

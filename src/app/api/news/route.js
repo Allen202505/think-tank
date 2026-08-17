@@ -163,7 +163,7 @@ async function fetchEmKuaixun(page = 1) {
 }
 
 export async function GET(request) {
-  const _rl = rateLimit('news:' + getClientIp(request), { limit: 30, windowMs: 60000 });
+  const _rl = rateLimit('news:' + getClientIp(request), { limit: 120, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
   try {

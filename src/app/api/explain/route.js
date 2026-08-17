@@ -8,7 +8,7 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export async function POST(request) {
 
-  const _rl = rateLimit('explain:' + getClientIp(request), { limit: 20, windowMs: 60000 });
+  const _rl = rateLimit('explain:' + getClientIp(request), { limit: 60, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json().catch(() => ({}));
   const speech = typeof body?.speech === 'string' ? body.speech : '';
