@@ -5,6 +5,7 @@ import { SAMPLE_NEWS } from '../data/sampleNews';
 import { getHost, pickGuestsByStyle, findMasterById } from '../lib/breakfast';
 import { FRAMEWORK_STEPS } from '../lib/framework';
 import { MasterAvatar } from './ui';
+import StockPoolImportModal from './StockPoolImportModal';
 
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>（避免露出裸 **）
 function renderInline(text, keyBase) {
@@ -64,6 +65,15 @@ export default function BreakfastRoundtable({ active = true }) {
   const [newsPage, setNewsPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [newsFallback, setNewsFallback] = useState(false);
+  // ── 新闻页签：24小时热点 / 我的股票池新闻 ──
+  const [newsTab, setNewsTab] = useState('hot');
+  const [myPools, setMyPools] = useState([]);
+  const [poolNewsItems, setPoolNewsItems] = useState([]);
+  const [poolNewsLoading, setPoolNewsLoading] = useState(false);
+  const [poolNewsError, setPoolNewsError] = useState('');
+  const [myStockCount, setMyStockCount] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+
 
   const loadNews = useCallback(async (page = 1, append = false) => {
     setNewsLoading(true);
@@ -90,6 +100,52 @@ export default function BreakfastRoundtable({ active = true }) {
       setNewsLoading(false);
     }
   }, []);
+
+  // 读取「我的股票池」（早餐页自己的池子列表，供股票池新闻使用）
+  const loadMyPools = () => {
+    try {
+      const pools = JSON.parse(localStorage.getItem('thinktank_user_pools') || '[]');
+      return (Array.isArray(pools) ? pools : []).filter((p) => p && Array.isArray(p.symbols) && /^我的股票池/.test(String(p.name || '')));
+    } catch (e) { return []; }
+  };
+
+  // 拉取「我的股票池新闻」：命中自选股/关注股的新闻列表
+  const loadPoolNews = useCallback(async () => {
+    const pools = loadMyPools();
+    setMyPools(pools);
+    const symbols = [];
+    const seen = new Set();
+    pools.forEach((p) => (p.symbols || []).forEach((s2) => { if (!seen.has(s2)) { seen.add(s2); symbols.push(s2); } }));
+    setMyStockCount(symbols.length);
+    if (!symbols.length) { setPoolNewsItems([]); setPoolNewsLoading(false); setPoolNewsError(''); return; }
+    const startedAt = Date.now();
+    setPoolNewsLoading(true);
+    setPoolNewsError('');
+    try {
+      const res = await fetch('/api/pool-news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ watchlist: symbols }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || '获取失败，请重试');
+      setPoolNewsItems(data.items || []);
+    } catch (e) {
+      setPoolNewsError(e.message || '获取失败，请重试');
+    } finally {
+      // 让「搜索中」动效至少展示 600ms，避免太快一闪而过
+      const elapsed = Date.now() - startedAt;
+      const remain = 600 - elapsed;
+      if (remain > 0) await new Promise((r) => setTimeout(r, remain));
+      setPoolNewsLoading(false);
+    }
+  }, []);
+
+  // 首次进入即读取一次自选池；切到「我的股票池新闻」页签时刷新
+  useEffect(() => { setMyPools(loadMyPools()); }, []);
+  useEffect(() => {
+    if (newsTab === 'mine') loadPoolNews();
+  }, [newsTab, loadPoolNews]);
 
   useEffect(() => { loadNews(1, false); }, [loadNews]);
 
@@ -365,24 +421,38 @@ export default function BreakfastRoundtable({ active = true }) {
     <div className="bk-workspace">
       <div className="bk-layout">
         <aside className="bk-news-col">
-          {/* 今日快讯：真实 API 拉取，点击弹窗预填后解读 */}
           <div className="bk-news-list-head">
-            <span>📰 消息面解读</span>
+            <span>{newsTab === 'hot' ? '📰 消息面解读' : '📌 我的股票池新闻'}</span>
             <div className="bk-news-head-actions">
-              {newsFallback && newsList.length === 0 && !newsLoading && (
-                <span className="bk-news-fallback-tip" title={newsError || ''}>实时源暂不可用，展示示例</span>
+              {newsTab === 'hot' ? (
+                <>
+                  {newsFallback && newsList.length === 0 && !newsLoading && (
+                    <span className="bk-news-fallback-tip" title={newsError || ''}>实时源暂不可用，展示示例</span>
+                  )}
+                  <button
+                    type="button"
+                    className="bk-news-refresh"
+                    onClick={() => loadNews(1, false)}
+                    disabled={newsLoading}
+                    title="刷新新闻列表"
+                  >
+                    {newsLoading && newsList.length === 0 ? '···' : '↻ 刷新'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="bk-news-refresh"
+                  onClick={loadPoolNews}
+                  disabled={poolNewsLoading}
+                  title="刷新我的股票池新闻"
+                >
+                  {poolNewsLoading ? '···' : '↻ 刷新'}
+                </button>
               )}
-              <button
-                type="button"
-                className="bk-news-refresh"
-                onClick={() => loadNews(1, false)}
-                disabled={newsLoading}
-                title="刷新新闻列表"
-              >
-                {newsLoading && newsList.length === 0 ? '···' : '↻ 刷新'}
-              </button>
             </div>
           </div>
+
           {/* 强入口：点击弹窗输入自定义新闻 */}
           <button
             type="button"
@@ -394,27 +464,87 @@ export default function BreakfastRoundtable({ active = true }) {
             <span className="bk-news-entry-icon">✎</span> 输入新闻源
           </button>
 
-          {(newsList.length ? newsList : SAMPLE_NEWS).map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className={`bk-news-row${activeNewsId === n.id ? ' active' : ''}`}
-              onClick={() => { setActiveNewsId(n.id); openNewsModal(`${n.title}\n${n.summary}`); }}
-            >
-              <span className="bk-news-row-arrow" aria-hidden="true">›</span>
-              <span className="bk-news-row-main">
-                <span className="bk-news-row-title">{n.title}</span>
-                <span className="bk-news-row-meta">
-                  {n.source} · {n.time}
-                  {(n.tags || []).map((t) => <span key={t} className="bk-tag">{t}</span>)}
-                </span>
-              </span>
-            </button>
-          ))}
-          {!newsFallback && hasMore && (
-            <button type="button" className="bk-news-more" onClick={() => loadNews(newsPage + 1, true)} disabled={newsLoading}>
-              {newsLoading ? '加载中…' : '加载更多'}
-            </button>
+          {/* 页签：24小时热点（默认）/ 我的股票池新闻，放在输入信息源正下方 */}
+          <div className="bk-news-tabs" role="tablist" aria-label="新闻来源">
+            <button type="button" role="tab" className={newsTab === 'hot' ? 'active' : ''} aria-selected={newsTab === 'hot'} onClick={() => setNewsTab('hot')}>24小时热点</button>
+            <button type="button" role="tab" className={newsTab === 'mine' ? 'active' : ''} aria-selected={newsTab === 'mine'} onClick={() => setNewsTab('mine')}>我的股票池新闻</button>
+          </div>
+
+          {newsTab === 'hot' ? (
+            <>
+              {(newsList.length ? newsList : SAMPLE_NEWS).map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`bk-news-row${activeNewsId === n.id ? ' active' : ''}`}
+                  onClick={() => { setActiveNewsId(n.id); openNewsModal(`${n.title}\n${n.summary}`); }}
+                >
+                  <span className="bk-news-row-arrow" aria-hidden="true">›</span>
+                  <span className="bk-news-row-main">
+                    <span className="bk-news-row-title">{n.title}</span>
+                    <span className="bk-news-row-meta">
+                      {n.source} · {n.time}
+                      {(n.tags || []).map((t) => <span key={t} className="bk-tag">{t}</span>)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              {!newsFallback && hasMore && (
+                <button type="button" className="bk-news-more" onClick={() => loadNews(newsPage + 1, true)} disabled={newsLoading}>
+                  {newsLoading ? '加载中…' : '加载更多'}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {myPools.length === 0 ? (
+                <div className="bk-poolnews-empty">
+                  <div className="bk-poolnews-empty-title">还没有「我的股票池」</div>
+                  <p className="bk-poolnews-empty-desc">创建后，这里会实时展示与你自选股相关的新闻；创建的池子会同步出现在「大师的选股池 · 我的股票池」。</p>
+                  <button
+                    type="button"
+                    className="bk-news-entry bk-poolnews-create"
+                    onClick={() => setImportOpen(true)}
+                    title="与选股池「导入股票池」交互一致"
+                  >
+                    <span className="bk-news-entry-icon">＋</span> 快速创建我的股票池
+                  </button>
+                </div>
+              ) : poolNewsLoading ? (
+                <div className="bk-poolnews-empty bk-poolnews-loading">
+                  <span className="bk-loading-speech-dots"><span /><span /><span /></span>
+                  <span>正在搜索 {myStockCount || 0} 只自选股的新闻…</span>
+                </div>
+              ) : poolNewsError ? (
+                <div className="bk-poolnews-empty">
+                  <div className="bk-poolnews-empty-title">⚠ {poolNewsError}</div>
+                  <button type="button" className="bk-news-refresh" onClick={loadPoolNews}>↻ 重试</button>
+                </div>
+              ) : poolNewsItems.length === 0 ? (
+                <div className="bk-poolnews-empty">
+                  <div className="bk-poolnews-empty-title">暂时没找到与你的自选股相关的新闻</div>
+                  <p className="bk-poolnews-empty-desc">已搜索 {myStockCount || 0} 只自选股（滚动快讯 + 个股新闻）；稍后刷新，或切到「24小时热点」看大盘消息。</p>
+                </div>
+              ) : (
+                poolNewsItems.map((n) => (
+                  <button
+                    key={n.id || n.title}
+                    type="button"
+                    className="bk-news-row"
+                    onClick={() => openNewsModal(`${n.title}\n${n.summary || ''}`)}
+                  >
+                    <span className="bk-news-row-arrow" aria-hidden="true">›</span>
+                    <span className="bk-news-row-main">
+                      <span className="bk-news-row-title">{n.title}</span>
+                      <span className="bk-news-row-meta">
+                        {n.source} · {n.time}
+                        {(n.related || []).map((r) => <span key={r.symbol || r.name} className="bk-tag bk-tag-related">{r.name}</span>)}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </>
           )}
         </aside>
 
@@ -636,6 +766,13 @@ export default function BreakfastRoundtable({ active = true }) {
           </div>
         </div>
       )}
+
+      <StockPoolImportModal
+        open={importOpen}
+        initialType="mine"
+        onClose={() => setImportOpen(false)}
+        onCreated={() => loadPoolNews()}
+      />
     </div>
   );
 }

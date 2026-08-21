@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
-import { PRESET_MASTERS } from '../data/masters';
+import StockPoolImportModal from './StockPoolImportModal';
 
 const LS_KEY = 'thinktank_user_pools';
 
@@ -45,9 +45,6 @@ function saveCosts(c) {
   try { localStorage.setItem(COST_KEY, JSON.stringify(c)); } catch (e) { /* ignore */ }
 }
 
-// 大师选项：仅来自大师PK的现役大师名单，导入大师股票池时必须先选定
-const MASTER_OPTIONS = PRESET_MASTERS.map((m) => ({ value: m.name, label: m.name }));
-
 const DAY_OPTIONS = [
   { label: '今天', v: 'today' },
   { label: '昨天', v: 'yesterday' },
@@ -66,19 +63,8 @@ export default function StockPools() {
   const [userPools, setUserPools] = useState([]);
   const [activeId, setActiveId] = useState(null); // 默认选中列表第一项（hydration 完成后设置）
   const [importOpen, setImportOpen] = useState(false);
-  const [importType, setImportType] = useState('mine'); // mine | master
-  const [importMode, setImportMode] = useState('manual'); // manual | extract
-  const [masterSelect, setMasterSelect] = useState('');
-  const [form, setForm] = useState({ name: '', source: '', stocks: '' });
-  const [extractInput, setExtractInput] = useState('');
-  const [extractLoading, setExtractLoading] = useState(false);
-  const [extractError, setExtractError] = useState('');
-  const [extracted, setExtracted] = useState([]); // [{code,name}]
-  const [extractSource, setExtractSource] = useState('');
-  const [extractEmpty, setExtractEmpty] = useState(false);
-  const [manualPreview, setManualPreview] = useState([]); // [{code,name}]
-  const [manualMissing, setManualMissing] = useState([]); // 未能识别的名称
-  const [manualResolving, setManualResolving] = useState(false);
+  const [importType, setImportType] = useState('mine'); // 传给共享导入弹窗的初始类型（mine | master）
+  const [poolTab, setPoolTab] = useState('master'); // 左侧列表页签：master=大师的股票池 | mine=我的股票池
   const [searchOpen, setSearchOpen] = useState(false);
   const [suggestQuery, setSuggestQuery] = useState('');
   const [suggestLoading, setSuggestLoading] = useState(false);
@@ -95,8 +81,18 @@ export default function StockPools() {
   // 标记本地数据是否已加载完成：加载完成前禁止写 localStorage，避免用初始空数组覆盖已保存的数据
   const [hydrated, setHydrated] = useState(false);
 
-  const pools = [...userPools, ...PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id))]; // 用户导入/新建的池子排在最前，预置池可隐藏
+  const masterPools = PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id)); // 大师的股票池（可隐藏）
+  const pools = poolTab === 'mine' ? userPools : masterPools; // 页签：我的股票池 / 大师的股票池
   const active = pools.find((p) => p.id === activeId) || null;
+
+  const switchPoolTab = (t) => {
+    setPoolTab(t);
+    const list = t === 'mine' ? userPools : PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id));
+    if (!list.some((p) => p.id === activeId)) {
+      setActiveId(list.length ? list[0].id : null);
+      setDetail(null);
+    }
+  };
 
   useEffect(() => {
     setUserPools(loadUserPools());
@@ -160,103 +156,6 @@ export default function StockPools() {
     return pool;
   };
 
-  // 池子名称自动生成：大师池用选定的大师名；其余按「我的股票池 N / 大师的股票池 N」
-  const selectedMasterName = () => masterSelect.trim();
-  const nextPoolName = (isMaster) => {
-    if (isMaster && selectedMasterName()) return `${selectedMasterName()} · 选股池`;
-    const prefix = isMaster ? '大师的股票池' : '我的股票池';
-    const n = userPools.filter((p) => p.name.startsWith(prefix)).length + 1;
-    return `${prefix} ${n}`;
-  };
-
-  // 手动填写：支持股票名称或 6 位代码，先解析成代码列表再预览
-  const parseManual = async () => {
-    if (!form.stocks.trim()) { setError('请填写至少一只股票（名称或 6 位代码）'); return; }
-    setManualResolving(true);
-    setManualPreview([]);
-    setManualMissing([]);
-    setError('');
-    try {
-      const res = await fetch('/api/pools/resolve-names', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: form.stocks }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || '解析失败，请重试');
-      setManualPreview(data.result.found || []);
-      setManualMissing(data.result.missing || []);
-    } catch (e) {
-      setError(e.message || '解析失败，请重试');
-    } finally {
-      setManualResolving(false);
-    }
-  };
-
-  const removeManualStock = (code) => setManualPreview((prev) => prev.filter((st) => st.code !== code));
-
-  const submitManual = () => {
-    const codes = manualPreview.map((st) => st.code);
-    if (!codes.length) { setError('请先解析出至少一只股票'); return; }
-    const isMaster = importType === 'master';
-    if (isMaster && !selectedMasterName()) { setError('请先选择大师'); return; }
-    const source = isMaster ? '手动整理' : '手动导入';
-    createPool(nextPoolName(isMaster), source, codes);
-    setImportOpen(false);
-    setForm({ name: '', source: '', stocks: '' });
-    setMasterSelect('');
-    setManualPreview([]);
-    setManualMissing([]);
-    setError('');
-  };
-
-  const runExtract = async () => {
-    const val = extractInput.trim();
-    if (!val || extractLoading) return;
-    setExtractLoading(true);
-    setExtractError('');
-    setExtracted([]);
-    setExtractEmpty(false);
-    const isUrl = /^https?:\/\/\S+$/i.test(val);
-    try {
-      const res = await fetch('/api/pools/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isUrl ? { url: val } : { text: val }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || '提取失败，请重试');
-      const stocks = (data.result && data.result.stocks) || [];
-      setExtracted(stocks);
-      setExtractSource((data.result && data.result.source) || '');
-      setExtractEmpty(stocks.length === 0);
-    } catch (e) {
-      setExtractError(e.message || '提取失败，请重试');
-    } finally {
-      setExtractLoading(false);
-    }
-  };
-
-  const removeExtracted = (code) => setExtracted((prev) => prev.filter((st) => st.code !== code));
-
-  const submitExtracted = () => {
-    const codes = extracted.map((st) => st.code);
-    if (!codes.length) { setError('请先提取出至少一只股票'); return; }
-    const isMaster = importType === 'master';
-    if (isMaster && !selectedMasterName()) { setError('请先选择大师'); return; }
-    const source = extractSource || (isMaster ? '手动整理' : '手动导入');
-    createPool(nextPoolName(isMaster), source, codes);
-    setImportOpen(false);
-    setForm({ name: '', source: '', stocks: '' });
-    setMasterSelect('');
-    setExtractInput('');
-    setExtracted([]);
-    setExtractSource('');
-    setExtractError('');
-    setExtractEmpty(false);
-    setError('');
-  };
-
   const runSuggest = async () => {
     const q = suggestQuery.trim();
     if (!q || suggestLoading) return;
@@ -304,9 +203,6 @@ export default function StockPools() {
     setSearchOpen(false);
     setImportOpen(true);
     setImportType('master');
-    const q = suggestQuery.trim();
-    const known = MASTER_OPTIONS.find((m) => m.value === q || (q && m.value.includes(q)));
-    if (known) setMasterSelect(known.value);
     setSuggestQuery('');
     setSuggestResult(null);
     setError('');
@@ -351,8 +247,12 @@ export default function StockPools() {
       <div className="sp-layout">
         {/* 左侧：池子列表 */}
         <div className="sp-side">
+          <div className="sp-tabs" role="tablist" aria-label="池子类型">
+            <button type="button" role="tab" className={poolTab === 'master' ? 'active' : ''} aria-selected={poolTab === 'master'} onClick={() => switchPoolTab('master')}>大师的股票池</button>
+            <button type="button" role="tab" className={poolTab === 'mine' ? 'active' : ''} aria-selected={poolTab === 'mine'} onClick={() => switchPoolTab('mine')}>我的股票池</button>
+          </div>
           <div className="sp-side-actions">
-            <button type="button" className="sp-new" onClick={() => { setImportOpen(true); setSearchOpen(false); setError(''); }}>
+            <button type="button" className="sp-new" onClick={() => { setImportType(poolTab === 'mine' ? 'mine' : 'master'); setImportOpen(true); setSearchOpen(false); setError(''); }}>
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
               导入股票池
             </button>
@@ -362,7 +262,9 @@ export default function StockPools() {
             </button>
           </div>
 
-          {pools.length === 0 && !importOpen && !searchOpen && <div className="sp-empty">还没有池子，导入或搜寻一个</div>}
+          {pools.length === 0 && !importOpen && !searchOpen && (
+            <div className="sp-empty">{poolTab === 'mine' ? '还没有「我的股票池」，点上方「导入股票池」创建' : '还没有池子，导入或搜寻一个'}</div>
+          )}
 
           {pools.map((p) => (
             <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}`} onClick={() => { setActiveId(p.id); setError(''); }}>
@@ -500,99 +402,17 @@ export default function StockPools() {
           )}
       </div>
 
-      {(importOpen || searchOpen) && <div className="invite-drawer-backdrop" onClick={closeDrawers} />}
-      {(importOpen || searchOpen) && (
+      {searchOpen && <div className="invite-drawer-backdrop" onClick={closeDrawers} />}
+      {searchOpen && (
         <div className="invite-drawer" role="dialog" aria-modal="true" aria-labelledby="poolDrawerTitle" onClick={(e) => e.stopPropagation()}>
           <div className="invite-head invite-drawer-head">
-            <h3 className="invite-title" id="poolDrawerTitle">{importOpen ? '导入股票池' : '搜寻大师股票池'}</h3>
+            <h3 className="invite-title" id="poolDrawerTitle">搜寻大师股票池</h3>
             <button type="button" className="modal-close" onClick={closeDrawers} aria-label="关闭">×</button>
           </div>
           <div className="invite-drawer-body">
             {error && <div className="mg-error">⚠ {error}</div>}
 
-            {importOpen && (
-              <div className="sp-form sp-form-drawer">
-                <div className="sp-form-label">导入类型</div>
-                <div className="mg-mode" role="group" aria-label="导入类型">
-                  <button type="button" className={importType === 'mine' ? 'active' : ''} onClick={() => setImportType('mine')}>我的股票池</button>
-                  <button type="button" className={importType === 'master' ? 'active' : ''} onClick={() => setImportType('master')}>大师的股票池</button>
-                </div>
-                {importType === 'master' && (
-                  <>
-                    <div className="sp-form-label">选择大师</div>
-                    <select className="mg-input mg-input-line sp-master-select" value={masterSelect} onChange={(e) => setMasterSelect(e.target.value)}>
-                      <option value="">请选择大师…</option>
-                      {MASTER_OPTIONS.map((m) => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                <div className="sp-form-label">输入方式</div>
-                <div className="mg-mode" role="group" aria-label="输入方式">
-                  <button type="button" className={importMode === 'manual' ? 'active' : ''} onClick={() => setImportMode('manual')}>手动填写</button>
-                  <button type="button" className={importMode === 'extract' ? 'active' : ''} onClick={() => setImportMode('extract')}>文本或链接提取</button>
-                </div>
 
-                {importMode === 'manual' && (
-                  <>
-                    <textarea className="mg-input" rows={6} placeholder="输入股票名称或 6 位代码，一行一个或用逗号/空格分隔，如：\n齐翔腾达\n300750 600519" value={form.stocks} onChange={(e) => { setForm({ ...form, stocks: e.target.value }); setManualPreview([]); setManualMissing([]); }} />
-                    <button type="button" className="mg-btn" onClick={parseManual} disabled={!form.stocks.trim() || manualResolving}>
-                      {manualResolving ? '正在解析…' : (manualPreview.length ? '重新解析' : '解析并预览')}
-                    </button>
-                    {manualMissing.length > 0 && (
-                      <div className="sp-manual-missing">⚠ 以下名称未能识别，未纳入：{manualMissing.join('、')}</div>
-                    )}
-                    {manualPreview.length > 0 && (
-                      <div className="sp-extract">
-                        <div className="sp-extract-head">已解析 {manualPreview.length} 只，可删除不需要的：</div>
-                        <div className="sp-extract-list">
-                          {manualPreview.map((st) => (
-                            <div key={st.code} className="sp-extract-item">
-                              <span className="mono">{st.code}</span>
-                              <span className="sp-extract-name">{st.name || '—'}</span>
-                              <button type="button" className="sp-extract-del" onClick={() => removeManualStock(st.code)} aria-label="删除">✕</button>
-                            </div>
-                          ))}
-                        </div>
-                        <button type="button" className="mg-btn" onClick={submitManual} disabled={!manualPreview.length}>创建股票池</button>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {importMode === 'extract' && (
-                  <>
-                    <textarea className="mg-input" rows={4} placeholder="粘贴报道全文，或云文档 / 网页链接（https://…）" value={extractInput} onChange={(e) => { setExtractInput(e.target.value); setExtractEmpty(false); }} />
-                    <button type="button" className="mg-btn" onClick={runExtract} disabled={!extractInput.trim() || extractLoading}>
-                      {extractLoading ? '正在提取…' : '提取股票'}
-                    </button>
-                    {extractError && <div className="mg-error">⚠ {extractError}</div>}
-                    {extracted.length > 0 && (
-                      <div className="sp-extract">
-                        <div className="sp-extract-head">提取到 {extracted.length} 只标的，可删除不需要的：</div>
-                        <div className="sp-extract-list">
-                          {extracted.map((st) => (
-                            <div key={st.code} className="sp-extract-item">
-                              <span className="mono">{st.code}</span>
-                              <span className="sp-extract-name">{st.name || '待确认'}</span>
-                              <button type="button" className="sp-extract-del" onClick={() => removeExtracted(st.code)} aria-label="删除">✕</button>
-                            </div>
-                          ))}
-                        </div>
-                        <button type="button" className="mg-btn" onClick={submitExtracted} disabled={!extracted.length}>提交到选股池</button>
-                      </div>
-                    )}
-                    {extractEmpty && (
-                      <div className="sp-suggest-empty">
-                        <div className="sp-suggest-empty-title">没有提取到 A 股标的</div>
-                        <p className="sp-suggest-empty-desc">可换个链接或文本重试，或切换到「手动填写」直接输入 6 位代码。</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
 
             {searchOpen && (
               <div className="sp-form sp-form-drawer">
@@ -637,6 +457,12 @@ export default function StockPools() {
           </div>
         </div>
       )}
+      <StockPoolImportModal
+        open={importOpen}
+        initialType={importType}
+        onClose={() => setImportOpen(false)}
+        onCreated={(pool) => { setActiveId(pool.id); setError(''); }}
+      />
     </div>
     </div>
   );

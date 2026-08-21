@@ -185,6 +185,15 @@ export default function MungerFinance() {
                 <span className="mg-speech-tag">财报解读</span>
               </div>
               <div className="mg-speech-body">{renderInline(result.content, 'c')}</div>
+              {result.dataCard && (
+                <details className="mg-data-card" open={false}>
+                  <summary>
+                    <span className="mg-data-card-title">📋 系统数据核验</span>
+                    <span className="mg-data-card-hint">定量数据交叉验证（来自行情/财务数据层，非财报文本）</span>
+                  </summary>
+                  <div className="mg-data-card-body">{renderInline(result.dataCard, 'dc')}</div>
+                </details>
+              )}
               {Array.isArray(result.followUps) && result.followUps.length > 0 && (
                 <div className="mg-followups">
                   <div className="mg-fu-label">想深挖？点击即可举手提问芒格：</div>

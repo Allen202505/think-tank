@@ -1307,3 +1307,54 @@ button.bk-step-head:hover .bk-step-title { color: var(--accent-strong); }
   .bk-layout { grid-template-columns: 1fr; padding: 10px 10px 30px; gap: 12px; }
   .bk-news-col { position: static; max-height: none; overflow: visible; padding-right: 0; }
 }
+
+/* ── 新闻来源页签：24小时热点 / 我的股票池新闻 ── */
+.bk-news-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+}
+.bk-news-tabs button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.bk-news-tabs button:hover { color: var(--text); border-color: var(--accent-dim); }
+.bk-news-tabs button.active {
+  color: var(--bg-card);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* ── 我的股票池新闻：空态 / 加载 / 列表 ── */
+.bk-poolnews-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 22px 14px;
+  color: var(--text-muted);
+}
+.bk-poolnews-empty-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.bk-poolnews-empty-desc { font-size: 12px; line-height: 1.7; }
+.bk-poolnews-create { margin: 4px 0 0; }
+.bk-poolnews-loading { flex-direction: row; justify-content: center; gap: 10px; font-size: 13px; }
+.bk-poolnews-loading .bk-loading-speech-dots { margin: 0; }
+.bk-tag-related {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
