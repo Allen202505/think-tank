@@ -3,6 +3,14 @@ import { Analytics } from '@vercel/analytics/react'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://think-tank.example.com'
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export const metadata = {
   title: '大师吵股 - AI投资大师智囊团：大师PK、巴菲特早餐新闻解读、财报解读、缠论短线、大师选股池',
   description: '大师吵股汇聚巴菲特、芒格、寒武纪的鳄鱼、段永平等投资大师，AI 模拟大师辩论（大师PK）、新闻事件穿透解读（巴菲特的早餐）、财报深入浅出解读（芒格教你读财报）、缠论短线分析（缠中说禅）、大师选股池与区间统计，为投资决策提供多角度参考。',

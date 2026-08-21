@@ -1422,3 +1422,59 @@
   .sp-table td::before { content: attr(data-label); font-size: 10px; color: var(--text-muted); }
   .sp-table td .sp-cost-input { width: 100%; min-width: 0; }
 }
+
+/* ── 移动端第三阶段：修问题（缩放锁定 / 输入框 / 选角条） ── */
+.mobile-sel-chips { display: none; }
+
+@media (max-width: 900px) {
+  /* 防 iOS 聚焦输入框自动放大：所有输入控件字号 >= 16px */
+  .question-input,
+  .mg-input,
+  .bk-news-input,
+  textarea,
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  input:not([type]) { font-size: 16px !important; }
+
+  /* 大师选择：桌面整页列表 → 紧凑选角条（已选数量 + 头像 chips + 邀请按钮） */
+  .sidebar {
+    order: 0; flex: 0 0 auto; min-width: 0; width: auto; align-self: stretch;
+    display: flex; flex-direction: row; align-items: center; gap: 8px;
+    max-height: none; overflow: visible;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 6px 8px;
+    background: var(--bg-card);
+  }
+  .sidebar .card-panel { display: contents; box-shadow: none; border: 0; background: none; padding: 0; }
+  .sidebar .card-panel > .card-title,
+  .sidebar .card-panel > .card-title-line { display: none; }
+  .sidebar-mode-hint,
+  .master-search,
+  .master-group-filter-wrap,
+  .master-list { display: none !important; }
+  .mobile-sel-chips {
+    order: 1;
+    display: flex; align-items: center; gap: 5px;
+    overflow-x: auto; flex: 1 1 auto; min-width: 0;
+    padding: 2px 0;
+    scrollbar-width: none;
+  }
+  .sidebar-count-row { order: 2; display: flex; align-items: center; gap: 4px; margin: 0; flex: 0 0 auto; }
+  .sidebar-count { display: none; } /* 移动端隐藏计数文字，已选 chips 即反馈 */
+  .sidebar-count-row button { padding: 4px 8px; font-size: 11px; }
+  .invite-entry { order: 3; flex: 0 0 auto; width: auto !important; padding: 6px 10px; font-size: 12px; margin: 0; justify-content: center; }
+  .mobile-sel-chips::-webkit-scrollbar { display: none; }
+  .mobile-sel-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-dim);
+    border-radius: 999px;
+    padding: 2px 8px 2px 3px;
+    font-size: 11px; color: var(--text);
+    white-space: nowrap; flex: 0 0 auto;
+    font-family: var(--font-sans);
+  }
+  .mobile-sel-chip-name { max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+}

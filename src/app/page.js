@@ -1299,6 +1299,14 @@ export default function Home() {
             <button type="button" className="invite-entry" onClick={openInvite}>
               <span className="ie-icon">✦</span> 邀请一位大师
             </button>
+            <div className="mobile-sel-chips" aria-label="已选大师">
+              {allMasters.filter((m) => selected.has(m.id)).slice(0, 12).map((m) => (
+                <span key={m.id} className="mobile-sel-chip" title={m.name}>
+                  <MasterAvatar master={m} size={24} />
+                  <span className="mobile-sel-chip-name">{m.name}</span>
+                </span>
+              ))}
+            </div>
             <div className="master-search">
               <svg className="master-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
               <input
