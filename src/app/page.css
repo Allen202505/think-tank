@@ -1221,3 +1221,204 @@
   border-color: var(--accent);
   font-weight: 700;
 }
+
+/* ── 移动端壳层：顶部 header + 底部 Tab + 功能大厅（仅 ≤900px 显示） ── */
+.mobile-header,
+.mobile-tabs { display: none; }
+.feature-hall { display: none; }
+
+@media (max-width: 900px) {
+  /* 桌面左侧边栏在移动端隐藏，改由底部 Tab + 顶部 header 承担导航 */
+  .app-sidebar { display: none !important; }
+
+  /* 顶部极简 header */
+  .mobile-header {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 80;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .mobile-brand {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 900;
+    color: var(--accent-strong);
+    background: none; border: 0; padding: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .mobile-header-actions { display: flex; align-items: center; gap: 4px; }
+  .mobile-hall-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    font-size: 12px; font-weight: 700; line-height: 1;
+    padding: 6px 10px; border-radius: 999px;
+    cursor: pointer; font-family: var(--font-sans); white-space: nowrap;
+    margin-right: 2px;
+  }
+  .mobile-icon-btn {
+    background: none; border: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    min-width: 32px; min-height: 32px;
+  }
+
+  /* 底部固定 Tab */
+  .mobile-tabs {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 80;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-subtle);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    background: none; border: 0;
+    color: var(--text-muted);
+    font-family: var(--font-sans); font-size: 10px; line-height: 1;
+    padding: 4px 2px; cursor: pointer;
+    border-radius: 10px;
+    min-height: 46px;
+  }
+  .mobile-tab.active { color: var(--accent-strong); font-weight: 700; }
+  .mobile-tab-icon { font-size: 19px; line-height: 1; }
+
+  /* 内容区让出固定 header / bottom bar */
+  .app-main {
+    padding-top: calc(46px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 功能大厅（全屏浮层） */
+  .feature-hall {
+    display: flex; flex-direction: column;
+    position: fixed; inset: 0;
+    z-index: 200;
+    background: var(--bg-page);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .feature-hall-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 10px;
+  }
+  .feature-hall-title { font-family: var(--font-serif); font-size: 20px; font-weight: 900; color: var(--accent-strong); }
+  .feature-hall-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .feature-hall-close { background: none; border: 0; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 6px; border-radius: 8px; }
+  .feature-hall-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 8px 18px calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+  .feature-hall-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 16px 14px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    min-height: 112px;
+  }
+  .feature-hall-card:active { border-color: var(--accent); }
+  .feature-hall-card-icon { font-size: 26px; line-height: 1; }
+  .feature-hall-card-name { font-size: 14px; font-weight: 800; color: var(--text); }
+  .feature-hall-card-desc { font-size: 11.5px; line-height: 1.6; color: var(--text-muted); }
+}
+
+/* ── 移动端第二阶段：模块级体验 ── */
+@media (max-width: 900px) {
+  /* 壳层留白由各工作区自己承担（聊天需撑满视口） */
+  .app-main { padding-top: 0; padding-bottom: 0; }
+  .main-layout { height: 100dvh; overflow: hidden; }
+  .bk-layout { padding-top: calc(52px + env(safe-area-inset-top, 0px)); padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  .mg-workspace-wrap { padding-top: calc(52px + env(safe-area-inset-top, 0px)); padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  .sp-layout { padding-top: calc(52px + env(safe-area-inset-top, 0px)); padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── 大师PK：大师条置顶 + 聊天区 + 底部固定提问卡 ── */
+  .main-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 8px calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  .sidebar { order: 0; flex: 0 0 auto; max-height: 148px; overflow-y: auto; min-width: 0; }
+  .main { order: 1; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .main > .card-panel:first-child {
+    order: 2; flex: 0 0 auto;
+    position: sticky; bottom: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.08);
+  }
+  .main > .card-panel:nth-child(2) { order: 1; flex: 1 1 auto; min-height: 0; }
+  .sidebar-hint { display: none; }
+
+  /* ── 右侧抽屉/弹层 → 底部弹层 ── */
+  .invite-drawer {
+    top: auto; right: auto; bottom: 0; left: 0;
+    width: 100vw; height: 88dvh; max-height: 88dvh;
+    border-left: 0; border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.22);
+    padding: 14px 16px 0;
+    animation: sheet-in-up .28s cubic-bezier(.2, .8, .3, 1);
+  }
+  .invite-drawer-footer { margin: 0 -16px; padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  @keyframes sheet-in-up { from { transform: translateY(100%); } to { transform: none; } }
+  .explain-drawer {
+    top: auto; right: auto; bottom: 0; left: 0;
+    width: 100vw; height: 88dvh; max-height: 88dvh;
+    border-left: 0; border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.22);
+    animation: sheet-in-up .28s cubic-bezier(.22, .61, .36, 1);
+  }
+  .explain-drawer-head { padding: 16px 16px 14px; }
+  .explain-drawer-body { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .bk-modal-overlay { align-items: flex-end; padding: 0; }
+  .bk-modal { width: 100vw; max-width: 100vw; border-radius: 18px 18px 0 0; max-height: 90dvh; margin: 0; }
+
+  /* ── 早餐：列表 / 详情 两级 ── */
+  .bk-mobile-back { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
+  .bk-mobile-back-hidden { display: none !important; }
+  .bk-mobile-detail .bk-news-col { display: none; }
+
+  /* ── 选股池：列表 → 详情 drill-in；宽表改竖排卡片 ── */
+  .sp-back { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
+  .sp-back-hidden { display: none !important; }
+  .sp-workspace.has-active .sp-side { display: none; }
+  .sp-table thead { display: none; }
+  .sp-table, .sp-table tbody { display: block; }
+  .sp-table tbody tr {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--bg-card);
+  }
+  .sp-table td { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; border: 0; }
+  .sp-table td::before { content: attr(data-label); font-size: 10px; color: var(--text-muted); }
+  .sp-table td .sp-cost-input { width: 100%; min-width: 0; }
+}

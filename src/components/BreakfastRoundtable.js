@@ -73,6 +73,8 @@ export default function BreakfastRoundtable({ active = true }) {
   const [poolNewsError, setPoolNewsError] = useState('');
   const [myStockCount, setMyStockCount] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
+  // 移动端：列表 / 详情 两级（详情=分析进行中或已完成；back 返回列表）
+  const [bkShowList, setBkShowList] = useState(true);
 
 
   const loadNews = useCallback(async (page = 1, append = false) => {
@@ -179,6 +181,7 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
+    setBkShowList(false); // 移动端：开始分析 → 进入详情
     const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
     setCache((prev) => {
       const cur = prev[key];
@@ -416,9 +419,11 @@ export default function BreakfastRoundtable({ active = true }) {
   // loading 卡：深度模式显示当前步骤负责人（快速模式在卡内逐条显示「正在解读」）
   const loadingMaster = (entry.currentLead && findMasterById(entry.currentLead)) || host;
   const loadingAction = entry.currentAction || '正在进行新闻分析…';
+  // 移动端详情态：分析进行中/已完成 且 未手动返回列表
+  const mobileDetail = entry.status !== 'idle' && !bkShowList;
 
   return (
-    <div className="bk-workspace">
+    <div className={`bk-workspace${mobileDetail ? ' bk-mobile-detail' : ''}`}>
       <div className="bk-layout">
         <aside className="bk-news-col">
           <div className="bk-news-list-head">
@@ -551,6 +556,13 @@ export default function BreakfastRoundtable({ active = true }) {
         <section className={`bk-main-col${entry.status === 'idle' ? ' bk-main-idle' : ''}`}>
         {/* 顶部信息行：巴菲特带你读新闻 + 功能按钮（固定在顶部） */}
         <div className="bk-roundtable-head">
+          <button
+            type="button"
+            className={`bk-mobile-back${mobileDetail ? '' : ' bk-mobile-back-hidden'}`}
+            onClick={() => setBkShowList(true)}
+            aria-label="返回新闻列表"
+            title="返回新闻列表"
+          >←</button>
           <span className="bk-roundtable-title">巴菲特带你读新闻</span>
           <div className="bk-roundtable-actions">
             {(news || entry.status !== 'idle') && (

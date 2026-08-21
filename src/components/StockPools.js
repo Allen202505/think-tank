@@ -87,6 +87,8 @@ export default function StockPools() {
 
   const switchPoolTab = (t) => {
     setPoolTab(t);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 900;
+    if (isMobile) { setActiveId(null); setDetail(null); return; } // 移动端切页签先看列表
     const list = t === 'mine' ? userPools : PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id));
     if (!list.some((p) => p.id === activeId)) {
       setActiveId(list.length ? list[0].id : null);
@@ -110,6 +112,8 @@ export default function StockPools() {
   // 默认选中列表第一项；当前选中项被删除/隐藏时，也自动落到列表第一项
   useEffect(() => {
     if (!hydrated) return; // 等本地池子加载完成后再设默认，避免刷新后固定落在预置池（如巴菲特）上
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 900;
+    if (isMobile) return; // 移动端不自动选中：先展示列表，点进才看详情
     if (pools.length && !pools.find((p) => p.id === activeId)) setActiveId(pools[0].id);
   }, [pools, activeId, hydrated]);
 
@@ -239,8 +243,15 @@ export default function StockPools() {
   const isShort = typeof days !== 'number';
 
   return (
-    <div className="sp-workspace">
+    <div className={`sp-workspace${active ? ' has-active' : ''}`}>
       <div className="mg-top">
+        <button
+          type="button"
+          className={`sp-back${active ? '' : ' sp-back-hidden'}`}
+          onClick={() => { setActiveId(null); setDetail(null); }}
+          aria-label="返回列表"
+          title="返回列表"
+        >←</button>
         <div className="mg-title">大师的选股池</div>
       </div>
 
@@ -373,13 +384,13 @@ export default function StockPools() {
                         const pnl = effCost != null && effCost > 0 && s.price != null ? ((s.price - effCost) / effCost) * 100 : null;
                         return (
                           <tr key={s.code || s.name}>
-                            <td className="mono">{s.code}</td>
-                            <td>{s.name || '—'}</td>
-                            <td>{s.price != null ? s.price.toFixed(2) : '—'}</td>
-                            <td className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
-                            <td className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
-                            <td>{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
-                            <td>
+                            <td className="mono" data-label="代码">{s.code}</td>
+                            <td data-label="名称">{s.name || '—'}</td>
+                            <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
+                            <td data-label="今日" className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
+                            <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
+                            <td data-label="上涨天数">{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
+                            <td data-label="持仓价">
                               <input
                                 className="sp-cost-input"
                                 type="number"
@@ -390,7 +401,7 @@ export default function StockPools() {
                                 title="填入你的持仓成本价"
                               />
                             </td>
-                            <td className={pnl != null ? (pnl >= 0 ? 'up' : 'down') : ''}>{pnl != null ? fmtPct(pnl) : '—'}</td>
+                            <td data-label="持仓盈亏" className={pnl != null ? (pnl >= 0 ? 'up' : 'down') : ''}>{pnl != null ? fmtPct(pnl) : '—'}</td>
                           </tr>
                         );
                       })}

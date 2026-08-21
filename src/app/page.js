@@ -8,6 +8,8 @@ import { PRESET_MASTERS_MAP } from '../data/presetMasters';
 import { messages } from '../i18n/messages';
 import { Card, MasterAvatar, MiniBtn } from '../components/ui';
 import MasterProfileModal from '../components/MasterProfileModal';
+import MobileShell from '../components/MobileShell';
+import FeatureHall from '../components/FeatureHall';
 import {
   TYPING_INDICATOR_MS,
   TYPEWRITER_DELAY_MS,
@@ -139,6 +141,7 @@ export default function Home() {
   const [supplementOpen, setSupplementOpen] = useState(false); // 需要补充公司信息弹窗
   const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [hallOpen, setHallOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
@@ -1202,6 +1205,20 @@ export default function Home() {
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
         <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
       </div>
+
+      {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
+      <MobileShell
+        tab={tab}
+        onSwitch={switchTab}
+        t={t}
+        theme={theme}
+        onToggleTheme={() => setTheme((th) => (th === 'dark' ? 'light' : th === 'light' ? 'white' : 'dark'))}
+        onOpenHistory={() => setHistoryOpen(true)}
+        onToggleQr={() => { setQrImgError(false); setQrOpen((v) => !v); }}
+        onOpenHall={() => setHallOpen(true)}
+      />
+      {/* 功能大厅（移动端浮层） */}
+      <FeatureHall open={hallOpen} onClose={() => setHallOpen(false)} onSwitch={switchTab} t={t} />
 
       <div className="app-shell">
         <aside className="app-sidebar">
