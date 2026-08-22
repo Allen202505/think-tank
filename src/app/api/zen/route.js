@@ -148,6 +148,8 @@ ${dataBlock}
       [{ role: 'system', content: SYSTEM_GUARD }, { role: 'system', content: prompt }, { role: 'user', content: `请对 ${info.name || info.symbol} 做缠论短线分析。` }],
       '{"content":"分析","followUps":["追问1"]}',
       1800,
+      true,
+      body.aiConfig,
     );
     const unwrapped = unwrapNested(parsed);
     const normalized = unwrapped && typeof unwrapped.content === 'string' && unwrapped.content.trim() ? unwrapped : null;

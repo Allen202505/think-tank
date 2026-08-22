@@ -9,7 +9,7 @@ import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPromp
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+import { resolveAiConfig } from '../../../lib/llm.js';
 
 function extractJson(text) {
   if (!text) return null;
@@ -31,23 +31,24 @@ function extractJson(text) {
   }
 }
 
-async function callDeepSeek(messages, maxTokens = 6000) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    throw new Error('未配置 DEEPSEEK_API_KEY，请在 .env.local 中填写');
+async function callDeepSeek(messages, maxTokens = 6000, cfg = null) {
+  const aiCfg = resolveAiConfig(cfg);
+  if (!aiCfg.apiKey) {
+    throw new Error('未配置 API Key，请在设置中填写');
   }
+  const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
   const attempt = async () => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 120000);
     try {
-      const res = await fetch(DEEPSEEK_API_URL, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${aiCfg.apiKey}`,
         },
         body: JSON.stringify({
-          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+          model: aiCfg.model,
           max_tokens: maxTokens,
           messages,
         }),
@@ -55,7 +56,9 @@ async function callDeepSeek(messages, maxTokens = 6000) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `DeepSeek API 错误: ${res.status}`);
+        const msg = err?.error?.message || `模型服务错误: ${res.status}`;
+        if (res.status === 401 || res.status === 403) throw new Error('API Key 无效或无权限（401/403），请检查设置中的 Key');
+        throw new Error(msg);
       }
       const data = await res.json();
       return data.choices?.[0]?.message?.content ?? '';
@@ -98,20 +101,20 @@ function extractTurns(normalized) {
 
 // 请求 AI 并尽量解析出 JSON；解析失败自动修复重试一次
 // schemaHint：修复消息里展示的 JSON 结构（普通步骤为 {content, followUps}，结构化步骤为完整字段）
-async function generateJson(messages, schemaHint = '{"content":"本步完整分析正文","followUps":["追问1","追问2"]}', maxTokens = 6000, requireContent = true) {
+async function generateJson(messages, schemaHint = '{"content":"本步完整分析正文","followUps":["追问1","追问2"]}', maxTokens = 6000, requireContent = true, userConfig = null) {
   const isValid = (obj) => {
     if (!obj || typeof obj !== 'object') return false;
     if (requireContent) return typeof obj.content === 'string' && obj.content.trim();
     return Object.keys(obj).length > 0; // 初筛/快速等可能没有 content，只要有结构即可
   };
-  let raw = await callDeepSeek(messages, maxTokens);
+  let raw = await callDeepSeek(messages, maxTokens, userConfig);
   let parsed = extractJson(raw);
   if (!isValid(parsed)) {
     messages.push(
       { role: 'assistant', content: raw },
       { role: 'user', content: `你刚才的输出不是合法 JSON。请严格只输出一个 JSON 对象，不要任何解释、不要 Markdown 代码块、不要用引号包裹整个 JSON：${schemaHint}。所有字符串内只允许中文引号「」或“”。` },
     );
-    raw = await callDeepSeek(messages, maxTokens);
+    raw = await callDeepSeek(messages, maxTokens, userConfig);
     parsed = extractJson(raw);
   }
   return { raw, parsed };
@@ -144,6 +147,7 @@ export async function POST(request) {
     const mode = body.mode === 'quick' ? 'quick' : 'deep';
     const stepKey = body.stepKey || 'step0';
     const prevSteps = Array.isArray(body.prevSteps) ? body.prevSteps : [];
+    const aiCfg = resolveAiConfig(body.aiConfig);
 
     if (!news || !news.title) {
       return Response.json({ error: '缺少新闻内容' }, { status: 400 });
@@ -210,7 +214,7 @@ export async function POST(request) {
         const prompt = buildQuickTurnPrompt(useNews, host, guests, turnKey, prevTurns);
         const messages = buildMessages(prompt, snapshot, '请输出这一句，直接输出 JSON。');
         const schema = isSummary ? '{"summary":"巴菲特最后总结（150-250字）"}' : '{"text":"这句话（≤100字）"}';
-        const { raw, parsed } = await generateJson(messages, schema, 600, false);
+        const { raw, parsed } = await generateJson(messages, schema, 600, false, aiCfg);
         const normalized = unwrapNested(parsed);
         if (isSummary) {
           const summary = normalized && typeof normalized.summary === 'string' ? normalized.summary.trim() : '';
@@ -235,6 +239,7 @@ export async function POST(request) {
         '{"turns":[{"speaker":"host","text":"抛题"},{"speaker":"guest0","text":"快速观点"},{"speaker":"guest1","text":"快速观点或反驳"},{"speaker":"host","text":"收束"}],"summary":"巴菲特最后总结","verdict":"🟢","reason":"一句话理由","followUps":["追问1","追问2"]}',
         2500,
         false,
+        aiCfg,
       );
       const quickParsed = unwrapNested(parsed);
       const quickTurns = extractTurns(quickParsed);
@@ -292,6 +297,8 @@ export async function POST(request) {
         messages,
         '{"content":"你对追问的回答","hostNote":"主持人一句话补充(可空)"}',
         1600,
+        true,
+        aiCfg,
       );
       const normalized = unwrapNested(parsed);
       if (!normalized || typeof normalized.content !== 'string' || !normalized.content.trim()) {
@@ -335,7 +342,7 @@ export async function POST(request) {
     } else {
       schemaHint = '{"content":"你的发言","followUps":["追问1","追问2"]}';
     }
-    const { raw, parsed } = await generateJson(messages, schemaHint, 6000);
+    const { raw, parsed } = await generateJson(messages, schemaHint, 6000, true, aiCfg);
     const normalized = unwrapNested(parsed);
     const turns = extractTurns(normalized);
     const content = normalized && typeof normalized.content === 'string' ? normalized.content.trim() : '';

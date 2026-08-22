@@ -2,7 +2,7 @@
 
 // 移动端壳层：顶部极简 header + 底部固定 Tab（桌面端隐藏）
 // 默认进入大师PK；header 提供「功能大厅」入口；底部 Tab 一键切换 5 大模块。
-export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, onOpenHistory, onToggleQr, onOpenHall }) {
+export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, onOpenHistory, onToggleQr, onOpenHall, onOpenAiSettings }) {
   const items = [
     { id: 'ask', icon: '⚔️', label: t('tabAskShort') },
     { id: 'breakfast', icon: '📰', label: t('tabBreakfastShort') },
@@ -27,6 +27,9 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
               <rect x="14" y="14" width="7" height="7" rx="1.5" />
             </svg>
             {t('hallTabLabel')}
+          </button>
+          <button type="button" className="mobile-icon-btn" onClick={onOpenAiSettings} title="AI 设置（API Key / 模型）" aria-label="AI 设置">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2 14.4 5.6 18.6 6 17 9.8 18.6 13.6 14.4 14 12 17.6 9.6 14 5.4 13.6 7 9.8 5.4 6 9.6 5.6 12 2z" /><circle cx="12" cy="10" r="2" /></svg>
           </button>
           <button type="button" className="mobile-icon-btn" onClick={onToggleTheme} title={theme === 'dark' ? '切换亮色' : theme === 'light' ? '切换纯白' : '切换暗色'} aria-label="切换主题">
             {theme === 'dark' ? (

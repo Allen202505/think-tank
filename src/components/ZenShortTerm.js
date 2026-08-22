@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { MasterAvatar } from './ui';
+import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 
 const ZEN_MASTER = {
   id: 'zen',
@@ -29,6 +30,8 @@ export default function ZenShortTerm() {
   const run = useCallback(async () => {
     const q = query.trim();
     if (!q || loading) return;
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
+    consumeFree();
     setLoading(true);
     setError('');
     setResult(null);
@@ -36,7 +39,7 @@ export default function ZenShortTerm() {
       const res = await fetch('/api/zen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, aiConfig: getAiConfig() }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');

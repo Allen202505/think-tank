@@ -6,6 +6,7 @@ import { getHost, pickGuestsByStyle, findMasterById } from '../lib/breakfast';
 import { FRAMEWORK_STEPS } from '../lib/framework';
 import { MasterAvatar } from './ui';
 import StockPoolImportModal from './StockPoolImportModal';
+import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>（避免露出裸 **）
 function renderInline(text, keyBase) {
@@ -181,6 +182,8 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
+    consumeFree();
     setBkShowList(false); // 移动端：开始分析 → 进入详情
     const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
     setCache((prev) => {
@@ -205,6 +208,7 @@ export default function BreakfastRoundtable({ active = true }) {
       hostId: 'buffett',
       guests: guestList.map((g) => ({ id: g.master.id, groupKey: g.groupKey })),
       mode: runMode,
+      aiConfig: getAiConfig(),
     };
 
     const steps = [];
@@ -359,6 +363,7 @@ export default function BreakfastRoundtable({ active = true }) {
   };
   // 追问：点击「想深挖？」里的问题，直接向该步骤负责人提问（圆桌内追加一轮简短问答）
   const askFollowUp = useCallback((q, leadId, fuId) => {
+    if (!ensureAiReady()) return;
     const key = cacheKey;
     if (!key || !news) return;
     const id = fuId || `f-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -385,6 +390,7 @@ export default function BreakfastRoundtable({ active = true }) {
             followUp: q,
             followUpLead: leadId,
             prevSteps: (entry.steps || []).map((st) => ({ title: st.title, content: st.content, pool: st.pool })),
+            aiConfig: getAiConfig(),
           }),
         });
         const data = await res.json();

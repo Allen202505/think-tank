@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MasterAvatar } from './ui';
 import { findMasterById } from '../lib/breakfast';
+import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -46,6 +47,7 @@ export default function MungerFinance() {
   const sendDrawer = useCallback(async (raw) => {
     const msg = String(raw || drawerInput || '').trim();
     if (!msg || drawerLoading || !result) return;
+    if (!ensureAiReady()) return;
     setDrawerInput('');
     setDrawerError('');
     setDrawerMsgs((prev) => [...prev, { role: 'user', text: msg }]);
@@ -54,7 +56,7 @@ export default function MungerFinance() {
       const res = await fetch('/api/munger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'followup', question: msg, report: note, prevContent: result.content }),
+        body: JSON.stringify({ mode: 'followup', question: msg, report: note, prevContent: result.content, aiConfig: getAiConfig() }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
@@ -98,11 +100,13 @@ export default function MungerFinance() {
   const runReport = useCallback(async () => {
     if (loading) return;
     if (!link.trim() && !fileData) return;
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
+    consumeFree();
     setLoading(true);
     setError('');
     setResult(null);
     try {
-      const payload = { mode: 'report', note: note.trim() };
+      const payload = { mode: 'report', note: note.trim(), aiConfig: getAiConfig() };
       if (fileData) {
         payload.file = fileData.base64;
         payload.filename = fileData.name;

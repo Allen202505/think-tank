@@ -10,6 +10,8 @@ import { Card, MasterAvatar, MiniBtn } from '../components/ui';
 import MasterProfileModal from '../components/MasterProfileModal';
 import MobileShell from '../components/MobileShell';
 import FeatureHall from '../components/FeatureHall';
+import AiSettingsModal from '../components/AiSettingsModal';
+import { ensureAiReady, consumeFree, getAiConfig, setOnNeedConfig } from '../lib/aiGate';
 import {
   TYPING_INDICATOR_MS,
   TYPEWRITER_DELAY_MS,
@@ -142,6 +144,7 @@ export default function Home() {
   const [supplementValue, setSupplementValue] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hallOpen, setHallOpen] = useState(false);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
@@ -301,6 +304,12 @@ export default function Home() {
       }
     } catch (e) { /* ignore */ }
   }, []);
+  // BYOK：注册全局"需要配置 Key"回调（各功能组件触发）
+  useEffect(() => {
+    setOnNeedConfig(() => setAiSettingsOpen(true));
+    return () => setOnNeedConfig(null);
+  }, []);
+
   const switchTab = (next) => {
     setTab(next);
     if (next === 'breakfast') setShowBreakfast(true);
@@ -431,11 +440,12 @@ export default function Home() {
       return;
     }
 
+    if (!ensureAiReady()) return;
     try {
       const res = await fetch('/api/virtual-master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nm }),
+        body: JSON.stringify({ name: nm, aiConfig: getAiConfig() }),
       });
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -675,7 +685,7 @@ export default function Home() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, query: userQuery || undefined, snapshot: snapshot || undefined }),
+      body: JSON.stringify({ messages, query: userQuery || undefined, snapshot: snapshot || undefined, aiConfig: getAiConfig() }),
     });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
@@ -696,6 +706,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: q,
+          aiConfig: getAiConfig(),
           masters: allMasters.map((m) => ({ id: m.id, name: m.name, title: m.title, style: m.style, tags: masterTags(m) })),
         }),
       });
@@ -729,6 +740,7 @@ export default function Home() {
       explainLoadingRef.current = false;
       return;
     }
+    if (!ensureAiReady()) return;
     setExplainText('');
     setExplainLoading(true);
     explainLoadingRef.current = true;
@@ -739,6 +751,7 @@ export default function Home() {
         body: JSON.stringify({
           master: { name: master?.name, title: master?.title, style: master?.style },
           speech: speechText,
+          aiConfig: getAiConfig(),
         }),
       });
       if (!res.ok || !res.body) throw new Error('解释服务不可用');
@@ -928,6 +941,8 @@ export default function Home() {
 
   const go = useCallback(async (force = false) => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
+    consumeFree();
     let effectiveSelected = selected;
     // 未手动选择 → 提交时按问题自动匹配最合适的大师（结果同步到 UI）
     if (effectiveSelected.size === 0) {
@@ -1216,9 +1231,11 @@ export default function Home() {
         onOpenHistory={() => setHistoryOpen(true)}
         onToggleQr={() => { setQrImgError(false); setQrOpen((v) => !v); }}
         onOpenHall={() => setHallOpen(true)}
+        onOpenAiSettings={() => setAiSettingsOpen(true)}
       />
       {/* 功能大厅（移动端浮层） */}
       <FeatureHall open={hallOpen} onClose={() => setHallOpen(false)} onSwitch={switchTab} t={t} />
+      <AiSettingsModal open={aiSettingsOpen} onClose={() => setAiSettingsOpen(false)} />
 
       <div className="app-shell">
         <aside className="app-sidebar">
@@ -1229,6 +1246,18 @@ export default function Home() {
           <SidebarNav tab={tab} onSwitch={switchTab} t={t} />
           <div className="app-sidebar-foot">
         <div className="sb-foot-row">
+          <button
+            type="button"
+            className="icon-btn ai-settings-entry"
+            onClick={() => setAiSettingsOpen(true)}
+            title="AI 设置（API Key / 模型）"
+            aria-label="AI 设置"
+          >
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 2 14.4 5.6 18.6 6 17 9.8 18.6 13.6 14.4 14 12 17.6 9.6 14 5.4 13.6 7 9.8 5.4 6 9.6 5.6 12 2z" />
+              <circle cx="12" cy="10" r="2" />
+            </svg>
+          </button>
           <button
             type="button"
             className="icon-btn theme-toggle"

@@ -84,6 +84,7 @@ export async function POST(request) {
       '{"stocks":[{"code":"300750","name":"宁德时代"}]}',
       1500,
       false,
+      body.aiConfig,
     );
     let list = (parsed && Array.isArray(parsed.stocks) ? parsed.stocks : [])
       .filter((s) => s && /^\d{6}$/.test(String(s.code || '')))

@@ -3,8 +3,7 @@
 // 比 /api/chat 轻量：不走快照注入、max_tokens 更小；含 45s 超时 + 首次请求重试
 import { buildExplainPrompt } from '../../../lib/prompts.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
-
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+import { resolveAiConfig } from '../../../lib/llm.js';
 
 export async function POST(request) {
 
@@ -13,8 +12,8 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const speech = typeof body?.speech === 'string' ? body.speech : '';
   const master = body?.master && typeof body.master === 'object' ? body.master : null;
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) return Response.json({ error: '未配置 DEEPSEEK_API_KEY' }, { status: 500 });
+  const aiCfg = resolveAiConfig(body.aiConfig);
+  if (!aiCfg.apiKey) return Response.json({ error: '未配置 API Key，请在设置中填写' }, { status: 500 });
   if (!speech.trim()) return Response.json({ error: '缺少发言内容' }, { status: 400 });
 
   const encoder = new TextEncoder();
@@ -32,11 +31,12 @@ export async function POST(request) {
           const ctrl = new AbortController();
           const timer = setTimeout(() => ctrl.abort(), 45000);
           try {
-            res = await fetch(DEEPSEEK_API_URL, {
+            const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
+            res = await fetch(url, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiCfg.apiKey}` },
               body: JSON.stringify({
-                model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+                model: aiCfg.model,
                 max_tokens: 1500,
                 stream: true,
                 messages: [{ role: 'user', content: buildExplainPrompt(speech, master) }],

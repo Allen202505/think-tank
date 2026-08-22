@@ -138,7 +138,7 @@ ${dataCardSection}
 只输出一个 JSON，不要输出任何其他内容：
 {"content":"你的解读发言（分段、带加粗）","followUps":["完整的问句1？","完整的问句2？"]}
 注意：所有引号用中文引号「」或“”，禁止英文双引号。`;
-    const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 6000)}`), '{"content":"解读","followUps":["追问1"]}', 2000);
+    const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 6000)}`), '{"content":"解读","followUps":["追问1"]}', 2000, true, body.aiConfig);
     const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
     if (!normalized) {
       if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: raw.trim(), followUps: [], dataCard: dataCard ? dataCard.text : null } });

@@ -96,6 +96,7 @@ export async function POST(request) {
       '{"name":"池名","source":"来源","stocks":[{"code":"600519","name":"贵州茅台","reason":"依据"}]}',
       1500,
       false,
+      body.aiConfig,
     );
     const d = parsed && typeof parsed === 'object' ? parsed : null;
     const name = (d && typeof d.name === 'string' && d.name.trim()) || `${query} · 选股池`;

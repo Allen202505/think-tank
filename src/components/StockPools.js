@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
 import StockPoolImportModal from './StockPoolImportModal';
+import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
 const LS_KEY = 'thinktank_user_pools';
 
@@ -163,6 +164,7 @@ export default function StockPools() {
   const runSuggest = async () => {
     const q = suggestQuery.trim();
     if (!q || suggestLoading) return;
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     setSuggestLoading(true);
     setSuggestError('');
     setSuggestEmptied(false);
@@ -171,7 +173,7 @@ export default function StockPools() {
       const res = await fetch('/api/pools/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, aiConfig: getAiConfig() }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');

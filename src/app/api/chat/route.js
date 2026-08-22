@@ -2,10 +2,10 @@
 // 后端代理：前端 → Next.js API Route → DeepSeek API（解决 CORS）
 // 支持传入 query：拉取最新行情注入 prompt，让专家引用实时数据
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 import { getQuoteContext } from './quoteContext.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { SYSTEM_GUARD } from '../../../lib/security';
+import { resolveAiConfig } from '../../../lib/llm.js';
 
 export async function POST(request) {
   try {
@@ -13,11 +13,11 @@ export async function POST(request) {
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
-    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const aiCfg = resolveAiConfig(body.aiConfig);
 
-    if (!apiKey) {
+    if (!aiCfg.apiKey) {
       return Response.json(
-        { error: '未配置 DEEPSEEK_API_KEY，请在 .env.local 中填写' },
+        { error: '未配置 API Key，请在设置中填写' },
         { status: 500 }
       );
     }
@@ -38,17 +38,18 @@ export async function POST(request) {
     }
 
     // 网络偶发抖动时重试一次；带 60s 超时，避免挂死
+    const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
     const callDeepSeek = () => {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 60000);
-      return fetch(DEEPSEEK_API_URL, {
+      return fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${aiCfg.apiKey}`,
         },
         body: JSON.stringify({
-          model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+          model: aiCfg.model,
           max_tokens: 8192,
           messages,
         }),

@@ -5,6 +5,7 @@
 // 创建结果直接写入 localStorage（thinktank_user_pools），各页自动同步。
 import { useEffect, useRef, useState } from 'react';
 import { PRESET_MASTERS } from '../data/masters';
+import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
 const LS_KEY = 'thinktank_user_pools';
 
@@ -118,6 +119,7 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
   const runExtract = async () => {
     const val = extractInput.trim();
     if (!val || extractLoading) return;
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     setExtractLoading(true);
     setExtractError('');
     setExtracted([]);
@@ -127,7 +129,7 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
       const res = await fetch('/api/pools/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isUrl ? { url: val } : { text: val }),
+        body: JSON.stringify({ ...(isUrl ? { url: val } : { text: val }), aiConfig: getAiConfig() }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '提取失败，请重试');
