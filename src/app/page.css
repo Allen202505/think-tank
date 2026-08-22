@@ -1227,6 +1227,10 @@
 .mobile-tabs { display: none; }
 .feature-hall { display: none; }
 
+/* 早餐：返回按钮仅移动端列表→详情两级时显示；桌面端（或未进入详情）一律隐藏 */
+.bk-mobile-back { display: none; }
+.bk-mobile-back-hidden { display: none !important; }
+
 @media (max-width: 900px) {
   /* 桌面左侧边栏在移动端隐藏，改由底部 Tab + 顶部 header 承担导航 */
   .app-sidebar { display: none !important; }
