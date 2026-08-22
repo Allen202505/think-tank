@@ -25,6 +25,26 @@ export async function POST(request) {
     let messages = Array.isArray(body.messages) ? [...body.messages] : [];
     messages = [{ role: 'system', content: SYSTEM_GUARD }, ...messages];
 
+    // 图片输入（视觉模型）：把 dataURL 图片并入最后一条用户消息
+    const userImages = Array.isArray(body.images)
+      ? body.images.filter((u) => typeof u === 'string' && /^data:image\//.test(u)).slice(0, 3)
+      : [];
+    if (userImages.length) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m && m.role === 'user' && typeof m.content === 'string' && m.content.trim()) {
+          messages[i] = {
+            role: 'user',
+            content: [
+              { type: 'text', text: m.content },
+              ...userImages.map((u) => ({ type: 'image_url', image_url: { url: u } })),
+            ],
+          };
+          break;
+        }
+      }
+    }
+
     // 信息层梳理：优先使用前端已生成的最新数据快照；否则按 query 现拉
     const userQuery = body.query || body.userQuery || '';
     const providedSnapshot = typeof body.snapshot === 'string' ? body.snapshot : '';
