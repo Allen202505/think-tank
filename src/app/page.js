@@ -11,6 +11,8 @@ import MasterProfileModal from '../components/MasterProfileModal';
 import MobileShell from '../components/MobileShell';
 import FeatureHall from '../components/FeatureHall';
 import AiSettingsModal from '../components/AiSettingsModal';
+import AuthModal from '../components/AuthModal';
+import { AuthProvider } from '../lib/authProvider';
 import { ensureAiReady, consumeFree, getAiConfig, setOnNeedConfig } from '../lib/aiGate';
 import {
   TYPING_INDICATOR_MS,
@@ -145,6 +147,7 @@ export default function Home() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hallOpen, setHallOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
@@ -1206,7 +1209,7 @@ export default function Home() {
 
 
   return (
-    <>
+    <AuthProvider>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -1232,10 +1235,12 @@ export default function Home() {
         onToggleQr={() => { setQrImgError(false); setQrOpen((v) => !v); }}
         onOpenHall={() => setHallOpen(true)}
         onOpenAiSettings={() => setAiSettingsOpen(true)}
+        onOpenAuth={() => setAuthOpen(true)}
       />
       {/* 功能大厅（移动端浮层） */}
       <FeatureHall open={hallOpen} onClose={() => setHallOpen(false)} onSwitch={switchTab} t={t} />
       <AiSettingsModal open={aiSettingsOpen} onClose={() => setAiSettingsOpen(false)} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       <div className="app-shell">
         <aside className="app-sidebar">
@@ -1258,6 +1263,19 @@ export default function Home() {
               <circle cx="12" cy="10" r="2" />
             </svg>
           </button>
+          <button
+            type="button"
+            className="icon-btn account-entry"
+            onClick={() => setAuthOpen(true)}
+            title="登录 / 注册（同步我的股票池）"
+            aria-label="登录 / 注册"
+          >
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10z" />
+              <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+            </svg>
+          </button>
+
           <button
             type="button"
             className="icon-btn theme-toggle"
@@ -2029,6 +2047,6 @@ export default function Home() {
 
       
       </div>
-    </>
+    </AuthProvider>
   );
 }

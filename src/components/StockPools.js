@@ -5,14 +5,8 @@ import { PRESET_POOLS } from '../data/masterPools';
 import StockPoolImportModal from './StockPoolImportModal';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
-const LS_KEY = 'thinktank_user_pools';
-
-function loadUserPools() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { return []; }
-}
-function saveUserPools(pools) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(pools)); } catch (e) { /* ignore */ }
-}
+import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
+import { useAuth } from '../lib/authProvider';
 
 const HIDDEN_KEY = 'thinktank_hidden_presets';
 function loadHiddenPresets() {
@@ -61,6 +55,7 @@ const DAY_OPTIONS = [
 
 // 大师的选股池：预置大师池可切换 + AI 检索/手动粘贴添加 → 当日涨跌 + 区间统计（等权 vs 沪深300）
 export default function StockPools() {
+  const { user, loading: authLoading } = useAuth();
   const [userPools, setUserPools] = useState([]);
   const [activeId, setActiveId] = useState(null); // 默认选中列表第一项（hydration 完成后设置）
   const [importOpen, setImportOpen] = useState(false);
@@ -103,6 +98,18 @@ export default function StockPools() {
     setCosts(loadCosts());
     setHydrated(true);
   }, []);
+
+  // 登录后：从云端拉取我的股票池并合并到本地
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id) return;
+    let alive = true;
+    (async () => {
+      const merged = await syncPoolsOnLogin(user.id);
+      if (alive) { setUserPools(merged); setHydrated(true); }
+    })();
+    return () => { alive = false; };
+  }, [authLoading, user?.id]);
   useEffect(() => {
     if (hydrated) saveUserPools(userPools);
   }, [userPools, hydrated]);
@@ -158,6 +165,7 @@ export default function StockPools() {
     };
     setUserPools((prev) => [...prev, pool]);
     setActiveId(pool.id);
+    if (user?.id) upsertPoolServer(pool, user.id); // 登录后同步到云端
     return pool;
   };
 
@@ -220,6 +228,7 @@ export default function StockPools() {
       setHiddenPresetIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     } else {
       setUserPools((prev) => prev.filter((p) => p.id !== id));
+      if (user?.id) deletePoolServer(id, user.id); // 登录后从云端删除
     }
     if (activeId === id) { setActiveId(null); setDetail(null); }
   };

@@ -7,6 +7,8 @@ import { FRAMEWORK_STEPS } from '../lib/framework';
 import { MasterAvatar } from './ui';
 import StockPoolImportModal from './StockPoolImportModal';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { useAuth } from '../lib/authProvider';
+import { syncPoolsOnLogin } from '../lib/userPools';
 
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>（避免露出裸 **）
 function renderInline(text, keyBase) {
@@ -47,6 +49,7 @@ function resolveLeadId(lead, guestList) {
 
 
 export default function BreakfastRoundtable({ active = true }) {
+  const { user, loading: authLoading } = useAuth();
   const [inputText, setInputText] = useState('');
   // 新闻输入弹窗：左侧「输入新闻源」强入口 → 点击弹窗粘贴链接/文本
   const [newsModalOpen, setNewsModalOpen] = useState(false);
@@ -112,6 +115,7 @@ export default function BreakfastRoundtable({ active = true }) {
     } catch (e) { return []; }
   };
 
+
   // 拉取「我的股票池新闻」：命中自选股/关注股的新闻列表
   const loadPoolNews = useCallback(async () => {
     const pools = loadMyPools();
@@ -146,6 +150,20 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // 首次进入即读取一次自选池；切到「我的股票池新闻」页签时刷新
   useEffect(() => { setMyPools(loadMyPools()); }, []);
+  // 登录后：把云端我的股票池合并到本地，并刷新自选股新闻
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.id) return;
+    let alive = true;
+    (async () => {
+      await syncPoolsOnLogin(user.id);
+      if (alive) {
+        setMyPools(loadMyPools());
+        if (newsTab === 'mine') loadPoolNews();
+      }
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [authLoading, user?.id]);
   useEffect(() => {
     if (newsTab === 'mine') loadPoolNews();
   }, [newsTab, loadPoolNews]);

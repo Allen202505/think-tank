@@ -7,18 +7,13 @@ import { useEffect, useRef, useState } from 'react';
 import { PRESET_MASTERS } from '../data/masters';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
-const LS_KEY = 'thinktank_user_pools';
-
-function loadUserPools() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { return []; }
-}
-function saveUserPools(pools) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(pools)); } catch (e) { /* ignore */ }
-}
+import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, upsertPoolServer } from '../lib/userPools';
+import { useAuth } from '../lib/authProvider';
 
 const MASTER_OPTIONS = PRESET_MASTERS.map((m) => ({ value: m.name, label: m.name }));
 
 export default function StockPoolImportModal({ open, onClose, initialType = 'mine', onCreated }) {
+  const { user } = useAuth();
   const [importType, setImportType] = useState(initialType || 'mine');
   const [importMode, setImportMode] = useState('manual');
   const [masterSelect, setMasterSelect] = useState('');
@@ -70,6 +65,7 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
       symbols: [...new Set(symbols)],
     };
     saveUserPools([...loadUserPools(), pool]);
+    if (user?.id) upsertPoolServer(pool, user.id); // 登录后同步到云端
     return pool;
   };
 
