@@ -1231,6 +1231,7 @@ button.bk-step-head:hover .bk-step-title { color: var(--accent-strong); }
   position: fixed;
   inset: 0;
   z-index: 100;
+  overscroll-behavior: contain;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
@@ -1248,6 +1249,9 @@ button.bk-step-head:hover .bk-step-title { color: var(--accent-strong); }
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overscroll-behavior: contain;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
 }
 .bk-modal-head { display: flex; align-items: center; justify-content: space-between; }
 .bk-modal-title { font-family: var(--font-serif); font-size: 16px; font-weight: 800; color: var(--accent); }

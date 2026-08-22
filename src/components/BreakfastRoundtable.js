@@ -56,6 +56,17 @@ export default function BreakfastRoundtable({ active = true }) {
   const [newsModalText, setNewsModalText] = useState('');
   // 推理强度：quick=快速解读（每人一句，过滤+初步讨论） / deep=事件穿透框架逐步解读；默认快速
   const [mode, setMode] = useState('quick');
+  // 弹窗打开时锁定页面滚动，避免移动端输入时背景网页被拖着滑屏
+  useEffect(() => {
+    if (!newsModalOpen) return;
+    // 锁定可能的滚动容器（桌面滚动在 body/window，移动端在 .app-shell/.app-main）
+    const targets = [document.documentElement, document.body, document.querySelector('.app-shell'), document.querySelector('.app-main')];
+    const prev = targets.filter(Boolean).map((el) => el.style.overflow);
+    targets.filter(Boolean).forEach((el) => { el.style.overflow = 'hidden'; });
+    return () => {
+      targets.filter(Boolean).forEach((el, i) => { el.style.overflow = prev[i]; });
+    };
+  }, [newsModalOpen]);
   // 默认进页面即随机就座 3 位大师；只抽有真人头像的大师，避免出现字母占位头像
   // 默认每次随机 9 位大师（含巴菲特）：巴菲特主持 + 8 位嘉宾
   const [guests, setGuests] = useState(() => pickGuestsByStyle(8, [], { realAvatarOnly: true }));
