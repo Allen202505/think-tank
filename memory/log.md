@@ -2720,3 +2720,20 @@
 - 2026-08-16（美股无数据修复·第二版）：Yahoo 从 Vercel 数据中心 IP 可能也被限 → 新增 Nasdaq 官方历史日K（api.nasdaq.com/api/quote/{code}/historical，本地直连可用、美国源不拦数据中心 IP，需 UA+Origin+Referer 头，返回倒序需 reverse）。美股链=东财→Nasdaq→Yahoo；港股链=东财→Yahoo。另加 lastUSKlineErr 诊断（无数据时错误里带原因，便于生产排查）。本地实测 AAPL 305.93 / KO 87.71 恢复。
 - 2026-08-16（生产验证）：Nasdaq 兜底部署后，巴菲特池 13/13 全部有行情（比亚迪88.9 / AAPL305.93 / AXP342.48 / GOOGL345.9 / KO87.71 / BAC64.49 / CVX200 / OXY58.36 / CB343.64 / MCO484.96 / KHC25.51 / DAL89.35 / LEN86.83）。美股问题解决。注：港股（腾讯/中国宏桥）仍依赖 Yahoo，若生产也拿不到后续再补源。
 - 2026-08-17（限流阈值放宽）：用户正常使用时触发「请求过于频繁」→ 各接口限流值上调：AI 接口 10-20→30-40次/分，数据接口 30→60-120次/分（news/pools 120、context/match-masters 90、resolve-names/explain 60、chat 40、breakfast/munger/zen/virtual-master/suggest 30、extract 40）。批量抓取仍会被挡，正常浏览不受影响。
+
+---
+
+## 2026-08-22 · 登录注册 + 我的股票池云端同步（Supabase）
+
+- **目标**：注册/登录，用于把「我的股票池」同步到云端；API Key 仍只留本机。
+- **Supabase 配置**（已确认）：
+  - Project URL: `https://iwdngiqxugnswxqgetrs.supabase.co`
+  - anon key: `sb_publishable_C_uN-...`（存 `.env.local`，已被 gitignore，不入库）
+  - **Confirm email 已关闭**（在 Auth → Sign In / Providers 里关掉）→ 注册即自动登录
+- **已执行**：
+  - `supabase/schema.sql` 已在 SQL Editor 运行成功（建 `user_stock_pools` + `profiles` 表，RLS 行级安全，注册触发器，授权）
+  - 代码：`src/lib/supabaseClient.js`、`src/lib/authProvider.js`、`src/lib/userPools.js`、`src/components/AuthModal.js`
+  - 入口：桌面端左下角 / 移动端顶部「登录/注册」按钮
+- **验证通过**：注册即自动登录；anon key 读不到任何表（RLS 生效）；登录后能读到自己的股票池；测试账号已清理。
+- **待部署**：`git push` 已推 GitHub（e513f90）。Vercel 需填 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`。
+- ⚠️ 测试账号已删除；生产需注意用户在审核/敏感信息上的隐私提示。

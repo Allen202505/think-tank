@@ -29,6 +29,29 @@ cp .env.example .env.local   # 填入你的 DeepSeek API Key（用于免费体�
 npm run dev                  # http://localhost:3000
 ```
 
+## 登录 / 注册（可选）
+
+本项目支持注册/登录（Supabase Auth），用于**云端同步你的「我的股票池」**：
+
+- 注册后**自动登录**，无需邮箱验证
+- 「我的股票池」登录后自动同步到云端，换设备也能同步
+- **你的 API Key 仍只保存在本地浏览器，不上传**，云端只存股票池与非敏感配置
+- 每位用户仅能访问自己的数据（RLS 行级安全）
+
+### 启用步骤（可选）
+
+1. 在 [Supabase](https://supabase.com) 新建项目，关闭 **Authentication → Sign In / Providers → Confirm email**
+2. 打开 **SQL Editor**，粘贴并运行 [`supabase/schema.sql`](./supabase/schema.sql)（建表 + RLS）
+3. 在 **Project Settings → API** 复制 `Project URL` 与 `anon public` key
+4. 填入 `.env.local`：
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://你的项目.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
+```
+
+> 不配置 Supabase 时，登录入口自动隐藏，项目仍可用（股票池只存本地）。
+
 ## BYOK：自带 API Key
 
 本项目免费，但站长不承担所有用户的模型调用成本：
