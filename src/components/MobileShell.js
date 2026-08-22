@@ -43,9 +43,6 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
             )}
           </button>
-          <button type="button" className="mobile-icon-btn" onClick={onOpenHistory} title="历史对话" aria-label="历史对话">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-          </button>
           <button type="button" className="mobile-icon-btn" onClick={onToggleQr} title="微信二维码" aria-label="打开微信二维码">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-5.972 2.932-7.715 1.386-.87 3.052-1.306 4.71-1.306.527 0 1.054.047 1.572.132-.616-3.461-4.11-5.743-8.027-5.743zm-2.23 3.817a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zm4.466 0a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zM24 14.876c0-3.374-3.178-6.115-7.098-6.115-3.92 0-7.098 2.74-7.098 6.115 0 3.374 3.178 6.115 7.098 6.115.836 0 1.643-.12 2.393-.335a.7.7 0 0 1 .589.08l1.566.916a.268.268 0 0 0 .137.044.243.243 0 0 0 .239-.243c0-.06-.024-.117-.04-.176l-.322-1.218a.485.485 0 0 1 .176-.549C23.076 18.658 24 16.853 24 14.876zm-9.753-1.044a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686zm5.31 0a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686z"/>
