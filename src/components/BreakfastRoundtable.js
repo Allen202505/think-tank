@@ -128,7 +128,8 @@ export default function BreakfastRoundtable({ active = true }) {
 
 
   // 拉取「我的股票池新闻」：命中自选股/关注股的新闻列表
-  const loadPoolNews = useCallback(async () => {
+  // force=true（手动刷新）→ 忽略缓存立即拉取；否则用 30 分钟内缓存，超过 7 天的新闻自动剔除
+  const loadPoolNews = useCallback(async (force = false) => {
     const pools = loadMyPools();
     setMyPools(pools);
     const symbols = [];
@@ -136,6 +137,17 @@ export default function BreakfastRoundtable({ active = true }) {
     pools.forEach((p) => (p.symbols || []).forEach((s2) => { if (!seen.has(s2)) { seen.add(s2); symbols.push(s2); } }));
     setMyStockCount(symbols.length);
     if (!symbols.length) { setPoolNewsItems([]); setPoolNewsLoading(false); setPoolNewsError(''); return; }
+    // 缓存签名：股票池代码 + 数量变化都会导致缓存失效
+    const cacheKey = [...symbols].sort().join(',');
+    const cached = loadPoolNewsCache();
+    const fresh = filterFresh(cached?.items || []);
+    const cacheHit = !force && cached && cached.key === cacheKey && (Date.now() - (cached.at || 0)) < POOLNEWS_TTL;
+    if (cacheHit) {
+      // 缓存未过期：直接展示（仍应用 7 天过滤）
+      setPoolNewsItems(fresh);
+      setPoolNewsError('');
+      return;
+    }
     const startedAt = Date.now();
     setPoolNewsLoading(true);
     setPoolNewsError('');
@@ -147,9 +159,17 @@ export default function BreakfastRoundtable({ active = true }) {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || '获取失败，请重试');
-      setPoolNewsItems(data.items || []);
+      const items = filterFresh(data.items || []);
+      setPoolNewsItems(items);
+      savePoolNewsCache({ key: cacheKey, at: Date.now(), items });
     } catch (e) {
-      setPoolNewsError(e.message || '获取失败，请重试');
+      // 请求失败但有旧缓存 → 退回旧缓存，避免白屏
+      if (fresh.length) {
+        setPoolNewsItems(fresh);
+        setPoolNewsError('');
+      } else {
+        setPoolNewsError(e.message || '获取失败，请重试');
+      }
     } finally {
       // 让「搜索中」动效至少展示 600ms，避免太快一闪而过
       const elapsed = Date.now() - startedAt;
@@ -483,7 +503,7 @@ export default function BreakfastRoundtable({ active = true }) {
                 <button
                   type="button"
                   className="bk-news-refresh"
-                  onClick={loadPoolNews}
+                  onClick={() => loadPoolNews(true)}
                   disabled={poolNewsLoading}
                   title="刷新我的股票池新闻"
                 >
@@ -558,7 +578,7 @@ export default function BreakfastRoundtable({ active = true }) {
               ) : poolNewsError ? (
                 <div className="bk-poolnews-empty">
                   <div className="bk-poolnews-empty-title">⚠ {poolNewsError}</div>
-                  <button type="button" className="bk-news-refresh" onClick={loadPoolNews}>↻ 重试</button>
+                  <button type="button" className="bk-news-refresh" onClick={() => loadPoolNews(true)}>↻ 重试</button>
                 </div>
               ) : poolNewsItems.length === 0 ? (
                 <div className="bk-poolnews-empty">
@@ -818,8 +838,23 @@ export default function BreakfastRoundtable({ active = true }) {
         open={importOpen}
         initialType="mine"
         onClose={() => setImportOpen(false)}
-        onCreated={() => loadPoolNews()}
+        onCreated={() => loadPoolNews(true)}
       />
     </div>
   );
+}
+
+// ── 我的股票池新闻：本地缓存（30 分钟） + 超过 7 天自动剔除 ──
+function loadPoolNewsCache() {
+  try { return JSON.parse(localStorage.getItem('thinktank_poolnews_cache') || 'null'); } catch (e) { return null; }
+}
+function savePoolNewsCache(cache) {
+  try { localStorage.setItem('thinktank_poolnews_cache', JSON.stringify(cache)); } catch (e) { /* ignore */ }
+}
+const POOLNEWS_TTL = 30 * 60 * 1000;        // 30 分钟
+const POOLNEWS_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 天
+// 剔除超过 7 天的新闻；无时间戳（ts<=0）的保留，避免误删
+function filterFresh(items) {
+  const cutoff = Date.now() - POOLNEWS_MAX_AGE;
+  return (items || []).filter((n) => !n.ts || n.ts * 1000 >= cutoff);
 }
