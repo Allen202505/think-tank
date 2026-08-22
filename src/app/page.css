@@ -1507,13 +1507,3 @@
   .ai-settings-overlay { align-items: flex-end; padding: 0; }
   .ai-settings-panel { max-width: 100vw; border-radius: 18px 18px 0 0; max-height: 90vh; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
 }
-
-/* ── 提问附图（视觉模型：K线/财报截图） ── */
-.q-image-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.q-image-btn { background: transparent; border: 1px dashed var(--accent-dim); color: var(--accent); font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; font-family: var(--font-sans); }
-.q-image-btn:hover { background: var(--accent-bg); }
-.q-image-btn:disabled { opacity: 0.5; cursor: default; }
-.q-image-thumb { position: relative; display: inline-flex; border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; width: 56px; height: 56px; }
-.q-image-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.q-image-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; line-height: 1; font-size: 11px; border-radius: 999px; border: 0; background: rgba(0, 0, 0, 0.6); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.q-image-del:hover { background: rgba(0, 0, 0, 0.85); }

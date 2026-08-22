@@ -145,11 +145,6 @@ export default function Home() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hallOpen, setHallOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
-  // 附图（视觉模型）：K线/财报截图，最多 3 张，随提问发给大师
-  const [attachedImages, setAttachedImages] = useState([]);
-  const attachedImagesRef = useRef([]);
-  const flowImagesRef = useRef([]);
-  const imgInputRef = useRef(null);
   const [historyList, setHistoryList] = useState([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [loadingFollowUp, setLoadingFollowUp] = useState(false);
@@ -314,28 +309,6 @@ export default function Home() {
     setOnNeedConfig(() => setAiSettingsOpen(true));
     return () => setOnNeedConfig(null);
   }, []);
-
-  useEffect(() => { attachedImagesRef.current = attachedImages; }, [attachedImages]);
-
-  const onPickImages = (e) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = '';
-    const reader = (f) => new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result || ''));
-      r.onerror = reject;
-      r.readAsDataURL(f);
-    });
-    (async () => {
-      const next = [];
-      for (const f of files) {
-        if (next.length + attachedImages.length >= 3) break;
-        if (f.size > 4 * 1024 * 1024) continue; // 单张 ≤ 4MB
-        try { next.push(await reader(f)); } catch (err) { /* 忽略坏文件 */ }
-      }
-      if (next.length) setAttachedImages((prev) => [...prev, ...next].slice(0, 3));
-    })();
-  };
 
   const switchTab = (next) => {
     setTab(next);
@@ -709,17 +682,10 @@ export default function Home() {
   const invMap = Object.fromEntries(allMasters.map(i => [i.id, i]));
 
   const getResponseText = useCallback(async (messages, userQuery, snapshot) => {
-    const imgs = flowImagesRef.current;
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages,
-        query: userQuery || undefined,
-        snapshot: snapshot || undefined,
-        aiConfig: getAiConfig(),
-        images: imgs && imgs.length ? imgs : undefined,
-      }),
+      body: JSON.stringify({ messages, query: userQuery || undefined, snapshot: snapshot || undefined, aiConfig: getAiConfig() }),
     });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
@@ -977,8 +943,6 @@ export default function Home() {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
     if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     consumeFree();
-    flowImagesRef.current = attachedImagesRef.current;
-    setAttachedImages([]); // 本次提问的图片已捕获，清空附件栏
     let effectiveSelected = selected;
     // 未手动选择 → 提交时按问题自动匹配最合适的大师（结果同步到 UI）
     if (effectiveSelected.size === 0) {
@@ -1470,24 +1434,6 @@ export default function Home() {
               className="question-input"
               disabled={loading}
             />
-            <div className="q-image-row">
-              <button
-                type="button"
-                className="q-image-btn"
-                onClick={() => imgInputRef.current && imgInputRef.current.click()}
-                disabled={loading || attachedImages.length >= 3}
-                title="上传图片（K线/财报截图），最多 3 张"
-              >
-                🖼 附图
-              </button>
-              {attachedImages.map((img, i) => (
-                <span key={i} className="q-image-thumb">
-                  <img src={img} alt={`附图${i + 1}`} />
-                  <button type="button" className="q-image-del" onClick={() => setAttachedImages((prev) => prev.filter((_, j) => j !== i))} aria-label="移除图片">✕</button>
-                </span>
-              ))}
-              <input ref={imgInputRef} type="file" accept="image/*" multiple hidden onChange={onPickImages} />
-            </div>
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             {matchingHint && <div className="summon-status">🔍 {t('summonMatching')}</div>}
