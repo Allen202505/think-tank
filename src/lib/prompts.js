@@ -279,7 +279,7 @@ export function buildQuickBreakfastPrompt(news, host, guests) {
   const hostLine = masterProfileLine(host);
   const guestCount = Math.max(1, (guests || []).length);
   const guestsLine = (guests || [])
-    .map((g, i) => `guest${i} ${g.master.name}（${g.groupKey || ''}）`)
+    .map((g, i) => `guest${i} ${g.master.name}（${g.groupKey || ''}）\n    画像：${masterProfileLine(g.master)}`)
     .join('\n');
   const newsText = [
     `【新闻标题】${news.title || ''}`,
@@ -304,7 +304,7 @@ ${guestsLine || '（无）'}
 
 流程（每轮都是极简发言，**每条发言不得超过 100 个字符**）：
 1. 巴菲特抛题：这条新闻跟 A股/相关板块股价相关吗？为什么值得/不值得深挖？（1-2 句）
-2. ${guestCount >= 2 ? '2 位嘉宾各一句快速观点（体现各自流派，可互相补充或反驳）。' : '1 位嘉宾一句快速观点。'}
+2. ${guestCount >= 2 ? '2 位嘉宾各一句快速观点（各自严格按上面画像里的流派/风格发言，观点必须明显不同，可互相补充或反驳，严禁复述别人的话）。' : '1 位嘉宾一句快速观点。'}
 3. 巴菲特收束：给出 🟢/🟡/⚪ 相关性标记 + 是否值得深挖的一句话理由。
 4. 最后给一段「巴菲特总结」（summary）：2-4 句话、150-250 字，**不受 100 字限制**，把这条新闻说清楚——相关性结论是什么、值不值得深挖、如果深挖重点看什么。
 
@@ -330,7 +330,7 @@ ${guestTurns}
 export function buildQuickTurnPrompt(news, host, guests, turnKey, prevTurns) {
   const hostLine = masterProfileLine(host);
   const guestsLine = (guests || [])
-    .map((g, i) => `guest${i} ${g.master.name}（${g.groupKey || ''}）`)
+    .map((g, i) => `guest${i} ${g.master.name}（${g.groupKey || ''}）\n    画像：${masterProfileLine(g.master)}`)
     .join('\n');
   const newsText = [
     `【新闻标题】${news.title || ''}`,
@@ -366,6 +366,9 @@ export function buildQuickTurnPrompt(news, host, guests, turnKey, prevTurns) {
 
   return `你是「大师吵股 · 巴菲特的早餐」圆桌中的 ${role.name}（${role.title}）。这是「快速解读」，每位大师只说一两句，帮用户判断这条新闻值不值得用「事件穿透框架」深挖。现在轮到你说话。
 
+你的画像（严格按画像里的流派、风格、经典理论、常用话术来发言，体现你的个人特点）：
+${masterProfileLine(role)}
+
 主持人画像：
 ${hostLine}
 
@@ -382,8 +385,9 @@ ${prevText || '（你是第一个发言）'}
 
 要求：
 1. ${turnKey === 'summary' ? 'summary 是唯一可以超过 100 字的字段。' : 'text 必须 ≤100 字符（含标点），简短口语化。'}
-2. 如需引用数据，优先引用【最新市场数据快照】中的数字；快照里没有的用「大约/约/可能」等模糊表述，严禁编造。
-3. 只输出一个 JSON，不要输出任何其他内容（不要 Markdown 代码块）：
+2. 严禁复述或改写「已说的」里任何人的话；即使结论方向接近，也必须用你自己的流派逻辑、术语和侧重重新论证，观点要与前面的人有明显差异。
+3. 如需引用数据，优先引用【最新市场数据快照】中的数字；快照里没有的用「大约/约/可能」等模糊表述，严禁编造。
+4. 只输出一个 JSON，不要输出任何其他内容（不要 Markdown 代码块）：
 ${jsonShape}
 注意：所有引号一律用中文引号「」或“”，禁止使用英文双引号。`;
 }
