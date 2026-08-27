@@ -125,7 +125,17 @@ export async function enrichThinNews(news) {
     // 优先用 6 位 A 股代码直接解析（避开 LLM 提取，快且准）；没有代码再整体解析
     const codeMatch = String(text).match(/\b(?:[0369]\d{5})\b/);
     const infos = await resolveSymbols(codeMatch ? codeMatch[0] : text).catch(() => []);
-    const cn = (infos || []).find((i) => i.market === 'CN' && i.symbol);
+    const cnList = (infos || []).filter((i) => i.market === 'CN' && i.symbol);
+    if (!cnList.length) return news;
+    let cn = cnList[0];
+    // 无唯一代码且识别出多家 A 股公司 → 必须能通过"新闻标题里的公司名"唯一锁定一家，
+    // 否则无法确认补全的公告和粘贴的新闻是同一家公司，宁可放弃，避免胡乱抓。
+    if (!codeMatch && cnList.length > 1) {
+      const title = String(news.title || '');
+      const named = cnList.filter((i) => i.name && title.includes(String(i.name).replace(/\s+/g, '')));
+      if (named.length === 1) cn = named[0];
+      else cn = null;
+    }
     if (!cn) return news;
     const json = await fetchJson(ANN_LIST_URL(cn.symbol)).catch(() => null);
     const list = (json && json.data && json.data.list) || [];
