@@ -583,7 +583,7 @@ export default function BreakfastRoundtable({ active = true }) {
               ) : poolNewsItems.length === 0 ? (
                 <div className="bk-poolnews-empty">
                   <div className="bk-poolnews-empty-title">暂时没找到与你的自选股相关的新闻</div>
-                  <p className="bk-poolnews-empty-desc">已搜索 {myStockCount || 0} 只自选股（滚动快讯 + 个股新闻）；稍后刷新，或切到「24小时热点」看大盘消息。</p>
+                  <p className="bk-poolnews-empty-desc">已搜索 {myStockCount || 0} 只自选股（滚动快讯 + 个股新闻 + 公司公告）；稍后刷新，或切到「24小时热点」看大盘消息。</p>
                 </div>
               ) : (
                 poolNewsItems.map((n) => (
