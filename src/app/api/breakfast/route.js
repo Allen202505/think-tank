@@ -4,6 +4,8 @@
 // mode='quick' → 快速解读（单次返回）；mode='deep'（默认）→ 框架逐步推演
 import { SYSTEM_GUARD } from '../../../lib/security';
 import { getQuoteContext } from '../chat/quoteContext.js';
+import { withTimeout } from '../chat/marketData.js';
+import { enrichThinNews } from '../../../lib/announcementEnrich';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPrompt, buildQuickTurnPrompt } from '../../../lib/prompts';
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
@@ -178,7 +180,8 @@ export async function POST(request) {
       return Response.json({ error: '主持人或嘉宾缺失' }, { status: 400 });
     }
 
-    const useNews = resolvedNews;
+    // 薄摘要自动补全：正文过短且提到 A 股公司时，自动关联官方公告全文节选，避免分析全靠猜
+    const useNews = await withTimeout(enrichThinNews(resolvedNews), 8000).catch(() => resolvedNews);
 
     // 信息层梳理：新闻里提到公司 → 拉最新行情/财务/深度分析快照
     const queryText = `${useNews.title}\n${useNews.content || ''}`;
