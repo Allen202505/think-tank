@@ -8,7 +8,7 @@ import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { generateJson } from '../../../lib/ai';
+import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
 import { buildEarningsDataCard } from '../chat/earningsEngine.js';
 import { findMasterById } from '../../../lib/breakfast';
@@ -141,7 +141,7 @@ ${dataCardSection}
     const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 6000)}`), '{"content":"解读","followUps":["追问1"]}', 2000, true, body.aiConfig);
     const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
     if (!normalized) {
-      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: raw.trim(), followUps: [], dataCard: dataCard ? dataCard.text : null } });
+      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: extractContentFromRaw(raw) || raw.trim(), followUps: [], dataCard: dataCard ? dataCard.text : null } });
       return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
     }
     const followUps = Array.isArray(normalized.followUps)

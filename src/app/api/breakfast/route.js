@@ -10,26 +10,7 @@ import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
 
 import { resolveAiConfig } from '../../../lib/llm.js';
-
-function extractJson(text) {
-  if (!text) return null;
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1] : text;
-  try {
-    return JSON.parse(candidate);
-  } catch (e) {
-    const start = candidate.indexOf('{');
-    const end = candidate.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(candidate.slice(start, end + 1));
-      } catch (e2) {
-        return null;
-      }
-    }
-    return null;
-  }
-}
+import { extractJson, extractContentFromRaw } from '../../../lib/ai';
 
 async function callDeepSeek(messages, maxTokens = 6000, cfg = null) {
   const aiCfg = resolveAiConfig(cfg);
@@ -357,7 +338,7 @@ export async function POST(request) {
           title: step.title,
           leadId: lead.id,
           type: step.key === 'gate' ? 'gate' : (step.structured ? 'conclusion' : undefined),
-          content: raw.trim(),
+          content: extractContentFromRaw(raw) || raw.trim(),
           turns: [],
           followUps: [],
         };

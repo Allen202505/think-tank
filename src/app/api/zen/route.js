@@ -1,7 +1,7 @@
 // src/app/api/zen/route.js
 // 缠中说禅 · 看短线：用缠论方法对单只股票做短线分析评估
 // POST { query: '股票名称或代码' }
-import { extractJson, generateJson } from '../../../lib/ai';
+import { extractJson, generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { masterProfileLine } from '../../../lib/prompts';
@@ -154,7 +154,7 @@ ${dataBlock}
     const unwrapped = unwrapNested(parsed);
     const normalized = unwrapped && typeof unwrapped.content === 'string' && unwrapped.content.trim() ? unwrapped : null;
     if (!normalized) {
-      if (raw && raw.trim()) return Response.json({ ok: true, result: { name: info.name, content: raw.trim(), followUps: [] } });
+      if (raw && raw.trim()) return Response.json({ ok: true, result: { name: info.name, content: extractContentFromRaw(raw) || raw.trim(), followUps: [] } });
       return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
     }
     const followUps = Array.isArray(normalized.followUps)
