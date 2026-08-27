@@ -736,6 +736,34 @@ export default function BreakfastRoundtable({ active = true }) {
                         )}
                       </>
                     ) : (s.content && <div className="bk-step-body">{renderInline(s.content, `c-${i}`)}</div>)}
+                    {isConclusion && (
+                      <>
+                        {Array.isArray(s.opportunities) && s.opportunities.length > 0 && (
+                          <div className="bk-conclusion-opps">
+                            {s.opportunities.map((o, oi) => (
+                              <div key={oi} className="bk-conclusion-opp">
+                                <div className="bk-opp-line">
+                                  {o.tier && <span className="bk-opp-tier">{o.tier}</span>}
+                                  <span className="bk-opp-name">{o.name}{o.code ? `（${o.code}）` : ''}</span>
+                                </div>
+                                {o.logic && <div className="bk-opp-logic">{o.logic}</div>}
+                                {o.risk && <div className="bk-opp-risk">风险：{o.risk}</div>}
+                                {o.falsify && <div className="bk-opp-risk">证伪：{o.falsify}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {s.action && s.action.verdict && (
+                          <div className="bk-conclusion-action">
+                            <span className="bk-action-verdict">操作建议：{s.action.verdict}</span>
+                            {s.action.entry && <span>买入：{s.action.entry}</span>}
+                            {s.action.stopLoss && <span>止损：{s.action.stopLoss}</span>}
+                            {s.action.cycle && <span>周期：{s.action.cycle}</span>}
+                          </div>
+                        )}
+                        {s.risk && <div className="bk-conclusion-risk">风险：{s.risk}</div>}
+                      </>
+                    )}
                     {isGate && s.stop && <div className="bk-gate-stopnote">⚪ 该事件暂不相关，未继续深挖。</div>}
                     {fuBlock('f')}
                   </>
