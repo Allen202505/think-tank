@@ -246,6 +246,7 @@ async function fetchStockAnnouncements(info, limit = ANN_PER_STOCK) {
       if (!title || title.length < 5) continue;
       out.push({
         id: `ann-${a.art_code || `${code}-${title}`}`,
+        artCode: a.art_code || '',
         title,
         summary: colName ? `【${colName}】` : '',
         time: fmtTime(ts),
@@ -257,6 +258,58 @@ async function fetchStockAnnouncements(info, limit = ANN_PER_STOCK) {
     return out;
   } catch (e) {
     return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── 公告正文摘要：从东财公告正文里抠出关键财务/业务信号，避免点击后只有「【分类】」空文本 ──
+const ANN_DIGEST_KEY = /(净利|净利润|营业收入|营收|营业总收入|同比|增长|下降|下滑|扣非|每股收益|毛利率|净资产|合同额|新签|订单|现金流|营业利润|利润总额)/;
+
+function cleanAnnText(html) {
+  return String(html || '')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\r/g, '')
+    .split('\n').map((s) => s.trim()).filter(Boolean)
+    .join('\n');
+}
+
+function extractAnnDigest(html) {
+  const text = cleanAnnText(html);
+  if (!text) return '';
+  const seen = new Set();
+  const hits = [];
+  for (const line of text.split('\n')) {
+    if (line.length < 5 || line.length > 220) continue;
+    if (!ANN_DIGEST_KEY.test(line)) continue;
+    const norm = line.replace(/\s+/g, '');
+    if (seen.has(norm)) continue; // 去掉重复的公司抬头行
+    seen.add(norm);
+    hits.push(line);
+    if (hits.length >= 4) break;
+  }
+  if (hits.length >= 2) return hits.slice(0, 4).join('；').slice(0, 320);
+  return text.slice(0, 260); // 无关键财务行时退回开头正文
+}
+
+async function fetchAnnouncementDigest(artCode) {
+  if (!artCode) return '';
+  const url = `https://np-cnotice-stock.eastmoney.com/api/content/ann?art_code=${artCode}&client_source=web&page_index=1`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36', Referer: 'https://data.eastmoney.com/' },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return '';
+    const json = await res.json();
+    const html = (json && json.data && json.data.notice_content) || '';
+    return extractAnnDigest(html);
+  } catch (e) {
+    return '';
   } finally {
     clearTimeout(timer);
   }
@@ -304,8 +357,17 @@ export async function fetchPoolNews(watchlist) {
   for (const n of matched) push(n);
 
   merged.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  const top = merged.slice(0, MAX_TOTAL);
+  // 公告条目补真实正文摘要（东财公告内容接口），避免点击后弹窗只有「【分类】」空文本、分析全靠猜
+  const annItems = top.filter((n) => n.source === '公告' && n.artCode);
+  if (annItems.length) {
+    await mapLimit(annItems, 6, async (n) => {
+      const digest = await fetchAnnouncementDigest(n.artCode).catch(() => '');
+      if (digest) n.summary = digest;
+    });
+  }
   return {
-    items: merged.slice(0, MAX_TOTAL),
+    items: top,
     resolved,
     total: (newsResult.items || []).length,
   };
