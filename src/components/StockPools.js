@@ -16,6 +16,15 @@ function saveHiddenPresets(ids) {
   try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids)); } catch (e) { /* ignore */ }
 }
 
+// 页签持久化：刷新/重开页面后仍停留在「我的股票池」或「大师的股票池」
+const POOL_TAB_KEY = 'thinktank_pool_tab';
+function loadPoolTab() {
+  try { return localStorage.getItem(POOL_TAB_KEY) === 'mine' ? 'mine' : 'master'; } catch (e) { return 'master'; }
+}
+function savePoolTab(t) {
+  try { localStorage.setItem(POOL_TAB_KEY, t); } catch (e) { /* ignore */ }
+}
+
 // 本周是区间数据，标注「周一 ~ 最后交易日」，如 08-10 ~ 08-14
 function weekRange(dateStr) {
   const d = new Date(`${dateStr}T00:00:00`);
@@ -96,6 +105,7 @@ export default function StockPools() {
     setUserPools(loadUserPools());
     setHiddenPresetIds(loadHiddenPresets());
     setCosts(loadCosts());
+    setPoolTab(loadPoolTab());
     setHydrated(true);
   }, []);
 
@@ -116,6 +126,9 @@ export default function StockPools() {
   useEffect(() => {
     if (hydrated) saveHiddenPresets(hiddenPresetIds);
   }, [hiddenPresetIds, hydrated]);
+  useEffect(() => {
+    if (hydrated) savePoolTab(poolTab);
+  }, [poolTab, hydrated]);
 
   // 默认选中列表第一项；当前选中项被删除/隐藏时，也自动落到列表第一项
   useEffect(() => {
