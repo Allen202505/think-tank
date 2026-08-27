@@ -43,16 +43,24 @@ function isThin(news) {
 }
 
 // 从新闻文本推断「事件类型」，用于和公告标题匹配（如 上半年 → 半年度报告）
+// 半年优先于年报，避免"半年度报告"被当成"年度报告"串错期。
 function detectEventTypes(text) {
   const types = [];
   if (/半年|半年度/.test(text)) types.push('半年度报告');
+  else if (/年度报告|年报/.test(text)) types.push('年度报告');
   if (/业绩预告|预增|预减|预亏|预盈/.test(text)) types.push('业绩预告');
   if (/业绩快报/.test(text)) types.push('业绩快报');
   if (/一季报|一季度/.test(text)) types.push('一季度报告');
   if (/三季报|三季度/.test(text)) types.push('三季度报告');
-  if (/经营数据|新签合同|订单|中标|月度经营/.test(text)) types.push('主要经营数据');
-  if (/年度报告|年报/.test(text) && !/半年/.test(text)) types.push('年度报告');
-  if (types.length === 0) types.push(''); // 无明确类型时退化为通用匹配
+  if (/经营数据|新签合同|订单|月度经营/.test(text)) types.push('主要经营数据');
+  if (/中标|重大合同/.test(text)) types.push('重大合同');
+  if (/回购/.test(text)) types.push('回购');
+  if (/增持/.test(text)) types.push('增持');
+  if (/减持/.test(text)) types.push('减持');
+  if (/重组|重大资产/.test(text)) types.push('重组');
+  if (/收购|并购/.test(text)) types.push('收购');
+  if (/分红|权益分派|利润分配|送股|转增/.test(text)) types.push('利润分配');
+  if (/股权激励/.test(text)) types.push('股权激励');
   return types;
 }
 
@@ -68,10 +76,12 @@ function scoreAnnouncement(ann, newsText) {
   const col = (ann.columns || []).map((c) => c.column_name || '').join(' ');
   const t = `${title} ${col}`;
   const types = detectEventTypes(newsText);
-  let score = 0;
+  let eventScore = 0;
   for (const ty of types) {
-    if (ty && t.includes(ty)) score += 6;
+    if (t.includes(ty)) eventScore += 8;
   }
+  if (eventScore === 0) return 0; // 新闻里没有明确的公告事件 → 不补全（防止公司名重合误抓）
+  let score = eventScore;
   const tokens = String(newsText).match(/[\u4e00-\u9fa5A-Za-z0-9]{2,}/g) || [];
   const stop = new Set(['公司', '公告', '披露', '集团', '股份', '有限', '报告', '净利', '利润', '同比', '万元', '亿元']);
   for (const tk of tokens) {
