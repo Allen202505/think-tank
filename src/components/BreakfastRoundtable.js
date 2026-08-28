@@ -257,8 +257,8 @@ export default function BreakfastRoundtable({ active = true }) {
   const guestKey = useMemo(() => guests.map((g) => g.master.id).join('-'), [guests]);
   const news = useMemo(() => parseNews(inputText), [inputText]);
   const currentKey = useMemo(() => (news ? hashText(`${news.title}\n${news.content}`) : ''), [news]);
-  // 缓存 key 只含「内容哈希::模式」；不含 guestKey（嘉宾每次随机抽，会导致同新闻 miss）
-  const cacheKey = currentKey ? `${currentKey}::${mode}` : '';
+  // 缓存 key = 内容哈希（不含嘉宾/模式，避免随机嘉宾或快慢速导致同新闻 miss）
+  const cacheKey = currentKey || '';
   const entry = cacheKey ? (cache[cacheKey] || { status: 'idle', steps: [] }) : { status: 'idle', steps: [] };
 
   const abortRefs = useRef({});
@@ -284,7 +284,7 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
-    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${runMode}`;
+    const key = hashText(`${newsObj.title}\n${newsObj.content}`);
     // 记忆命中：已解读过 → 直接展示，不重复消耗免费次数 / 不调 LLM
     if (!force && cacheRef.current[key] && cacheRef.current[key].status === 'done') {
       setBkShowList(false);
@@ -962,13 +962,16 @@ function filterFresh(items) {
 const BK_MEMORY_KEY = 'thinktank_breakfast_memory';
 const BK_MEMORY_MAX = 20;                 // 最多保留 20 条解读
 const BK_MEMORY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天过期
-// 规整：只留「已完成」且未过期，按时间倒序保留最近 N 条
+// 规整：只留「已完成」且未过期；key 归一化为「内容哈希」（兼容旧格式 内容::嘉宾::模式），按时间倒序保留最近 N 条
 function prepareMem(map) {
   const cutoff = Date.now() - BK_MEMORY_TTL;
   const out = {};
   for (const k in map) {
     const e = map[k];
-    if (e && e.status === 'done' && e.at && e.at >= cutoff) out[k] = { status: 'done', steps: e.steps || [], at: e.at };
+    if (e && e.status === 'done' && e.at && e.at >= cutoff) {
+      const contentKey = k.split('::')[0]; // 只按内容哈希缓存，快慢速/嘉宾/模式都命中
+      if (contentKey) out[contentKey] = { status: 'done', steps: e.steps || [], at: e.at };
+    }
   }
   const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
   keys.slice(BK_MEMORY_MAX).forEach((k) => delete out[k]);
