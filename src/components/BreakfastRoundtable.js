@@ -149,7 +149,7 @@ export default function BreakfastRoundtable({ active = true }) {
   const [myPools, setMyPools] = useState([]);
   const [poolNewsItems, setPoolNewsItems] = useState([]);
   const [poolNewsLoading, setPoolNewsLoading] = useState(false);
-  const [poolNewsRefreshing, setPoolNewsRefreshing] = useState(false); // 手动刷新按钮 ··· 态（不盖住列表）
+  const poolNewsFetchRef = useRef(false); // 防止并发刷新
   const [poolNewsError, setPoolNewsError] = useState('');
   const [myStockCount, setMyStockCount] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
@@ -216,13 +216,11 @@ export default function BreakfastRoundtable({ active = true }) {
     }
     if (within30 && !force) return;
 
-    // 需要拉取：无可用缓存 → 整列表加载态；有缓存 + 手动刷新 → 仅按钮 ···；后台过期刷新 → 静默
+    // 手动刷新（force）/ 无可用缓存 → 列表区显示「正在搜索最新新闻」；后台过期刷新 → 静默
+    if (poolNewsFetchRef.current) return; // 已在刷新中，避免并发
+    poolNewsFetchRef.current = true;
     const startedAt = Date.now();
-    if (!keyOk || !fresh.length) {
-      setPoolNewsLoading(true);
-    } else if (force) {
-      setPoolNewsRefreshing(true);
-    }
+    if (force || !keyOk || !fresh.length) setPoolNewsLoading(true);
     setPoolNewsError('');
     try {
       const res = await fetch('/api/pool-news', {
@@ -249,7 +247,7 @@ export default function BreakfastRoundtable({ active = true }) {
       const remain = 600 - elapsed;
       if (remain > 0) await new Promise((r) => setTimeout(r, remain));
       setPoolNewsLoading(false);
-      setPoolNewsRefreshing(false);
+      poolNewsFetchRef.current = false;
     }
   }, []);
 
@@ -584,10 +582,9 @@ export default function BreakfastRoundtable({ active = true }) {
                   type="button"
                   className="bk-news-refresh"
                   onClick={() => loadPoolNews(true)}
-                  disabled={poolNewsLoading || poolNewsRefreshing}
                   title="刷新我的股票池新闻"
                 >
-                  {poolNewsLoading || poolNewsRefreshing ? '···' : '↻ 刷新'}
+                  ↻ 刷新
                 </button>
               )}
             </div>
@@ -653,8 +650,9 @@ export default function BreakfastRoundtable({ active = true }) {
                 </div>
               ) : poolNewsLoading ? (
                 <div className="bk-poolnews-empty bk-poolnews-loading">
+                  <span className="bk-poolnews-search" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
                   <span className="bk-loading-speech-dots"><span /><span /><span /></span>
-                  <span>正在搜索 {myStockCount || 0} 只自选股的新闻…</span>
+                  <span>正在搜索最新的新闻…</span>
                 </div>
               ) : poolNewsError ? (
                 <div className="bk-poolnews-empty">
