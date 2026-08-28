@@ -257,7 +257,8 @@ export default function BreakfastRoundtable({ active = true }) {
   const guestKey = useMemo(() => guests.map((g) => g.master.id).join('-'), [guests]);
   const news = useMemo(() => parseNews(inputText), [inputText]);
   const currentKey = useMemo(() => (news ? hashText(`${news.title}\n${news.content}`) : ''), [news]);
-  const cacheKey = currentKey ? `${currentKey}::${guestKey}::${mode}` : '';
+  // 缓存 key 只含「内容哈希::模式」；不含 guestKey（嘉宾每次随机抽，会导致同新闻 miss）
+  const cacheKey = currentKey ? `${currentKey}::${mode}` : '';
   const entry = cacheKey ? (cache[cacheKey] || { status: 'idle', steps: [] }) : { status: 'idle', steps: [] };
 
   const abortRefs = useRef({});
@@ -283,7 +284,7 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
-    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
+    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${runMode}`;
     // 记忆命中：已解读过 → 直接展示，不重复消耗免费次数 / 不调 LLM
     if (!force && cacheRef.current[key] && cacheRef.current[key].status === 'done') {
       setBkShowList(false);
