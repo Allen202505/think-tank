@@ -113,6 +113,16 @@ export default function BreakfastRoundtable({ active = true }) {
     mem[key] = entry;
     saveBreakfastMemory(mem);
   }, []);
+  // 已解读过的新闻哈希前缀集合（用于左侧列表打「已解读 ✓」标记）
+  const interpretedHashes = useMemo(() => {
+    const set = new Set();
+    for (const k of Object.keys(loadBreakfastMemory())) set.add(k.split('::')[0]);
+    return set;
+  }, [cache]);
+  const isInterpreted = useCallback((n) => {
+    const p = parseNews(String(n.title || '') + '\n' + (n.summary || ''));
+    return interpretedHashes.has(hashText(`${p.title}\n${p.content}`));
+  }, [interpretedHashes]);
 
   // 左侧新闻列表：真实 API（财联社 + 东方财富 7x24），失败/为空时回退内置示例
   const [newsList, setNewsList] = useState([]);
@@ -584,7 +594,7 @@ export default function BreakfastRoundtable({ active = true }) {
                   key={n.id}
                   type="button"
                   className={`bk-news-row${activeNewsId === n.id ? ' active' : ''}`}
-                  onClick={() => { setActiveNewsId(n.id); openNewsModal(`${n.title}\n${n.summary}`); }}
+                  onClick={() => { setActiveNewsId(n.id); openNewsModal(`${n.title}\n${n.summary || ''}`); }}
                 >
                   <span className="bk-news-row-arrow" aria-hidden="true">›</span>
                   <span className="bk-news-row-main">
@@ -592,6 +602,7 @@ export default function BreakfastRoundtable({ active = true }) {
                     <span className="bk-news-row-meta">
                       {n.source} · {n.time}
                       {(n.tags || []).map((t) => <span key={t} className="bk-tag">{t}</span>)}
+                      {isInterpreted(n) && <span className="bk-tag bk-tag-done">✓ 已解读</span>}
                     </span>
                   </span>
                 </button>
@@ -646,6 +657,7 @@ export default function BreakfastRoundtable({ active = true }) {
                       <span className="bk-news-row-meta">
                         {n.source} · {n.time}
                         {(n.related || []).map((r) => <span key={r.symbol || r.name} className="bk-tag bk-tag-related">{r.name}</span>)}
+                        {isInterpreted(n) && <span className="bk-tag bk-tag-done">✓ 已解读</span>}
                       </span>
                     </span>
                   </button>

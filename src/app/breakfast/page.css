@@ -166,6 +166,11 @@
   padding: 2px 8px;
   background: var(--bg-input);
 }
+.bk-tag-done {
+  color: var(--bull);
+  border-color: var(--bull);
+  background: rgba(76,175,125,0.10);
+}
 
 .bk-news-note {
   font-size: 11px;

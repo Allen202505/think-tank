@@ -589,6 +589,23 @@ export default function Home() {
     setHistoryOpen(false);
   }, []);
 
+  // 同问命中：问题 + 选人完全一致且在 7 天内 → 返回最近一条历史，直接恢复不重复消耗
+  const PK_HIT_TTL = 7 * 24 * 60 * 60 * 1000;
+  const findHistoryHit = useCallback((q, selKey) => {
+    try {
+      const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') || [];
+      const cutoff = Date.now() - PK_HIT_TTL;
+      let best = null;
+      for (const h of list) {
+        if (!h || Date.now() - (h.ts || 0) > cutoff) continue;
+        if (String(h.query || '').trim() !== q) continue;
+        if ([...(h.selected || [])].sort().join(',') !== selKey) continue;
+        if (!best || (h.ts || 0) > (best.ts || 0)) best = h;
+      }
+      return best || null;
+    } catch (e) { return null; }
+  }, []);
+
   // 分享海报（#10）
   const handlePoster = useCallback(async () => {
     if (!result || posterBusy) return;
@@ -944,8 +961,6 @@ export default function Home() {
 
   const go = useCallback(async (force = false) => {
     if (!query.trim()) { setError(t('summonErrorNoQuestion')); return; }
-    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
-    consumeFree();
     let effectiveSelected = selected;
     // 未手动选择 → 提交时按问题自动匹配最合适的大师（结果同步到 UI）
     if (effectiveSelected.size === 0) {
@@ -961,6 +976,13 @@ export default function Home() {
       }
     }
     if (effectiveSelected.size === 0) { setError(t('summonErrorNoMaster')); return; }
+    // 同问命中历史：问题 + 选人完全一致且在 7 天内 → 直接恢复，不重复消耗 token
+    if (!force) {
+      const hit = findHistoryHit(query.trim(), [...effectiveSelected].sort().join(','));
+      if (hit) { restoreHistory(hit); return; }
+    }
+    if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
+    consumeFree();
     // 自动判定聊天方式：1 位大师 = 单聊，≥2 位 = 群聊
 
     setError('');

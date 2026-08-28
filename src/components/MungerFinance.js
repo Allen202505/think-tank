@@ -11,6 +11,35 @@ function renderInline(text, keyBase) {
   return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
 }
 
+// ── 财报解读记忆：同源财报（链接/附件+备注）重复解读不再消耗 token ──
+function hashText(s) {
+  let h = 5381; const t = String(s || '').trim();
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return `n${(h >>> 0).toString(36)}`;
+}
+const MUNGER_KEY = 'thinktank_munger_memory';
+const MUNGER_MAX = 20;
+const MUNGER_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天
+function loadMungerMemory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(MUNGER_KEY) || '{}') || {};
+    const cutoff = Date.now() - MUNGER_TTL; const out = {};
+    for (const k in raw) { const e = raw[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
+    keys.slice(MUNGER_MAX).forEach((k) => delete out[k]);
+    return out;
+  } catch (e) { return {}; }
+}
+function saveMungerMemory(map) {
+  try {
+    const cutoff = Date.now() - MUNGER_TTL; const out = {};
+    for (const k in map) { const e = map[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
+    keys.slice(MUNGER_MAX).forEach((k) => delete out[k]);
+    localStorage.setItem(MUNGER_KEY, JSON.stringify(out));
+  } catch (e) { /* ignore */ }
+}
+
 // 芒格教你读财报：财报解读（链接/附件/补充说明）+ 举手提问单聊浮层
 export default function MungerFinance() {
   const munger = findMasterById('munger');
@@ -100,6 +129,13 @@ export default function MungerFinance() {
   const runReport = useCallback(async () => {
     if (loading) return;
     if (!link.trim() && !fileData) return;
+    // 记忆命中：同一份财报（链接或附件名+大小）已解读过 → 直接展示，不重复消耗
+    const srcId = fileData
+      ? `file:${fileData.name}:${String(fileData.base64 || '').length}`
+      : `link:${link.trim()}`;
+    const memKey = `munger::${hashText(`${srcId}\n${note.trim()}`)}`;
+    const hit = loadMungerMemory()[memKey];
+    if (hit && hit.result) { setResult(hit.result); setError(''); return; }
     if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     consumeFree();
     setLoading(true);
@@ -121,6 +157,9 @@ export default function MungerFinance() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
       setResult(data.result);
+      const mem = loadMungerMemory();
+      mem[memKey] = { result: data.result, at: Date.now() };
+      saveMungerMemory(mem);
     } catch (e) {
       setError(e.message || '生成失败，请重试');
     } finally {

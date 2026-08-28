@@ -20,6 +20,35 @@ function renderInline(text, keyBase) {
   return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
 }
 
+// ── 短线分析记忆：同一只股票短时（30 分钟）重复分析不再消耗 token ──
+function hashText(s) {
+  let h = 5381; const t = String(s || '').trim();
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return `n${(h >>> 0).toString(36)}`;
+}
+const ZEN_KEY = 'thinktank_zen_memory';
+const ZEN_MAX = 20;
+const ZEN_TTL = 30 * 60 * 1000; // 30 分钟（行情会变，短缓存）
+function loadZenMemory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ZEN_KEY) || '{}') || {};
+    const cutoff = Date.now() - ZEN_TTL; const out = {};
+    for (const k in raw) { const e = raw[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
+    keys.slice(ZEN_MAX).forEach((k) => delete out[k]);
+    return out;
+  } catch (e) { return {}; }
+}
+function saveZenMemory(map) {
+  try {
+    const cutoff = Date.now() - ZEN_TTL; const out = {};
+    for (const k in map) { const e = map[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
+    keys.slice(ZEN_MAX).forEach((k) => delete out[k]);
+    localStorage.setItem(ZEN_KEY, JSON.stringify(out));
+  } catch (e) { /* ignore */ }
+}
+
 // 缠中说禅 · 看短线：输入股票，用缠论做短线分析评估
 export default function ZenShortTerm() {
   const [query, setQuery] = useState('');
@@ -30,6 +59,9 @@ export default function ZenShortTerm() {
   const run = useCallback(async () => {
     const q = query.trim();
     if (!q || loading) return;
+    const memKey = `zen::${hashText(q)}`;
+    const hit = loadZenMemory()[memKey];
+    if (hit && hit.result) { setResult(hit.result); setError(''); return; }
     if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     consumeFree();
     setLoading(true);
@@ -44,6 +76,9 @@ export default function ZenShortTerm() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');
       setResult(data.result);
+      const mem = loadZenMemory();
+      mem[memKey] = { result: data.result, at: Date.now() };
+      saveZenMemory(mem);
     } catch (e) {
       setError(e.message || '分析失败，请重试');
     } finally {
