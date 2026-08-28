@@ -205,15 +205,19 @@ export default function BreakfastRoundtable({ active = true }) {
     const cacheKey = [...symbols].sort().join(',');
     const cached = loadPoolNewsCache();
     const fresh = filterFresh(cached?.items || []);
-    const cacheHit = !force && cached && cached.key === cacheKey && (Date.now() - (cached.at || 0)) < POOLNEWS_TTL;
-    if (cacheHit) {
-      // 缓存未过期：直接展示（仍应用 7 天过滤）
+    const keyOk = cached && cached.key === cacheKey;
+    const within30 = keyOk && (Date.now() - (cached.at || 0)) < POOLNEWS_TTL;
+
+    // 只要有缓存：先立即展示（避免每次进入都转圈），30 分钟内不再拉取
+    if (keyOk) {
       setPoolNewsItems(fresh);
       setPoolNewsError('');
-      return;
     }
+    if (within30 && !force) return;
+
+    // 需要拉取：无可用缓存才显示加载态；有缓存则后台静默刷新（不打断已展示内容）
     const startedAt = Date.now();
-    setPoolNewsLoading(true);
+    if (!keyOk || !fresh.length) setPoolNewsLoading(true);
     setPoolNewsError('');
     try {
       const res = await fetch('/api/pool-news', {
