@@ -742,7 +742,8 @@ export default function BreakfastRoundtable({ active = true }) {
                             const sp = turnSpeaker(t.speaker);
                             const isH = sp.id === host.id;
                             const { cleaned, emoji } = parseLeadingTag(t.text);
-                            const st = emoji ? STANCE_LABELS[stanceOf(emoji)] : null;
+                            // 主持人不显示多空立场徽章（主持仅抛题/收束，不站队）；嘉宾才显示
+                            const st = (!isH && emoji) ? STANCE_LABELS[stanceOf(emoji)] : null;
                             return (
                               <div key={ti} className={`bk-turn-row${isH ? ' bk-turn-row-host' : ''}`}>
                                 <span className="bk-turn-row-avatar"><MasterAvatar master={sp} size={24} /></span>
