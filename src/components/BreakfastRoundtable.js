@@ -149,6 +149,7 @@ export default function BreakfastRoundtable({ active = true }) {
   const [myPools, setMyPools] = useState([]);
   const [poolNewsItems, setPoolNewsItems] = useState([]);
   const [poolNewsLoading, setPoolNewsLoading] = useState(false);
+  const [poolNewsRefreshing, setPoolNewsRefreshing] = useState(false); // 手动刷新按钮 ··· 态（不盖住列表）
   const [poolNewsError, setPoolNewsError] = useState('');
   const [myStockCount, setMyStockCount] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
@@ -215,9 +216,13 @@ export default function BreakfastRoundtable({ active = true }) {
     }
     if (within30 && !force) return;
 
-    // 需要拉取：无可用缓存才显示加载态；有缓存则后台静默刷新（不打断已展示内容）
+    // 需要拉取：无可用缓存 → 整列表加载态；有缓存 + 手动刷新 → 仅按钮 ···；后台过期刷新 → 静默
     const startedAt = Date.now();
-    if (!keyOk || !fresh.length) setPoolNewsLoading(true);
+    if (!keyOk || !fresh.length) {
+      setPoolNewsLoading(true);
+    } else if (force) {
+      setPoolNewsRefreshing(true);
+    }
     setPoolNewsError('');
     try {
       const res = await fetch('/api/pool-news', {
@@ -244,6 +249,7 @@ export default function BreakfastRoundtable({ active = true }) {
       const remain = 600 - elapsed;
       if (remain > 0) await new Promise((r) => setTimeout(r, remain));
       setPoolNewsLoading(false);
+      setPoolNewsRefreshing(false);
     }
   }, []);
 
@@ -578,10 +584,10 @@ export default function BreakfastRoundtable({ active = true }) {
                   type="button"
                   className="bk-news-refresh"
                   onClick={() => loadPoolNews(true)}
-                  disabled={poolNewsLoading}
+                  disabled={poolNewsLoading || poolNewsRefreshing}
                   title="刷新我的股票池新闻"
                 >
-                  {poolNewsLoading ? '···' : '↻ 刷新'}
+                  {poolNewsLoading || poolNewsRefreshing ? '···' : '↻ 刷新'}
                 </button>
               )}
             </div>
