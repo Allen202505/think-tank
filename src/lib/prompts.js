@@ -327,6 +327,19 @@ ${guestTurns}
 注意：verdict 只能取「🟢 强相关」「🟡 弱相关」「⚪ 暂不相关」之一；所有引号一律用中文引号「」或“”，禁止使用英文双引号。followUps 必须是基于本段实际内容的深挖方向，且必须是完整问句（以「？」结尾、能直接提问），不要用名词短语或陈述句。`;
 }
 
+// 统计之前轮次的立场票选（看多/看空/中性），用于收束/总结与票选保持一致
+function countPrevStances(prevTurns) {
+  let bull = 0, bear = 0, neutral = 0;
+  for (const t of prevTurns || []) {
+    const m = String(t.text || '').match(/^\s*\**\s*(🟢|🟡|⚪|🔴)/);
+    if (!m) continue;
+    if (m[1] === '🟢') bull++;
+    else if (m[1] === '🔴') bear++;
+    else neutral++; // 🟡 / ⚪ 都算中性
+  }
+  return { bull, bear, neutral };
+}
+
 // ── 巴菲特的早餐 · 快速解读·单轮生成（一人一条，边分析边出结论） ──
 // turnKey: host_open=巴菲特抛题 / guest0..N=嘉宾观点 / host_close=巴菲特收束 / summary=巴菲特总结
 export function buildQuickTurnPrompt(news, host, guests, turnKey, prevTurns) {
@@ -366,6 +379,12 @@ export function buildQuickTurnPrompt(news, host, guests, turnKey, prevTurns) {
     jsonShape = '{"text":"你的观点（≤100字）"}';
   }
 
+  // 收束/总结：把前面各位的实际票选统计注入，避免结论与票选矛盾
+  const votes = countPrevStances(prevTurns);
+  const voteLine = (turnKey === 'host_close' || turnKey === 'summary') && (votes.bull || votes.bear || votes.neutral)
+    ? `\n【当前票选统计】看多 ${votes.bull} 票 / 中性 ${votes.neutral} 票 / 看空 ${votes.bear} 票。请严格基于这个票选统计下结论：多数人看多就明确偏多，多数人看空就明确偏空，多数中性/无方向就明确中性；先点出票选，再给结论。`
+    : '';
+
   return `你是「大师吵股 · 巴菲特的早餐」圆桌中的 ${role.name}（${role.title}）。这是「快速解读」，每位大师只说一两句，帮用户判断这条新闻值不值得用「事件穿透框架」深挖。现在轮到你说话。
 
 你的画像（严格按画像里的流派、风格、经典理论、常用话术来发言，体现你的个人特点）：
@@ -383,7 +402,7 @@ ${guestsLine || '（无）'}
 已说的（供你承接，不要重复）：
 ${prevText || '（你是第一个发言）'}
 
-现在轮到你：${instruction}
+现在轮到你：${instruction}${voteLine}
 
 要求：
 1. ${turnKey === 'summary' ? 'summary 是唯一可以超过 100 字的字段。' : 'text 必须 ≤100 字符（含标点），简短口语化；嘉宾观点必须以定调开头（🟢偏多/🟡中性·拉锯/⚪纯中性·无方向/🔴偏空），严禁只罗列历史数据不给方向。'}

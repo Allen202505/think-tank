@@ -49,6 +49,18 @@ function relevanceOf(emoji) {
   return 'NONE';
 }
 
+// 统计一轮发言的立场票选（🟢看多 / 🔴看空 / 🟡⚪中性）
+function countStances(turns) {
+  let bull = 0, bear = 0, neutral = 0;
+  for (const t of turns || []) {
+    const { emoji } = parseLeadingTag(t.text);
+    if (emoji === '🟢') bull++;
+    else if (emoji === '🔴') bear++;
+    else if (emoji) neutral++;
+  }
+  return { bull, bear, neutral };
+}
+
 // 轻量指纹：同一段输入内容复用已生成结果
 function hashText(s) {
   let h = 5381;
@@ -799,6 +811,18 @@ export default function BreakfastRoundtable({ active = true }) {
                             </div>
                           )}
                         </div>
+                        {(() => {
+                          const v = countStances(s.turns);
+                          if (!(v.bull || v.bear || v.neutral)) return null;
+                          return (
+                            <div className="bk-vote">
+                              <span className="bk-vote-label">票选</span>
+                              <span className="bk-vote-item bull">🟢 看多 {v.bull}</span>
+                              <span className="bk-vote-item neutral">🟡 中性 {v.neutral}</span>
+                              <span className="bk-vote-item bear">🔴 看空 {v.bear}</span>
+                            </div>
+                          );
+                        })()}
                         {s.summary && (
                           <div className="bk-quick-summary">
                             <div className="bk-quick-summary-label">总结</div>

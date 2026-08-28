@@ -577,6 +577,35 @@
   border-left: 3px solid var(--accent);
   border-radius: 10px;
 }
+/* 票选统计条 */
+.bk-vote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.bk-vote-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.bk-vote-item {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+.bk-vote-item.bull { color: var(--bull); border-color: var(--bull); background: rgba(76,175,125,0.10); }
+.bk-vote-item.bear { color: var(--bear); border-color: var(--bear); background: rgba(224,85,85,0.10); }
+.bk-vote-item.neutral { color: var(--neutral); border-color: var(--neutral); background: rgba(201,168,76,0.10); }
 .bk-quick-summary-label {
   font-size: 11px;
   font-weight: 700;
