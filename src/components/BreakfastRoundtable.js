@@ -22,7 +22,7 @@ const STANCE_LABELS = {
   BULL: { label: '看多 ▲', cls: 'bull' },
   BEAR: { label: '看空 ▼', cls: 'bear' },
   NEUTRAL: { label: '中性 —', cls: 'neutral' },
-  PURE_NEUTRAL: { label: '中性·无方向', cls: 'neutral' },
+  PURE_NEUTRAL: { label: '中性 —', cls: 'neutral' },
 };
 const RELEVANCE_LABELS = {
   STRONG: { label: '强相关', cls: 'neutral' },
