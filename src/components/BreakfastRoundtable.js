@@ -17,6 +17,36 @@ function renderInline(text, keyBase) {
   return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
 }
 
+// ── 定调/相关性徽章：把回复开头的 🟢🟡⚪🔴 从正文剥离，右上角渲染成徽章（样式同大师PK） ──
+const STANCE_LABELS = {
+  BULL: { label: '看多 ▲', cls: 'bull' },
+  BEAR: { label: '看空 ▼', cls: 'bear' },
+  NEUTRAL: { label: '中性 —', cls: 'neutral' },
+  PURE_NEUTRAL: { label: '中性·无方向', cls: 'neutral' },
+};
+const RELEVANCE_LABELS = {
+  STRONG: { label: '强相关', cls: 'neutral' },
+  WEAK: { label: '弱相关', cls: 'neutral' },
+  NONE: { label: '暂不相关', cls: 'neutral' },
+};
+function parseLeadingTag(text) {
+  const t = String(text || '');
+  const m = t.match(/^\s*\**\s*(🟢|🟡|⚪|🔴)\s*(?:(纯中性·无方向|中性·拉锯|强相关|弱相关|暂不相关|偏多|偏空|看多|看空|中性))?\s*\**\s*[：:\s，,—－-]*/);
+  if (!m) return { cleaned: t, emoji: null };
+  return { cleaned: t.slice(m[0].length), emoji: m[1] };
+}
+function stanceOf(emoji) {
+  if (emoji === '🟢') return 'BULL';
+  if (emoji === '🔴') return 'BEAR';
+  if (emoji === '⚪') return 'PURE_NEUTRAL';
+  return 'NEUTRAL';
+}
+function relevanceOf(emoji) {
+  if (emoji === '🟢') return 'STRONG';
+  if (emoji === '🟡') return 'WEAK';
+  return 'NONE';
+}
+
 // 轻量指纹：同一段输入内容复用已生成结果
 function hashText(s) {
   let h = 5381;
@@ -675,6 +705,11 @@ export default function BreakfastRoundtable({ active = true }) {
             const isConclusion = s.type === 'conclusion' || s.stepKey === 'conclusion';
             const isGate = s.type === 'gate' || s.stepKey === 'gate';
             const isQuick = s.type === 'quick' || s.stepKey === 'quick';
+            // 定调/相关性徽章：只处理 收束（方向）与 初筛（相关性）；其余步骤保持原文
+            const pt = (isQuick || (!isGate && !isConclusion)) ? null : parseLeadingTag(s.content);
+            const stBadge = pt && pt.emoji
+              ? (isGate ? RELEVANCE_LABELS[relevanceOf(pt.emoji)] : STANCE_LABELS[stanceOf(pt.emoji)])
+              : null;
             const pinned = isConclusion || isQuick || isGate;
             const expanded = pinned || entry.status !== 'done' || expandedKeys.has(s.stepKey);
             const cls = `bk-step bk-step-speech${isConclusion ? ' bk-step-conclusion' : ''}${isGate ? ' bk-step-gate' : ''}${!expanded ? ' bk-step-folded' : ''}`;
@@ -695,6 +730,7 @@ export default function BreakfastRoundtable({ active = true }) {
                   <MasterAvatar master={speaker} size={30} />
                   <span className="bk-step-title">{s.title}</span>
                   <span className="bk-step-speaker">{speaker.name}</span>
+                  {stBadge && <span className={`bk-stance ${stBadge.cls}`}>{stBadge.label}</span>}
                   <span className="bk-step-toggle">{expanded ? '▾' : '▸'}</span>
                 </button>
                 {expanded && (
@@ -705,12 +741,17 @@ export default function BreakfastRoundtable({ active = true }) {
                           {(s.turns || []).map((t, ti) => {
                             const sp = turnSpeaker(t.speaker);
                             const isH = sp.id === host.id;
+                            const { cleaned, emoji } = parseLeadingTag(t.text);
+                            const st = emoji ? STANCE_LABELS[stanceOf(emoji)] : null;
                             return (
                               <div key={ti} className={`bk-turn-row${isH ? ' bk-turn-row-host' : ''}`}>
                                 <span className="bk-turn-row-avatar"><MasterAvatar master={sp} size={24} /></span>
                                 <div className="bk-turn-row-body">
-                                  <span className="bk-turn-row-name">{sp.name}</span>
-                                  <div className="bk-turn-row-text">{renderInline(t.text, `qt-${i}-${ti}`)}</div>
+                                  <span className="bk-turn-row-head">
+                                    <span className="bk-turn-row-name">{sp.name}</span>
+                                    {st && <span className={`bk-stance ${st.cls}`}>{st.label}</span>}
+                                  </span>
+                                  <div className="bk-turn-row-text">{renderInline(cleaned, `qt-${i}-${ti}`)}</div>
                                 </div>
                               </div>
                             );
@@ -735,7 +776,7 @@ export default function BreakfastRoundtable({ active = true }) {
                           </div>
                         )}
                       </>
-                    ) : (s.content && <div className="bk-step-body">{renderInline(s.content, `c-${i}`)}</div>)}
+                    ) : ((pt ? pt.cleaned : s.content) && <div className="bk-step-body">{renderInline(pt ? pt.cleaned : s.content, `c-${i}`)}</div>)}
                     {isConclusion && (
                       <>
                         {Array.isArray(s.opportunities) && s.opportunities.length > 0 && (

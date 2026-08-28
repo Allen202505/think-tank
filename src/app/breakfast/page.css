@@ -540,6 +540,27 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+.bk-turn-row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bk-turn-row-head .bk-turn-row-name { margin-right: auto; }
+/* 定调/相关性徽章：右上角圆角胶囊，样式对齐大师PK 的 speech-stance */
+.bk-stance {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  margin-left: auto;
+  flex-shrink: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.bk-stance.bull { color: var(--bull); border-color: var(--bull); background: rgba(76,175,125,0.12); }
+.bk-stance.bear { color: var(--bear); border-color: var(--bear); background: rgba(224,85,85,0.12); }
+.bk-stance.neutral { color: var(--neutral); border-color: var(--neutral); background: rgba(201,168,76,0.12); }
 
 .bk-quick-summary {
   margin-top: 10px;
