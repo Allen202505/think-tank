@@ -31,9 +31,11 @@ const RELEVANCE_LABELS = {
 };
 function parseLeadingTag(text) {
   const t = String(text || '');
-  const m = t.match(/^\s*\**\s*(🟢|🟡|⚪|🔴)\s*(?:(纯中性·无方向|中性·拉锯|强相关|弱相关|暂不相关|偏多|偏空|看多|看空|中性))?\s*\**\s*[：:\s，,—－-]*/);
+  const m = t.match(/^\s*\**\s*(🟢|🟡|⚪|🔴)\s*(?:(纯中性·无方向|中性·拉锯|强相关|弱相关|暂不相关|偏多|偏空|看多|看空|中性))?\s*\**\s*/);
   if (!m) return { cleaned: t, emoji: null };
-  return { cleaned: t.slice(m[0].length), emoji: m[1] };
+  // 定调后常带「——。」「——，」等，把剩余前导标点/空白一并剥掉
+  const cleaned = t.slice(m[0].length).replace(/^[\s，。、：:；;！？!?～~—－-]+/, '');
+  return { cleaned, emoji: m[1] };
 }
 function stanceOf(emoji) {
   if (emoji === '🟢') return 'BULL';
@@ -742,8 +744,7 @@ export default function BreakfastRoundtable({ active = true }) {
                             const sp = turnSpeaker(t.speaker);
                             const isH = sp.id === host.id;
                             const { cleaned, emoji } = parseLeadingTag(t.text);
-                            // 主持人不显示多空立场徽章（主持仅抛题/收束，不站队）；嘉宾才显示
-                            const st = (!isH && emoji) ? STANCE_LABELS[stanceOf(emoji)] : null;
+                            const st = emoji ? STANCE_LABELS[stanceOf(emoji)] : null;
                             return (
                               <div key={ti} className={`bk-turn-row${isH ? ' bk-turn-row-host' : ''}`}>
                                 <span className="bk-turn-row-avatar"><MasterAvatar master={sp} size={24} /></span>
