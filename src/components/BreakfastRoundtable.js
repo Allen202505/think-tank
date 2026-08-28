@@ -102,7 +102,17 @@ export default function BreakfastRoundtable({ active = true }) {
   // 默认进页面即随机就座 3 位大师；只抽有真人头像的大师，避免出现字母占位头像
   // 默认每次随机 9 位大师（含巴菲特）：巴菲特主持 + 8 位嘉宾
   const [guests, setGuests] = useState(() => pickGuestsByStyle(8, [], { realAvatarOnly: true }));
-  const [cache, setCache] = useState({}); // key → {status, steps, currentAction?, currentLead?, error?, stopped?}
+  const [cache, setCache] = useState(() => loadBreakfastMemory()); // key → {status, steps, currentAction?, currentLead?, error?, stopped?}
+  const cacheRef = useRef(cache);
+  useEffect(() => { cacheRef.current = cache; }, [cache]);
+  // 完成时写入记忆（localStorage），下次同一条新闻直接命中
+  const saveDone = useCallback((key, steps) => {
+    const entry = { status: 'done', steps, at: Date.now() };
+    setCache((prev) => ({ ...prev, [key]: entry }));
+    const mem = loadBreakfastMemory();
+    mem[key] = entry;
+    saveBreakfastMemory(mem);
+  }, []);
 
   // 左侧新闻列表：真实 API（财联社 + 东方财富 7x24），失败/为空时回退内置示例
   const [newsList, setNewsList] = useState([]);
@@ -263,10 +273,15 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
+    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
+    // 记忆命中：已解读过 → 直接展示，不重复消耗免费次数 / 不调 LLM
+    if (!force && cacheRef.current[key] && cacheRef.current[key].status === 'done') {
+      setBkShowList(false);
+      return;
+    }
     if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     consumeFree();
     setBkShowList(false); // 移动端：开始分析 → 进入详情
-    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${gkey}::${runMode}`;
     setCache((prev) => {
       const cur = prev[key];
       if (!force && cur && (cur.status === 'loading' || cur.status === 'done')) return prev;
@@ -347,7 +362,7 @@ export default function BreakfastRoundtable({ active = true }) {
           setQuickStep(null);
         }
         steps.push({ stepKey: 'quick', title: '快速解读', type: 'quick', turns: quickTurns, summary: quickSummary, pending: null });
-        setCache((prev) => ({ ...prev, [key]: { status: 'done', steps } }));
+        saveDone(key, steps);
       } else {
         // 深度：事件穿透框架逐步推演
         for (const step of FRAMEWORK_STEPS) {
@@ -380,7 +395,7 @@ export default function BreakfastRoundtable({ active = true }) {
           // 初筛闸门：⚪ 暂不相关 → 停止后续步骤，直接完成
           if (data.result && data.result.stop) break;
         }
-        setCache((prev) => ({ ...prev, [key]: { status: 'done', steps } }));
+        saveDone(key, steps);
       }
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -928,4 +943,29 @@ const POOLNEWS_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 天
 function filterFresh(items) {
   const cutoff = Date.now() - POOLNEWS_MAX_AGE;
   return (items || []).filter((n) => !n.ts || n.ts * 1000 >= cutoff);
+}
+
+// ── 解读结果记忆：已完成的解读持久化到 localStorage，下次同一条新闻直接命中，不重复消耗 token ──
+const BK_MEMORY_KEY = 'thinktank_breakfast_memory';
+const BK_MEMORY_MAX = 20;                 // 最多保留 20 条解读
+const BK_MEMORY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天过期
+// 规整：只留「已完成」且未过期，按时间倒序保留最近 N 条
+function prepareMem(map) {
+  const cutoff = Date.now() - BK_MEMORY_TTL;
+  const out = {};
+  for (const k in map) {
+    const e = map[k];
+    if (e && e.status === 'done' && e.at && e.at >= cutoff) out[k] = { status: 'done', steps: e.steps || [], at: e.at };
+  }
+  const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
+  keys.slice(BK_MEMORY_MAX).forEach((k) => delete out[k]);
+  return out;
+}
+function loadBreakfastMemory() {
+  try { return prepareMem(JSON.parse(localStorage.getItem(BK_MEMORY_KEY) || '{}') || {}); }
+  catch (e) { return {}; }
+}
+function saveBreakfastMemory(map) {
+  try { localStorage.setItem(BK_MEMORY_KEY, JSON.stringify(prepareMem(map))); }
+  catch (e) { /* ignore */ }
 }
