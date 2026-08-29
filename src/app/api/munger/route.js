@@ -86,6 +86,45 @@ export async function POST(request) {
     const munger = findMasterById('munger');
     if (!munger) return Response.json({ error: '芒格大师缺失' }, { status: 400 });
 
+    // ── 举手提问 / 追问：基于之前的解读 + 财报原文，正面回答用户的具体问题 ──
+    if (mode === 'followup') {
+      const question = typeof body.question === 'string' ? body.question.trim() : '';
+      const prevContent = typeof body.prevContent === 'string' ? body.prevContent.trim() : '';
+      const report = typeof body.report === 'string' ? body.report.trim() : '';
+      if (!question) return Response.json({ error: '缺少追问内容' }, { status: 400 });
+      const prompt = `你是 ${munger.name}（${munger.title}）。用户追问你之前对这份财报的解读，请正面、深入回答这个具体问题。
+
+你的画像：
+${masterProfileLine(munger)}
+
+你此前的解读：
+${prevContent || '（暂无）'}
+
+财报原文（节选）：
+${report.slice(0, 4000) || '（未提供财报原文）'}
+
+用户的追问：
+${question}
+
+要求：
+1. 直接回答追问，250-400 字，给信息增量，不重复已说过的内容；引用数据用「大约/约/可能」等模糊表述，严禁编造。
+2. content 直接就是回答正文，不要任何前缀、标签或标题（严禁出现「context：」「回答：」等字样）。
+3. 只输出一个 JSON：{"content":"你的回答"}，不要 Markdown 代码块，所有引号用中文引号「」或“”。`;
+      const { raw, parsed } = await generateJson(
+        buildMessages(prompt, `追问：${question}`),
+        '{"content":"你的回答"}',
+        1200,
+        true,
+        body.aiConfig,
+      );
+      const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
+      if (!normalized) {
+        if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'followup', content: extractContentFromRaw(raw) || raw.trim() } });
+        return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
+      }
+      return Response.json({ ok: true, result: { mode: 'followup', content: normalized.content.trim() } });
+    }
+
     // mode === 'report'：财报链接 或 附件上传，可带补充说明
     let reportText = typeof body.content === 'string' ? body.content.trim() : '';
     const note = typeof body.note === 'string' ? body.note.trim() : '';
