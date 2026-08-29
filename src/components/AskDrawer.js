@@ -2,8 +2,20 @@
 
 // 大师PK 同款「举手提问」侧边浮层，复用 .explain-drawer/.chat-drawer 样式
 // onAsk(question, conversation) => Promise<{content, keyPoint?}>，由各页实现具体 API 调用
+// 会话按「大师+上下文」持久化在模块级 Map，关闭浮层再打开时能恢复之前的提问与回答。
 import { useEffect, useRef, useState } from 'react';
 import { MasterAvatar } from './ui';
+
+// 跨开合持久化会话
+const convStore = new Map();
+function hashStr(s) {
+  let h = 5381; const t = String(s || '');
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+function convKey(master, context) {
+  return `${master?.id || 'guest'}::${hashStr(String(context || '').slice(0, 300))}`;
+}
 
 function renderRich(text) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -12,17 +24,30 @@ function renderRich(text) {
 }
 
 export default function AskDrawer({ master, context, onClose, onAsk, placeholder }) {
-  const [messages, setMessages] = useState([]);
+  const key = convKey(master, context);
+  const [messages, setMessagesState] = useState(() => convStore.get(key) || []);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null); // {text}
   const [idx, setIdx] = useState(0);
   const bodyRef = useRef(null);
+  const keyRef = useRef(key);
 
-  // 打开时重置会话
+  // 更新会话并同步到持久化 Map
+  const setMessages = (updater) => setMessagesState((prev) => {
+    const next = typeof updater === 'function' ? updater(prev) : updater;
+    convStore.set(key, next);
+    return next;
+  });
+
+  // 切换目标（换大师/换上下文）时加载对应会话；关闭再开同一目标则恢复
   useEffect(() => {
-    setMessages([]); setInput(''); setPending(null); setIdx(0); setLoading(false);
-  }, [master, context]);
+    if (key !== keyRef.current) {
+      keyRef.current = key;
+      setMessagesState(convStore.get(key) || []);
+      setInput(''); setPending(null); setIdx(0); setLoading(false);
+    }
+  }, [key]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
