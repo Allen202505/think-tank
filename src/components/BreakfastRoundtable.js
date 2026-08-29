@@ -522,10 +522,13 @@ export default function BreakfastRoundtable({ active = true }) {
         });
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
+        // 追问返回空内容视为失败，避免「已追问却空白」的假成功
+        const content = String((data.result && data.result.content) || '').trim();
+        if (!content) throw new Error('追问无内容，请重试');
         setCache((prev) => {
           const cur = prev[key] || {};
           const followups = (cur.followups || []).map((f) => (f.id === id
-            ? { ...f, status: 'done', content: (data.result && data.result.content) || '', hostNote: (data.result && data.result.hostNote) || '' }
+            ? { ...f, status: 'done', content, hostNote: (data.result && data.result.hostNote) || '' }
             : f));
           return { ...prev, [key]: { ...cur, followups } };
         });

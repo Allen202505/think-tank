@@ -187,6 +187,44 @@ export async function POST(request) {
     const queryText = `${useNews.title}\n${useNews.content || ''}`;
     const snapshot = await getQuoteContext(queryText).catch(() => '');
 
+    // ── 追问：想深挖？点击即可追问（一步简短问答，不复制文本） ──
+    if (stepKey === 'followup') {
+      const question = typeof body.followUp === 'string' ? body.followUp.trim() : '';
+      if (!question) return Response.json({ error: '缺少追问内容' }, { status: 400 });
+      const leadMaster = (body.followUpLead && findMasterById(body.followUpLead)) || host;
+      const prompt = buildFollowupPrompt(useNews, host, guests, leadMaster, question, prevSteps);
+      const messages = buildMessages(prompt, snapshot, '请回答用户的追问，直接输出 JSON。');
+      const { raw, parsed } = await generateJson(
+        messages,
+        '{"content":"你对追问的回答","hostNote":"主持人一句话补充(可空)"}',
+        1600,
+        true,
+        aiCfg,
+      );
+      const normalized = unwrapNested(parsed);
+      if (!normalized || typeof normalized.content !== 'string' || !normalized.content.trim()) {
+        if (raw && raw.trim()) {
+          return Response.json({
+            ok: true,
+            result: { stepKey: 'followup', title: '追问', leadId: leadMaster.id, type: 'followup', content: raw.trim(), hostNote: '', followUps: [] },
+          });
+        }
+        return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
+      }
+      return Response.json({
+        ok: true,
+        result: {
+          stepKey: 'followup',
+          title: '追问',
+          leadId: leadMaster.id,
+          type: 'followup',
+          content: normalized.content.trim(),
+          hostNote: typeof normalized.hostNote === 'string' ? normalized.hostNote.trim() : '',
+          followUps: [],
+        },
+      });
+    }
+
     // ── 快速解读：逐条生成（一人一条，边分析边出结论） ──
     if (mode === 'quick') {
       if (stepKey === 'quickturn') {
@@ -266,44 +304,6 @@ export async function POST(request) {
           verdict: typeof quickParsed.verdict === 'string' ? quickParsed.verdict.trim() : '',
           reason: typeof quickParsed.reason === 'string' ? quickParsed.reason.trim() : '',
           followUps,
-        },
-      });
-    }
-
-    // ── 追问：想深挖？点击即可追问（一步简短问答，不复制文本） ──
-    if (stepKey === 'followup') {
-      const question = typeof body.followUp === 'string' ? body.followUp.trim() : '';
-      if (!question) return Response.json({ error: '缺少追问内容' }, { status: 400 });
-      const leadMaster = (body.followUpLead && findMasterById(body.followUpLead)) || host;
-      const prompt = buildFollowupPrompt(useNews, host, guests, leadMaster, question, prevSteps);
-      const messages = buildMessages(prompt, snapshot, '请回答用户的追问，直接输出 JSON。');
-      const { raw, parsed } = await generateJson(
-        messages,
-        '{"content":"你对追问的回答","hostNote":"主持人一句话补充(可空)"}',
-        1600,
-        true,
-        aiCfg,
-      );
-      const normalized = unwrapNested(parsed);
-      if (!normalized || typeof normalized.content !== 'string' || !normalized.content.trim()) {
-        if (raw && raw.trim()) {
-          return Response.json({
-            ok: true,
-            result: { stepKey: 'followup', title: '追问', leadId: leadMaster.id, type: 'followup', content: raw.trim(), hostNote: '', followUps: [] },
-          });
-        }
-        return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
-      }
-      return Response.json({
-        ok: true,
-        result: {
-          stepKey: 'followup',
-          title: '追问',
-          leadId: leadMaster.id,
-          type: 'followup',
-          content: normalized.content.trim(),
-          hostNote: typeof normalized.hostNote === 'string' ? normalized.hostNote.trim() : '',
-          followUps: [],
         },
       });
     }
