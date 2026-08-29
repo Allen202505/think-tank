@@ -36,12 +36,20 @@ export default function MungerFinance() {
 
   const openDrawer = useCallback((initialQuestion) => {
     setDrawerOpen(true);
-    setDrawerMsgs([]);
     setDrawerInput('');
     setDrawerError('');
     if (initialQuestion) sendDrawer(initialQuestion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerLoading, result]);
+
+  // 财报结果变化时才重置会话；关闭再打开同一份财报则保留追问内容
+  const drawerReportRef = useRef(null);
+  useEffect(() => {
+    if (drawerReportRef.current !== result?.content) {
+      drawerReportRef.current = result?.content;
+      setDrawerMsgs([]);
+    }
+  }, [result?.content]);
 
   const sendDrawer = useCallback(async (raw) => {
     const msg = String(raw || drawerInput || '').trim();
@@ -70,7 +78,6 @@ export default function MungerFinance() {
 
   const closeDrawer = () => {
     setDrawerOpen(false);
-    setDrawerMsgs([]);
     setDrawerInput('');
     setDrawerError('');
   };

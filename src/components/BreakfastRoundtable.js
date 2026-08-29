@@ -279,8 +279,8 @@ export default function BreakfastRoundtable({ active = true }) {
   const guestKey = useMemo(() => guests.map((g) => g.master.id).join('-'), [guests]);
   const news = useMemo(() => parseNews(inputText), [inputText]);
   const currentKey = useMemo(() => (news ? hashText(`${news.title}\n${news.content}`) : ''), [news]);
-  // 缓存 key = 内容哈希（不含嘉宾/模式，避免随机嘉宾或快慢速导致同新闻 miss）
-  const cacheKey = currentKey || '';
+  // 缓存 key = 内容哈希::模式（不含随机嘉宾；快速/深度分开，避免串缓存）
+  const cacheKey = currentKey ? `${currentKey}::${mode}` : '';
   const entry = cacheKey ? (cache[cacheKey] || { status: 'idle', steps: [] }) : { status: 'idle', steps: [] };
 
   const abortRefs = useRef({});
@@ -306,7 +306,7 @@ export default function BreakfastRoundtable({ active = true }) {
 
   // ── 解读：quick 单次返回 / deep 按框架 9 步依次调用（可中止） ──
   const runAnalysis = useCallback(async (newsObj, gkey, guestList, runMode, force = false) => {
-    const key = hashText(`${newsObj.title}\n${newsObj.content}`);
+    const key = `${hashText(`${newsObj.title}\n${newsObj.content}`)}::${runMode}`;
     // 记忆命中：已解读过 → 直接展示，不重复消耗免费次数 / 不调 LLM
     if (!force && cacheRef.current[key] && cacheRef.current[key].status === 'done') {
       setBkShowList(false);
@@ -1043,13 +1043,20 @@ const BK_MEMORY_KEY = 'thinktank_breakfast_memory';
 const BK_MEMORY_MAX = 20;                 // 最多保留 20 条解读
 const BK_MEMORY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天过期
 // 规整：只留「已完成」且未过期；key 归一化为「内容哈希」（兼容旧格式 内容::嘉宾::模式），按时间倒序保留最近 N 条
+// key 归一化为「内容哈希::模式」，并兼容旧格式「内容哈希::嘉宾::模式」/「内容哈希」
+function normMemKey(k) {
+  const p = String(k).split('::');
+  if (p.length >= 3) return `${p[0]}::${p[2]}`;   // 内容::嘉宾::模式 → 内容::模式
+  if (p.length === 2) return `${p[0]}::${p[1]}`;  // 内容::模式
+  return `${p[0]}::quick`;                          // 内容 → 内容::quick（历史单键兜底）
+}
 function prepareMem(map) {
   const cutoff = Date.now() - BK_MEMORY_TTL;
   const out = {};
   for (const k in map) {
     const e = map[k];
     if (e && e.status === 'done' && e.at && e.at >= cutoff) {
-      const contentKey = k.split('::')[0]; // 只按内容哈希缓存，快慢速/嘉宾/模式都命中
+      const contentKey = normMemKey(k); // 区分 快速/深度，避免同一新闻串缓存
       if (contentKey) out[contentKey] = { status: 'done', steps: e.steps || [], at: e.at };
     }
   }
