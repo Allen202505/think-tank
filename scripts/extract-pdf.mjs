@@ -1,14 +1,12 @@
-// scripts/extract-pdf.mjs —— 独立进程解析 PDF 文本（避开 webpack 打包，纯 Node 运行）
-// 用法：node scripts/extract-pdf.mjs <pdf文件路径>
+// scripts/extract-pdf.mjs —— 独立进程解析 PDF 文本（纯 Node，避开 webpack 打包）
+// 使用项目内 vendored 的 pdfjs（scripts/vendor/pdfjs.mjs + pdf.worker.mjs），
+// 先 import polyfill 提供 DOMMatrix 避免原生 canvas 依赖。静态 import 使 nft 一并追踪 vendor 文件。
+import './vendor/polyfill.mjs';
 import { readFileSync } from 'fs';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { getDocument } from './vendor/pdfjs.mjs';
 
 const file = process.argv[2];
-if (!file) {
-  process.stderr.write('missing file arg\n');
-  process.exit(1);
-}
-
+if (!file) { process.stderr.write('missing file arg\n'); process.exit(1); }
 try {
   const buf = readFileSync(file);
   const doc = await getDocument({
