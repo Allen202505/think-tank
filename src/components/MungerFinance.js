@@ -11,6 +11,34 @@ function renderInline(text, keyBase) {
   return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
 }
 
+// 内联：**加粗**
+function inlineRich(seg) {
+  const normalized = String(seg || '').replace(/\*\*\*/g, '**');
+  const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
+}
+// 块级：保留换行/列表/【标题】，用于举手提问抽屉内的大师回复
+function renderRich(text) {
+  const lines = String(text || '').split('\n');
+  const out = [];
+  let list = [];
+  const flush = () => { if (list.length) { out.push(<ul key={out.length} className="explain-list">{list}</ul>); list = []; } };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    const marker = line.match(/^【(.+?)】$/);
+    if (marker) { flush(); out.push(<div key={out.length} className="explain-inline-head">{marker[1]}</div>); continue; }
+    if (/^[-*_]{3,}$/.test(line)) { flush(); out.push(<div key={out.length} className="markdown-hr" />); continue; }
+    const bullet = line.match(/^[-*•]\s+(.*)/);
+    if (bullet) { list.push(<li key={list.length}>{inlineRich(bullet[1])}</li>); continue; }
+    flush();
+    const numbered = line.match(/^\d+[.、)]\s+(.*)/);
+    out.push(<p key={out.length} className="explain-text">{inlineRich(numbered ? numbered[1] : line)}</p>);
+  }
+  flush();
+  return out;
+}
+
 export default function MungerFinance() {
   const munger = findMasterById('munger');
   const [link, setLink] = useState('');
@@ -246,7 +274,7 @@ export default function MungerFinance() {
                 ) : (
                   <div key={i} className="chat-msg chat-master">
                     <div className="chat-msg-head">{munger.name}</div>
-                    <div className="speech-content">{renderInline(m.text, `dm-${i}`)}</div>
+                    <div className="speech-content">{renderRich(m.text)}</div>
                   </div>
                 )
               ))}
