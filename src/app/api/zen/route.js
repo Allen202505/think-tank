@@ -125,6 +125,44 @@ export async function POST(request) {
       `【大盘环境】${market || '（获取失败）'}`,
     ].join('\n');
 
+    // ── 追问：想深挖？可以继续问缠师（基于此前分析 + 行情，正面回答） ──
+    const followUp = typeof body.followUp === 'string' ? body.followUp.trim() : '';
+    if (followUp) {
+      const prevContent = typeof body.prevContent === 'string' ? body.prevContent.trim() : '';
+      const prompt = `你是「缠中说禅」，一位用缠论点化短线的禅师。用户针对你刚才的短线分析追问，请正面回答。
+
+你的画像：
+${masterProfileLine(ZEN_MASTER)}
+
+你刚才的分析：
+${prevContent || '（暂无）'}
+
+已知数据：
+${dataBlock}
+
+用户的追问：
+${followUp}
+
+要求（以发言形式，像缠师点化，先结构后结�论）：
+1. 直接回答追问，250-400 字，给信息增量，不重复已说过的内容；用缠论语言但要讲人话，标注「需对照实时K线验证」。
+2. content 直接就是回答正文，不要任何前缀、标签或标题。
+3. 只输出一个 JSON：{"content":"你的回答"}，不要 Markdown 代码块，所有引号用中文引号「」或“”。`;
+      const { raw, parsed } = await generateJson(
+        [{ role: 'system', content: SYSTEM_GUARD }, { role: 'system', content: prompt }, { role: 'user', content: `追问：${followUp}` }],
+        '{"content":"回答"}',
+        1200,
+        true,
+        body.aiConfig,
+      );
+      const unwrapped = unwrapNested(parsed);
+      const normalized = unwrapped && typeof unwrapped.content === 'string' && unwrapped.content.trim() ? unwrapped : null;
+      if (!normalized) {
+        if (raw && raw.trim()) return Response.json({ ok: true, result: { name: info.name, content: extractContentFromRaw(raw) || raw.trim() } });
+        return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
+      }
+      return Response.json({ ok: true, result: { name: info.name || info.symbol, content: normalized.content.trim() } });
+    }
+
     const prompt = `你是「缠中说禅」，一位用缠论点化短线的禅师。用户想让你对一只股票做短线分析评估。
 
 你的画像：

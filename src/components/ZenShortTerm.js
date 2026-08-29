@@ -55,6 +55,9 @@ export default function ZenShortTerm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [fu, setFu] = useState(null);            // 追问回答
+  const [fuLoading, setFuLoading] = useState(false);
+  const [fuError, setFuError] = useState('');
 
   const run = useCallback(async () => {
     const q = query.trim();
@@ -85,6 +88,31 @@ export default function ZenShortTerm() {
       setLoading(false);
     }
   }, [query, loading]);
+
+  // 追问：基于当前分析结果，向缠师继续问
+  const askFollowUp = useCallback(async (q) => {
+    const qq = String(q || '').trim();
+    if (!qq || fuLoading) return;
+    if (!ensureAiReady()) return;
+    setFuLoading(true);
+    setFuError('');
+    try {
+      const res = await fetch('/api/zen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query.trim(), followUp: qq, prevContent: (result && result.content) || '', aiConfig: getAiConfig() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
+      const content = String((data.result && data.result.content) || '').trim();
+      if (!content) throw new Error('追问无内容，请重试');
+      setFu({ q: qq, content });
+    } catch (e) {
+      setFuError(e.message || '追问失败，请重试');
+    } finally {
+      setFuLoading(false);
+    }
+  }, [query, result, fuLoading]);
 
   return (
     <div className="mg-workspace">
@@ -132,8 +160,19 @@ export default function ZenShortTerm() {
               <div className="mg-followups">
                 <div className="mg-fu-label">想深挖？可以继续问缠师：</div>
                 {result.followUps.map((f, fi) => (
-                  <div key={fi} className="mg-fu-item">· {f}</div>
+                  <button key={fi} type="button" className="mg-fu-item" onClick={() => askFollowUp(f)} disabled={fuLoading}>＋ {f}</button>
                 ))}
+              </div>
+            )}
+            {fuLoading && (
+              <div className="mg-fu-loading"><span className="bk-loading-speech-dots"><span /><span /><span /></span> 正在追问缠师…</div>
+            )}
+            {fuError && <div className="mg-fu-error">⚠ {fuError} <button type="button" className="mg-fu-retry" onClick={() => askFollowUp(fu ? fu.q : '') }>↻ 重试</button></div>}
+            {fu && !fuLoading && !fuError && (
+              <div className="mg-fu-answer">
+                <div className="mg-fu-label">💬 追问</div>
+                <div className="mg-fu-q">问：{fu.q}</div>
+                <div className="mg-speech-body">{renderInline(fu.content, 'zf')}</div>
               </div>
             )}
           </div>
