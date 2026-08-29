@@ -2,38 +2,31 @@
 // 芒格教你读财报
 // POST { mode: 'report', link|file|content, note } → 芒格深入浅出解读财报
 // POST { mode: 'followup', question, report, prevContent } → 举手提问追加回答
-import { spawn } from 'child_process';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
 import { buildEarningsDataCard } from '../chat/earningsEngine.js';
 import { findMasterById } from '../../../lib/breakfast';
 
 // 用独立 Node 脚本解析 PDF 文本（绕开 webpack 打包环境的 worker 问题）
-function extractPdfText(buf) {
-  return new Promise((resolve, reject) => {
-    const tmp = join(tmpdir(), `munger-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`);
-    writeFileSync(tmp, buf);
-    const script = join(process.cwd(), 'scripts', 'extract-pdf.mjs');
-    const child = spawn(process.execPath, [script, tmp], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '';
-    let err = '';
-    child.stdout.on('data', (d) => { out += d; });
-    child.stderr.on('data', (d) => { err += d; });
-    child.on('close', (code) => {
-      try { unlinkSync(tmp); } catch (e) { /* ignore */ }
-      if (code === 0 && out.trim()) resolve(out.trim());
-      else reject(new Error(err.trim() || 'PDF 解析失败'));
-    });
-    child.on('error', (e) => {
-      try { unlinkSync(tmp); } catch (e2) { /* ignore */ }
-      reject(e);
-    });
-  });
+// 进程内解析 PDF 文本（静态 import pdfjs-dist，Vercel 会把依赖打进函数包）
+async function extractPdfText(buf) {
+  const doc = await getDocument({
+    data: new Uint8Array(buf),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    disableFontFace: true,
+    verbosity: 0,
+  }).promise;
+  let text = '';
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const c = await page.getTextContent();
+    text += c.items.map((it) => it.str || '').join(' ') + '\n';
+  }
+  return text.trim();
 }
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
