@@ -97,7 +97,8 @@ export default function MungerFinance() {
       if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
       setDrawerMsgs((prev) => [...prev, { role: 'master', text: data.result.content }]);
     } catch (e) {
-      setDrawerError(e.message || '追问失败，请重试');
+      const msg = String((e && e.message) || e || '');
+      setDrawerError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(msg) ? '网络异常或连接超时，请重试' : (msg || '追问失败，请重试'));
     } finally {
       setDrawerLoading(false);
     }

@@ -2,14 +2,6 @@
 // 芒格教你读财报
 // POST { mode: 'report', link|file|content, note } → 芒格深入浅出解读财报
 // POST { mode: 'followup', question, report, prevContent } → 举手提问追加回答
-// 内嵌 pdfjs（scripts/vendor，min 版）：先 import polyfill 提供 DOMMatrix 避免原生 canvas。
-// 静态 import pdfjs + pdf.worker 并设为 globalThis.pdfjsWorker，webpack 打进 route 包 → 函数自包含，
-// 且假 worker 直接用进程内 worker，无需单独的 worker 文件（避免 Vercel 未收录 node_modules/pdfjs-dist）。
-import '../../../../scripts/vendor/polyfill.mjs';
-import * as pdfjsLib from '../../../../scripts/vendor/pdfjs.mjs';
-import * as pdfWorker from '../../../../scripts/vendor/pdf.worker.mjs';
-globalThis.pdfjsWorker = pdfWorker;
-const { getDocument } = pdfjsLib;
 import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
@@ -17,9 +9,17 @@ import { masterProfileLine } from '../../../lib/prompts';
 import { buildEarningsDataCard } from '../chat/earningsEngine.js';
 import { findMasterById } from '../../../lib/breakfast';
 
-// 用独立 Node 脚本解析 PDF 文本（绕开 webpack 打包环境的 worker 问题）
-// 进程内解析 PDF 文本（内嵌 pdfjs，函数自包含）
+// 进程内解析 PDF 文本：懒加载内嵌 pdfjs（仅解析 PDF 时），降低路由模块冷启动/内存开销
 async function extractPdfText(buf) {
+  // pdfjs 模块顶层 new DOMMatrix()；文本解析不需要渲染，先 polyfill，再加载 pdfjs + worker（假 worker 进程内）
+  globalThis.DOMMatrix = globalThis.DOMMatrix || class DOMMatrix {
+    constructor() { this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0; }
+  };
+  globalThis.Path2D = globalThis.Path2D || class Path2D {};
+  const pdfjsLib = await import('../../../../scripts/vendor/pdfjs.mjs');
+  const pdfWorker = await import('../../../../scripts/vendor/pdf.worker.mjs');
+  globalThis.pdfjsWorker = pdfWorker;
+  const getDocument = pdfjsLib.getDocument;
   const doc = await getDocument({
     data: new Uint8Array(buf),
     useWorkerFetch: false,

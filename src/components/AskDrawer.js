@@ -100,7 +100,8 @@ export default function AskDrawer({ master, context, onClose, onAsk, placeholder
       if (!text) throw new Error('回复为空，请重试');
       setPending({ text });
     } catch (e) {
-      setMessages((prev) => [...prev, { role: 'master', text: `⚠️ ${e.message || '回复失败，请重试'}` }]);
+      const msg = String((e && e.message) || e || '');
+      setMessages((prev) => [...prev, { role: 'master', text: `⚠️ ${/failed to fetch|network|load|timed? ?out|econn|reset/i.test(msg) ? '网络异常或连接超时，请重试' : (msg || '回复失败，请重试')}` }]);
     }
     setLoading(false);
   };
