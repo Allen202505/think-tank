@@ -4,7 +4,7 @@
 
 export const CONFIG_KEY = 'thinktank_ai_config';
 export const QUOTA_KEY = 'thinktank_free_quota';
-export const FREE_LIMIT = 2;
+export const FREE_LIMIT = 10;
 
 // 常用 OpenAI 兼容服务预设（用户可自定义 Base URL 与模型名）
 export const PROVIDERS = {
