@@ -510,6 +510,14 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* 举手提问：回复区右下角操作行 */
+.bk-ask-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-top: 6px;
+  border-top: 1px dashed var(--border-subtle);
+}
 .bk-quick-turns {
   display: flex;
   flex-direction: column;

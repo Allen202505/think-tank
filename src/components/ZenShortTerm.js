@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { MasterAvatar } from './ui';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import AskDrawer from './AskDrawer';
 
 const ZEN_MASTER = {
   id: 'zen',
@@ -13,6 +14,13 @@ const ZEN_MASTER = {
   status: 'deceased',
   style: '缠论：分型/笔/线段/中枢/背驰，多级别联立，三类买卖点',
 };
+
+// 把会话历史拼成追问上下文
+function buildZenContext(base, convo) {
+  const lines = [String(base || '')];
+  for (const m of convo || []) lines.push(`${m.role === 'user' ? '我问' : ZEN_MASTER.name}：${String(m.text || '').slice(0, 200)}`);
+  return lines.filter(Boolean).join('\n');
+}
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -58,6 +66,7 @@ export default function ZenShortTerm() {
   const [fu, setFu] = useState(null);            // 追问回答
   const [fuLoading, setFuLoading] = useState(false);
   const [fuError, setFuError] = useState('');
+  const [askOpen, setAskOpen] = useState(false); // 大师PK 同款「举手提问」侧边浮层
 
   const run = useCallback(async () => {
     const q = query.trim();
@@ -113,6 +122,18 @@ export default function ZenShortTerm() {
       setFuLoading(false);
     }
   }, [query, result, fuLoading]);
+
+  // 大师PK 同款举手提问：侧边浮层单聊
+  const onAskZen = useCallback(async (q, convo) => {
+    const res = await fetch('/api/zen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query.trim(), followUp: q, prevContent: buildZenContext(result.content, convo), aiConfig: getAiConfig() }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || '回复失败，请重试');
+    return data.result;
+  }, [query, result]);
 
   return (
     <div className="mg-workspace">
@@ -175,8 +196,15 @@ export default function ZenShortTerm() {
                 <div className="mg-speech-body">{renderInline(fu.content, 'zf')}</div>
               </div>
             )}
+            <div className="mg-ask-row">
+              <button type="button" className="reply-btn" onClick={() => setAskOpen(true)}>✋ 举手提问</button>
+            </div>
           </div>
         </div>
+      )}
+
+      {askOpen && result && (
+        <AskDrawer master={ZEN_MASTER} context={result.content} onClose={() => setAskOpen(false)} onAsk={onAskZen} />
       )}
     </div>
   );

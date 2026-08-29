@@ -6,6 +6,7 @@ import { getHost, pickGuestsByStyle, findMasterById } from '../lib/breakfast';
 import { FRAMEWORK_STEPS } from '../lib/framework';
 import { MasterAvatar } from './ui';
 import StockPoolImportModal from './StockPoolImportModal';
+import AskDrawer from './AskDrawer';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { useAuth } from '../lib/authProvider';
 import { syncPoolsOnLogin } from '../lib/userPools';
@@ -150,6 +151,7 @@ export default function BreakfastRoundtable({ active = true }) {
   const [poolNewsItems, setPoolNewsItems] = useState([]);
   const [poolNewsLoading, setPoolNewsLoading] = useState(false);
   const poolNewsFetchRef = useRef(false); // 防止并发刷新
+  const [askTarget, setAskTarget] = useState(null); // {master, context} 举手提问对象
   const [poolNewsError, setPoolNewsError] = useState('');
   const [myStockCount, setMyStockCount] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
@@ -544,6 +546,32 @@ export default function BreakfastRoundtable({ active = true }) {
     })();
   }, [cacheKey, news, guests, mode, entry]);
 
+  // 大师PK 同款「举手提问」：侧边浮层单聊（复用 followup 接口）
+  const onAskBreakfast = useCallback(async (q, convo) => {
+    const t = askTarget;
+    if (!t) throw new Error('请先选择提问对象');
+    const convoText = (convo || []).map((m) => `${m.role === 'user' ? '我' : (t.master.name || '大师')}：${String(m.text || '').slice(0, 150)}`).join('\n');
+    const context = [t.context, convoText].filter(Boolean).join('\n');
+    const res = await fetch('/api/breakfast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        news: { title: news.title, content: news.content, source: news.source, time: news.time },
+        hostId: 'buffett',
+        guests: guests.map((g) => ({ id: g.master.id, groupKey: g.groupKey })),
+        mode,
+        stepKey: 'followup',
+        followUp: q,
+        followUpLead: t.master.id,
+        prevSteps: (entry.steps || []).map((st) => ({ title: st.title, content: st.content, pool: st.pool })),
+        aiConfig: getAiConfig(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || '回复失败，请重试');
+    return data.result;
+  }, [askTarget, news, guests, mode, entry]);
+
   const btnLabel = entry.status === 'loading' ? '■ 停止'
     : entry.status === 'done' ? '↻ 再来一轮'
     : entry.status === 'error' ? '↻ 重试'
@@ -805,6 +833,9 @@ export default function BreakfastRoundtable({ active = true }) {
                                     {st && <span className={`bk-stance ${st.cls}`}>{st.label}</span>}
                                   </span>
                                   <div className="bk-turn-row-text">{renderInline(cleaned, `qt-${i}-${ti}`)}</div>
+                                  <div className="bk-ask-row">
+                                    <button type="button" className="reply-btn" onClick={() => setAskTarget({ master: sp, context: cleaned })}>✋ 举手提问</button>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -842,6 +873,11 @@ export default function BreakfastRoundtable({ active = true }) {
                         )}
                       </>
                     ) : ((pt ? pt.cleaned : s.content) && <div className="bk-step-body">{renderInline(pt ? pt.cleaned : s.content, `c-${i}`)}</div>)}
+                    {!isQuick && (pt ? pt.cleaned : s.content) && (
+                      <div className="bk-ask-row">
+                        <button type="button" className="reply-btn" onClick={() => setAskTarget({ master: speaker, context: (pt ? pt.cleaned : s.content) })}>✋ 举手提问</button>
+                      </div>
+                    )}
                     {isConclusion && (
                       <>
                         {Array.isArray(s.opportunities) && s.opportunities.length > 0 && (
@@ -974,6 +1010,15 @@ export default function BreakfastRoundtable({ active = true }) {
         onClose={() => setImportOpen(false)}
         onCreated={() => loadPoolNews(true)}
       />
+
+      {askTarget && (
+        <AskDrawer
+          master={askTarget.master}
+          context={askTarget.context}
+          onClose={() => setAskTarget(null)}
+          onAsk={onAskBreakfast}
+        />
+      )}
     </div>
   );
 }
