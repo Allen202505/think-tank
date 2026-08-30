@@ -162,6 +162,7 @@ export default function BreakfastRoundtable({ active = true }) {
   const loadNews = useCallback(async (page = 1, append = false) => {
     setNewsLoading(true);
     setNewsError('');
+    const startedAt = Date.now();
     try {
       const res = await fetch(`/api/news?page=${page}`);
       const data = await res.json();
@@ -181,6 +182,10 @@ export default function BreakfastRoundtable({ active = true }) {
       setNewsError(e.message || '获取新闻失败');
       setNewsFallback(true);
     } finally {
+      // 让「刷新中」动效至少展示 400ms，避免一闪而过
+      const elapsed = Date.now() - startedAt;
+      const remain = 400 - elapsed;
+      if (remain > 0) await new Promise((r) => setTimeout(r, remain));
       setNewsLoading(false);
     }
   }, []);
@@ -605,7 +610,7 @@ export default function BreakfastRoundtable({ active = true }) {
                     disabled={newsLoading}
                     title="刷新新闻列表"
                   >
-                    {newsLoading && newsList.length === 0 ? '···' : '↻ 刷新'}
+                    {newsLoading ? <><span className="bk-refresh-spinner" />刷新中…</> : '↻ 刷新'}
                   </button>
                 </>
               ) : (
@@ -613,9 +618,10 @@ export default function BreakfastRoundtable({ active = true }) {
                   type="button"
                   className="bk-news-refresh"
                   onClick={() => loadPoolNews(true)}
+                  disabled={poolNewsLoading}
                   title="刷新我的股票池新闻"
                 >
-                  ↻ 刷新
+                  {poolNewsLoading ? <><span className="bk-refresh-spinner" />刷新中…</> : '↻ 刷新'}
                 </button>
               )}
             </div>
@@ -688,7 +694,7 @@ export default function BreakfastRoundtable({ active = true }) {
               ) : poolNewsError ? (
                 <div className="bk-poolnews-empty">
                   <div className="bk-poolnews-empty-title">⚠ {poolNewsError}</div>
-                  <button type="button" className="bk-news-refresh" onClick={() => loadPoolNews(true)}>↻ 重试</button>
+                  <button type="button" className="bk-news-refresh" onClick={() => loadPoolNews(true)} disabled={poolNewsLoading}>{poolNewsLoading ? '刷新中…' : '↻ 重试'}</button>
                 </div>
               ) : poolNewsItems.length === 0 ? (
                 <div className="bk-poolnews-empty">
