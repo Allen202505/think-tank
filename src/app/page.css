@@ -1741,6 +1741,7 @@
 
 /* 添加词条弹窗 */
 .term-add-modal { padding: 20px 18px 18px; position: relative; }
+.term-add-overlay { z-index: 1200; } /* 高于侧边浮层(1001)与右键菜单(1100)，避免被遮挡 */
 .term-add-title { font-family: var(--font-serif); font-size: 18px; font-weight: 800; color: var(--accent-strong); }
 .term-add-sub { font-size: 12.5px; line-height: 1.7; color: var(--text-muted); margin: 8px 0 12px; }
 .term-add-input { min-height: 40px; }

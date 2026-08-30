@@ -92,7 +92,7 @@ export default function TermAddModal() {
       )}
 
       {modalOpen && (
-        <div className="modal-overlay" onMouseDown={() => setModalOpen(false)}>
+        <div className="modal-overlay term-add-overlay" onMouseDown={() => setModalOpen(false)}>
           <div className="modal-content term-add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <button type="button" className="modal-close" onClick={() => setModalOpen(false)} aria-label="关闭">✕</button>
             <div className="term-add-title">📖 添加词条</div>
