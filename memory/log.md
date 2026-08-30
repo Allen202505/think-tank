@@ -2737,3 +2737,30 @@
 - **验证通过**：注册即自动登录；anon key 读不到任何表（RLS 生效）；登录后能读到自己的股票池；测试账号已清理。
 - **待部署**：`git push` 已推 GitHub（e513f90）。Vercel 需填 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`。
 - ⚠️ 测试账号已删除；生产需注意用户在审核/敏感信息上的隐私提示。
+
+## 2026-08-30 · 新增「纳瓦尔的知识学堂」栏目（tab=naval）
+
+- **目标**：新栏目「纳瓦尔的知识学堂」，财务/投资知识点深入浅出讲解 + 每日投资知识点（迁移 Codex 自动化 automation-2「每日投资知识点」）。
+- **模块1 知识点提问**：输入概念 → 纳瓦尔人设深入浅出讲解（生活化直觉 + 公式算例 + 真实数据锚点 + 常见误区 + 适用/局限），可追问。
+- **模块2 每日知识点**：按日期出「第XXXX.XX.XX期」，每天 3 个指标（五段结构：一句话核心/关键公式+实战锚点/深度洞察/适用场景/缺陷与例外），开头揭晓上一期小测验答案并回扣洞察，结尾出 1 道新题（答案下期揭晓），避开已讲指标；历史期数全部访客可看。
+- **存储**：Supabase 新表 `public.daily_knowledge_issues`（公共可读；RLS 仅允许写入"当天"这一期；历史由种子 SQL 导入）；未配置/表缺失时前端 localStorage 兜底。
+- **代码**：`src/lib/navalPrompts.js`（提示词库）、`src/app/api/naval/{ask,daily,issues}/route.js`、`src/lib/navalDb.js`（服务端存储助手）、`src/components/NavalAcademy.js`；接线 `page.js`/`SidebarNav`/`MobileShell`/`FeatureHall`/i18n/`page.css`/`layout.js` SEO。
+- **历史期数**：`scripts/build-naval-seed.mjs` 从 Codex 自动化存档（~/Documents/Codex/…/outputs/*.md + memory.md）解析生成 `supabase/seed_naval_issues.sql`，共 16 期（2026-08-08 ~ 08-29）。
+- **验证**：`npm run build` 通过；本地实测 `/api/naval/ask`（正常返回纳瓦尔讲解）、`/api/naval/daily`（成功生成第2026.08.30期）、`/api/naval/issues`（表未建时返回 local 兜底）。
+- **待执行（用户）**：Supabase SQL Editor 依次运行 `supabase/schema.sql`（建表）与 `supabase/seed_naval_issues.sql`（16 期历史）；或用 PAT 跑 `node scripts/supabase-run-sql.mjs`。
+
+## 2026-08-30 · 纳瓦尔知识学堂 · 交互优化（5 项）
+- ① 回答后提供「⚡ 快捷追问」：AI 返回 followUps 以按钮形式一键追问。
+- ② 词条收录：回答可「💾 收录为词条」（从问题自动提炼词条名），也可「＋ 添加词条」手动收录（调 AI 生成讲解）；词条库显示在【知识点提问】上方，点击词条即回显该问答；词条缓存在本机 localStorage（thinktank_naval_terms）。
+- ③ 举手提问：回答卡片加「✋ 举手提问」，复用其它模块 AskDrawer（与纳瓦尔单聊，可多轮）；/api/naval/ask 支持 context 传入对话上下文。
+- ④ 背景替换为纳瓦尔照片（public/bg-naval.jpg，处理策略同其它模块：bg-master-layer 里按 tab 切换 img）。
+- ⑤ 栏目改名「纳瓦尔的知识学堂」→「纳瓦尔知识学堂」（i18n / layout SEO / JSON-LD）。
+- 布局：知识点提问/每日知识点改为「巴菲特的早餐」式双栏（左栏 280px 页签+列表 + 右侧内容区）；历史提问移入左栏。
+- 修复：提问历史/词条读取 localStorage 导致的 hydration 报错（改为挂载后加载）。
+
+## 2026-08-30 · 纳瓦尔知识学堂 · 词条功能重构
+- 词条改为「先存名字、讲解按需生成」：添加词条（右键 / ＋ 添加 / 词条库弹窗内）只保存 { name, at }，不再立即调 AI 生成讲解；讲解在词条库弹窗点击时懒生成并缓存（content/keyPoint）。
+- 词条库不再堆在左栏：左栏只留紧凑入口「📚 词条库（N）＋ 添加 / 查看全部词条 ›」；新增 TermLibraryModal 弹窗（可搜索 + 滚动 + 点击生成讲解），支持 100+ 词条。
+- 新增 src/lib/navalTerms.js（loadTerms/saveTerms/upsertTerm/updateTermContent，本机 localStorage）。
+- 修复：右键菜单项被 document mousedown 先关闭导致点击不生效（改为菜单内 mousedown 不关闭）。
+- 复用：左栏「＋ 添加」、右键、词条库弹窗共用全局 TermAddModal（naval:add-term 事件）；全局右键菜单 TermAddModal 已在 page.js。

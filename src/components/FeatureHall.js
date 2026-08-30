@@ -10,6 +10,7 @@ export default function FeatureHall({ open, onClose, onSwitch, t }) {
     { id: 'munger', icon: '📖', name: t('tabsMunger'), desc: t('hallMungerDesc') },
     { id: 'zen', icon: '🧘', name: t('tabsZen'), desc: t('hallZenDesc') },
     { id: 'pools', icon: '🎯', name: t('tabsPools'), desc: t('hallPoolsDesc') },
+    { id: 'naval', icon: '📚', name: t('tabsNaval'), desc: t('hallNavalDesc') },
   ];
 
   return (

@@ -9,6 +9,7 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
     { id: 'munger', icon: '📖', label: t('tabMungerShort') },
     { id: 'zen', icon: '🧘', label: t('tabZenShort') },
     { id: 'pools', icon: '🎯', label: t('tabPoolsShort') },
+    { id: 'naval', icon: '📚', label: t('tabNavalShort') },
   ];
 
   return (

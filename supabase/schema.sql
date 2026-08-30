@@ -83,3 +83,36 @@ create trigger on_auth_user_created
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on public.user_stock_pools to anon, authenticated;
 grant select, insert, update, delete on public.profiles to anon, authenticated;
+
+-- ============================================================
+-- 纳瓦尔的知识学堂 · 每日知识点（daily_knowledge_issues）
+-- 公共可读；历史期数由站长用 SQL 种子导入（seed_naval_issues.sql）；
+-- "今天"这一期允许站点自动生成写入（issue_date = 上海时区当天）。
+-- ============================================================
+create table if not exists public.daily_knowledge_issues (
+  issue_date date primary key,          -- 期数日期，如 2026-08-30
+  issue_label text not null,            -- 展示名，如 第2026.08.30期
+  title text not null,                  -- 今日主题
+  content text not null,                -- 完整正文（含上期揭晓/三指标/小测验）
+  quiz_question text,                   -- 本期小测验（不附答案，列表页展示用）
+  quiz_answer text,                     -- 本期小测验参考思路（下一期揭晓用）
+  covered_topics jsonb not null default '[]'::jsonb, -- 本期覆盖的指标/主题
+  source text not null default 'generated',          -- seed | generated
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_daily_knowledge_issues_date
+  on public.daily_knowledge_issues (issue_date desc);
+
+alter table public.daily_knowledge_issues enable row level security;
+
+drop policy if exists "naval_issues_select_public" on public.daily_knowledge_issues;
+create policy "naval_issues_select_public" on public.daily_knowledge_issues
+  for select using (true);
+
+-- 仅允许写入"当天"这一期（站点生成今日期数用；历史期数由种子 SQL 导入，不受此限）
+drop policy if exists "naval_issues_insert_today" on public.daily_knowledge_issues;
+create policy "naval_issues_insert_today" on public.daily_knowledge_issues
+  for insert with check (issue_date = (now() at time zone 'Asia/Shanghai')::date);
+
+grant select, insert on public.daily_knowledge_issues to anon, authenticated;

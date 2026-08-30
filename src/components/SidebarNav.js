@@ -8,6 +8,7 @@ export default function SidebarNav({ tab, onSwitch, t }) {
     { id: 'munger', icon: '📖', label: t('tabsMunger') },
     { id: 'zen', icon: '🧘', label: t('tabsZen') },
     { id: 'pools', icon: '🎯', label: t('tabsPools') },
+    { id: 'naval', icon: '📚', label: t('tabsNaval') },
   ];
   return (
     <nav className="vt-nav" aria-label="主导航">

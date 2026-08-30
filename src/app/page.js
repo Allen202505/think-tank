@@ -36,6 +36,8 @@ import SidebarNav from '../components/SidebarNav';
 import MungerFinance from '../components/MungerFinance';
 import ZenShortTerm from '../components/ZenShortTerm';
 import StockPools from '../components/StockPools';
+import NavalAcademy from '../components/NavalAcademy';
+import TermAddModal from '../components/TermAddModal';
 
 // 从发言的实际立场统计票数（不信任 AI 裁决里的数字，避免数错）
 function countVotes(items) {
@@ -79,20 +81,108 @@ function renderExplainText(text) {
   return out;
 }
 
-// 安全解析 AI 返回的 JSON：取首个 {...} 并容错解析，失败返回 null（由调用方降级为整段文字）
+// 安全解析 AI 返回的 JSON：先抠出最外层 {...}（跳过字符串里的花括号/转义），再尝试容错解析。
+// 兼容 markdown 代码围栏、前后夹带文字、字符串结束引号后夹带中文标点（如 "keyPoint":"...玩"。}）、
+// 中文引号/全角冒号逗号误当结构符、尾逗号等常见模型输出错误。全部失败返回 null（由调用方降级）。
 function safeJsonParse(text) {
-  const m = String(text || '').match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  try { return JSON.parse(m[0]); } catch (e) { return null; }
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  // 去掉 markdown 代码围栏（```json ... ```）
+  const stripped = raw.replace(/^```[a-zA-Z]*\s*/m, '').replace(/```\s*$/m, '').trim();
+  const start = stripped.indexOf('{');
+  if (start < 0) return null;
+  // 用引号感知的状态机找与首个 { 匹配的 }，避免贪心吞掉 JSON 前后的废话
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let end = -1;
+  for (let i = start; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end < 0) return null;
+  const candidate = stripped.slice(start, end + 1);
+  const attempts = [
+    candidate,
+    // 常见错误①：字符串结束引号后夹带中文标点（如 "keyPoint":"...玩"。}），或中文引号被当成结尾引号
+    candidate.replace(/["”’]\s*[。，、；：！？…]*\s*(?=[,}\])])/g, '"'),
+    // 常见错误②：状态机逐字符修复——结构位的中文引号/全角冒号逗号、串后夹带的中文标点、尾逗号
+    repairJsonChars(candidate),
+  ];
+  for (const attempt of attempts) {
+    try { return JSON.parse(attempt); } catch (e) { /* 继续尝试下一个 */ }
+  }
+  return null;
+}
+
+// 把 JSON 结构位置的常见中文符号修成英文（字符串内容里的不动）：中文引号→英文引号、全角冒号/逗号→:/,；
+// 丢弃字符串结束引号后夹带的中文标点（如 "keyPoint":"...玩"。} 里的 。）与尾逗号（,"keyPoint":... ,}）
+function repairJsonChars(json) {
+  let out = '';
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < json.length; i++) {
+    const ch = json[i];
+    if (inStr) {
+      out += ch;
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; out += ch; continue; }
+    if (ch === '“' || ch === '”' || ch === '‘' || ch === '’') { out += '"'; continue; }
+    if (ch === '：') { out += ':'; continue; }
+    if (ch === '，') { out += ','; continue; }
+    if (ch === ',') {
+      const next = json.slice(i + 1).replace(/^\s+/, '');
+      if (next && (next[0] === '}' || next[0] === ']')) continue; // 尾逗号
+      out += ch;
+      continue;
+    }
+    if (ch === '。' || ch === '、' || ch === '；' || ch === '！' || ch === '？' || ch === '…') {
+      const next = json.slice(i + 1).replace(/^\s+/, '');
+      if (next && /[,}\]]/.test(next[0])) continue; // 字符串结束引号后夹带的中文标点
+      out += ch;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
 }
 
 // 解析单聊/回辩的 {content, keyPoint} JSON；失败降级为整段文字
 function parseChatResult(text, fallbackInvestorId) {
-  const parsed = safeJsonParse(text);
+  let parsed = safeJsonParse(text);
+  if (!parsed || typeof parsed.content !== 'string' || !parsed.content.trim()) {
+    // 正则兜底：JSON 解析失败时直接抽 content/keyPoint，避免把 {"content":...} 原样展示给用户
+    parsed = extractChatFields(text);
+  }
   if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
     return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: parsed.content.trim(), keyPoint: String(parsed.keyPoint || '').trim() };
   }
   return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: String(text || ''), keyPoint: '' };
+}
+
+// 正则兜底：从 AI 文本里直接抽 content/keyPoint 两个字段（兼容中文引号收尾、句号夹在 } 前）
+function extractChatFields(text) {
+  const t = String(text || '').replace(/^```[a-zA-Z]*\s*/m, '').replace(/```\s*$/m, '').trim();
+  if (!t.includes('"content"') || !t.includes('"keyPoint"')) return null;
+  const contentMatch = t.match(/"content"\s*:\s*["“”]([\s\S]*?)["“”](?=\s*,\s*"keyPoint")/);
+  if (!contentMatch) return null;
+  const keyPointMatch = t.match(/"keyPoint"\s*:\s*["“”]([\s\S]*?)["“”](?=\s*[。，、；：！？…]*\s*[,}])/);
+  return { content: contentMatch[1], keyPoint: keyPointMatch ? keyPointMatch[1] : '' };
 }
 
 export default function Home() {
@@ -304,6 +394,8 @@ export default function Home() {
         setTab('zen');
       } else if (t === 'pools') {
         setTab('pools');
+      } else if (t === 'naval') {
+        setTab('naval');
       }
     } catch (e) { /* ignore */ }
   }, []);
@@ -318,7 +410,7 @@ export default function Home() {
     if (next === 'breakfast') setShowBreakfast(true);
     try {
       const url = new URL(window.location.href);
-      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools') url.searchParams.set('tab', next);
+      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'naval') url.searchParams.set('tab', next);
       else url.searchParams.delete('tab');
       window.history.replaceState({}, '', url.toString());
     } catch (e) { /* ignore */ }
@@ -1243,7 +1335,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : tab === 'naval' ? '/bg-naval.jpg' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
@@ -1263,6 +1355,7 @@ export default function Home() {
       <FeatureHall open={hallOpen} onClose={() => setHallOpen(false)} onSwitch={switchTab} t={t} />
       <AiSettingsModal open={aiSettingsOpen} onClose={() => setAiSettingsOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <TermAddModal />
 
       <div className="app-shell">
         <aside className="app-sidebar">
@@ -1732,6 +1825,10 @@ export default function Home() {
 
       <div className={`mg-workspace-wrap${tab === 'pools' ? '' : ' ws-hidden'}`}>
         <StockPools />
+      </div>
+
+      <div className={`mg-workspace-wrap${tab === 'naval' ? '' : ' ws-hidden'}`}>
+        <NavalAcademy />
       </div>
 
 
