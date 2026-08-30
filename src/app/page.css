@@ -1749,11 +1749,11 @@
 /* 词条库：左栏紧凑入口 */
 .nv-terms-actions { display: flex; align-items: center; gap: 6px; }
 .nv-terms-view {
-  border: 1px solid var(--accent-dim); background: transparent; color: var(--accent);
-  border-radius: 999px; padding: 3px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted);
+  border-radius: 999px; padding: 2px 10px; font-size: 11px; cursor: pointer;
   font-family: var(--font-sans); white-space: nowrap;
 }
-.nv-terms-view:hover { background: var(--accent-bg); border-color: var(--accent); }
+.nv-terms-view:hover { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-bg); }
 .nv-terms-hint { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 4px 12px 2px; }
 
 /* 词条库弹窗 */
