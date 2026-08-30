@@ -105,7 +105,7 @@ export default function TermLibraryModal({ open, onClose }) {
         {supabaseEnabled && !user && (
           <div className="term-lib-auth">
             <div className="term-lib-auth-text">🔒 登录后词条会云端保存，换设备不丢失</div>
-            <button type="button" className="mg-btn term-lib-auth-btn" onClick={() => window.dispatchEvent(new CustomEvent('open-auth'))}>去登录 / 注册</button>
+            <button type="button" className="nv-clear term-lib-auth-btn" onClick={() => window.dispatchEvent(new CustomEvent('open-auth'))}>去登录 / 注册</button>
           </div>
         )}
         <div className="term-lib-search-wrap">

@@ -1767,7 +1767,10 @@
   padding: 10px 12px; margin-bottom: 10px;
 }
 .term-lib-auth-text { font-size: 12.5px; line-height: 1.6; color: var(--text); }
-.term-lib-auth-btn { flex-shrink: 0; }
+.term-lib-auth-btn {
+  flex-shrink: 0; border-color: var(--accent-dim); color: var(--accent); font-weight: 700;
+}
+.term-lib-auth-btn:hover { color: var(--accent-strong); border-color: var(--accent); background: var(--accent-bg); }
 .term-lib-empty { font-size: 13px; color: var(--text-muted); line-height: 1.7; padding: 14px 4px; }
 .term-lib-list { display: flex; flex-direction: column; gap: 4px; }
 .term-lib-item {
