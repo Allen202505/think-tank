@@ -5,6 +5,7 @@
 // 会话按「大师+上下文」持久化在模块级 Map，关闭浮层再打开时能恢复之前的提问与回答。
 import { useEffect, useRef, useState } from 'react';
 import { MasterAvatar } from './ui';
+import { useDrawerResize } from '../lib/drawerResize';
 
 // 跨开合持久化会话
 const convStore = new Map();
@@ -59,6 +60,7 @@ function renderRich(text) {
 }
 
 export default function AskDrawer({ master, context, onClose, onAsk, placeholder }) {
+  const { style, handleProps } = useDrawerResize();
   const key = convKey(master, context);
   const [messages, setMessagesState] = useState(() => convStore.get(key) || []);
   const [input, setInput] = useState('');
@@ -121,7 +123,8 @@ export default function AskDrawer({ master, context, onClose, onAsk, placeholder
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <aside className="explain-drawer chat-drawer" onClick={(e) => e.stopPropagation()}>
+      <aside className="explain-drawer chat-drawer" style={style} onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-resize-handle" {...handleProps} />
         <div className="chat-drawer-head">
           <MasterAvatar master={master} size={38} />
           <div className="chat-drawer-title-wrap">

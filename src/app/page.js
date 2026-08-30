@@ -38,6 +38,7 @@ import ZenShortTerm from '../components/ZenShortTerm';
 import StockPools from '../components/StockPools';
 import NavalAcademy from '../components/NavalAcademy';
 import TermAddModal from '../components/TermAddModal';
+import { useDrawerResize } from '../lib/drawerResize';
 
 // 从发言的实际立场统计票数（不信任 AI 裁决里的数字，避免数错）
 function countVotes(items) {
@@ -422,6 +423,7 @@ export default function Home() {
     } catch (e) { /* ignore */ }
   };
 
+  const drawerResize = useDrawerResize();
   const STORAGE_KEY = 'master-debate-state-v1';
 
   // 恢复上次讨论（仅首次挂载）：URL 指定大师 > 本地历史 > 随机 5 位
@@ -1878,7 +1880,8 @@ export default function Home() {
 
       {explain && (
         <div className="drawer-overlay" onClick={closeExplain}>
-          <aside className="explain-drawer" onClick={(e) => e.stopPropagation()}>
+          <aside className="explain-drawer" style={drawerResize.style} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-resize-handle" {...drawerResize.handleProps} />
             <div className="explain-drawer-head">
               <div className="explain-head">
                 <MasterAvatar master={explain.master} size={38} />
@@ -1907,7 +1910,8 @@ export default function Home() {
 
       {replyDrawer && (
         <div className="drawer-overlay" onClick={closeReplyDrawer}>
-          <aside className="explain-drawer chat-drawer" onClick={(e) => e.stopPropagation()}>
+          <aside className="explain-drawer chat-drawer" style={drawerResize.style} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-resize-handle" {...drawerResize.handleProps} />
             <div className="chat-drawer-head">
               <MasterAvatar master={replyDrawer.master} size={38} />
               <div className="chat-drawer-title-wrap">

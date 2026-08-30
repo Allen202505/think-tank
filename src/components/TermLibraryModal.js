@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { useAuth } from '../lib/authProvider';
+import { useDrawerResize } from '../lib/drawerResize';
 import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsOnLogin, pushTermsCloud } from '../lib/navalTerms';
 
@@ -14,6 +15,7 @@ function inlineRich(seg, k) {
 }
 
 export default function TermLibraryModal({ open, onClose }) {
+  const { style, handleProps } = useDrawerResize();
   const { user } = useAuth();
   const loggedIn = supabaseEnabled && !!user?.id;
   const [terms, setTerms] = useState([]);
@@ -93,7 +95,8 @@ export default function TermLibraryModal({ open, onClose }) {
 
   return (
     <div className="drawer-overlay" onMouseDown={() => !loading && onClose()}>
-      <aside className="explain-drawer chat-drawer term-lib-drawer" onMouseDown={(e) => e.stopPropagation()}>
+      <aside className="explain-drawer chat-drawer term-lib-drawer" style={style} onMouseDown={(e) => e.stopPropagation()}>
+          <div className="drawer-resize-handle" {...handleProps} />
         <div className="chat-drawer-head">
           <div className="chat-drawer-title-wrap">
             <div className="chat-drawer-title">📚 词条库（{terms.length}）</div>

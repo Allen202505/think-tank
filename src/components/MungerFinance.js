@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { MasterAvatar } from './ui';
 import { findMasterById } from '../lib/breakfast';
+import { useDrawerResize } from '../lib/drawerResize';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 
 function renderInline(text, keyBase) {
@@ -55,6 +56,7 @@ function renderRich(text) {
 const MUNGER_STATE_KEY = 'thinktank_munger_state';
 
 export default function MungerFinance() {
+  const drawerResize = useDrawerResize();
   const munger = findMasterById('munger');
   const [link, setLink] = useState('');
   const [note, setNote] = useState('');
@@ -289,7 +291,8 @@ export default function MungerFinance() {
       {/* 举手提问 · 与芒格单聊浮层（样式与大师PK 一致） */}
       {drawerOpen && (
         <div className="drawer-overlay" onClick={closeDrawer}>
-          <aside className="explain-drawer chat-drawer" onClick={(e) => e.stopPropagation()}>
+          <aside className="explain-drawer chat-drawer" style={drawerResize.style} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-resize-handle" {...drawerResize.handleProps} />
             <div className="chat-drawer-head">
               <MasterAvatar master={munger} size={38} />
               <div className="chat-drawer-title-wrap">
