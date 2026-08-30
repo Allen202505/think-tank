@@ -1764,7 +1764,7 @@
 .term-lib-auth {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   background: var(--accent-bg); border: 1px solid var(--accent-dim); border-radius: 10px;
-  padding: 10px 12px; margin-bottom: 10px;
+  padding: 10px 12px; margin: 0 24px 10px; /* 与下方搜索框左右对齐 */
 }
 .term-lib-auth-text { font-size: 12.5px; line-height: 1.6; color: var(--text); }
 .term-lib-auth-btn {
