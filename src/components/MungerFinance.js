@@ -11,6 +11,13 @@ function renderInline(text, keyBase) {
   return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
 }
 
+// 长段落按句末标点兜底断行（AI 忘记分段时的兜底，避免整段挤成一坨）
+function breakSentences(line) {
+  if (line.length <= 70 || !/[。！？]/.test(line)) return [line];
+  const parts = line.split(/(?<=[。！？])\s*/).map((s) => s.trim()).filter(Boolean);
+  return parts.length > 1 ? parts : [line];
+}
+
 // 内联：**加粗**
 function inlineRich(seg) {
   const normalized = String(seg || '').replace(/\*\*\*/g, '**');
@@ -33,7 +40,13 @@ function renderRich(text) {
     if (bullet) { list.push(<li key={list.length}>{inlineRich(bullet[1])}</li>); continue; }
     flush();
     const numbered = line.match(/^\d+[.、)]\s+(.*)/);
-    out.push(<p key={out.length} className="explain-text">{inlineRich(numbered ? numbered[1] : line)}</p>);
+    const text = numbered ? numbered[1] : line;
+    const chunks = breakSentences(text);
+    out.push(
+      <p key={out.length} className="explain-text">
+        {chunks.map((c, j) => (j === 0 ? inlineRich(c) : [<br key={`br-${j}`} />, inlineRich(c)]))}
+      </p>
+    );
   }
   flush();
   return out;
