@@ -6,6 +6,15 @@ import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
+
+// 去掉 AI 把整段/整行用中文或英文引号首尾包起来的“包装引号”（只剥行首/行尾成对引号，不动正文内部的引号）
+function stripWrappingQuotes(text) {
+  return String(text || '')
+    .split('\n')
+    .map((line) => line.trim().replace(/^[“"‘\u201C\u201D]+/, '').replace(/[”"’\u201D\u201C]+$/, ''))
+    .join('\n')
+    .trim();
+}
 import { buildEarningsDataCard } from '../chat/earningsEngine.js';
 import { findMasterById } from '../../../lib/breakfast';
 
@@ -110,7 +119,7 @@ ${question}
 1. 直接回答追问，250-400 字，给信息增量，不重复已说过的内容；引用数据用「大约/约/可能」等模糊表述，严禁编造。
 2. 分段/换行：按逻辑分成 3-5 段，每段讲一个要点，段落之间用空行（\n\n）隔开；结论、风险提示、关键判断必须单独成段。严禁一长段。
 3. content 直接就是回答正文，不要任何前缀、标签或标题（严禁出现「context：」「回答：」等字样）。
-4. 只输出一个 JSON：{"content":"你的回答"}，不要 Markdown 代码块，所有引号用中文引号「」或“”。`;
+4. 只输出一个 JSON：{"content":"你的回答"}，不要 Markdown 代码块，所有引号用中文引号「」或“”；但不要用“”把整段回答/结论的首尾包起来，引号只在强调具体说法、术语或引用时使用。`;
       const { raw, parsed } = await generateJson(
         buildMessages(prompt, `追问：${question}`),
         '{"content":"你的回答"}',
@@ -120,10 +129,10 @@ ${question}
       );
       const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
       if (!normalized) {
-        if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'followup', content: extractContentFromRaw(raw) || raw.trim() } });
+        if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'followup', content: stripWrappingQuotes(extractContentFromRaw(raw) || raw.trim()) } });
         return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
       }
-      return Response.json({ ok: true, result: { mode: 'followup', content: normalized.content.trim() } });
+      return Response.json({ ok: true, result: { mode: 'followup', content: stripWrappingQuotes(normalized.content.trim()) } });
     }
 
     // mode === 'report'：财报链接 或 附件上传，可带补充说明
@@ -181,13 +190,13 @@ ${dataCardSection}
     const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 6000)}`), '{"content":"解读","followUps":["追问1"]}', 2000, true, body.aiConfig);
     const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
     if (!normalized) {
-      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: extractContentFromRaw(raw) || raw.trim(), followUps: [], dataCard: dataCard ? dataCard.text : null } });
+      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(extractContentFromRaw(raw) || raw.trim()), followUps: [], dataCard: dataCard ? dataCard.text : null } });
       return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
     }
     const followUps = Array.isArray(normalized.followUps)
       ? normalized.followUps.filter((f) => typeof f === 'string' && f.trim()).slice(0, 3)
       : [];
-    return Response.json({ ok: true, result: { mode: 'report', content: normalized.content.trim(), followUps, dataCard: dataCard ? dataCard.text : null } });
+    return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(normalized.content.trim()), followUps, dataCard: dataCard ? dataCard.text : null } });
   } catch (e) {
     const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
     return Response.json({ error: isNet ? '连接 AI 服务失败（网络异常），请稍后重试' : (e.message || '服务器内部错误') }, { status: 500 });
