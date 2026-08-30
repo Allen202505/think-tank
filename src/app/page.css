@@ -1062,6 +1062,29 @@
 .sp-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
 .sp-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes sp-blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+
+/* ── 求大师评价我的票（心理按摩） ── */
+.sp-review { display: flex; flex-direction: column; gap: 16px; }
+.sp-review-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sp-review-pool { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sp-review-title { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: 0.01em; }
+.sp-review-refresh { flex-shrink: 0; padding: 8px 14px; font-size: 12px; border-radius: 999px; }
+.sp-review-ico { font-size: 15px; line-height: 1; }
+.sp-review-loading { display: flex; align-items: center; justify-content: center; min-height: 260px; }
+.sp-review-loading-inner { display: flex; align-items: center; gap: 12px; color: var(--accent); }
+.sp-review-loading-text { font-size: 14px; font-weight: 700; color: var(--accent); }
+.sp-review-list { display: flex; flex-direction: column; gap: 12px; }
+.sp-review-master { display: flex; flex-direction: column; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px 14px; }
+.sp-review-master-head { display: flex; align-items: center; gap: 10px; }
+.sp-review-master-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sp-review-master-name { font-size: 13.5px; font-weight: 800; color: var(--text); }
+.sp-review-master-title { font-size: 11px; color: var(--accent-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-review-speech { font-size: 13.5px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.sp-review-speech strong { color: var(--accent-strong); }
+.sp-review-risk { font-size: 12px; color: var(--text-muted); background: rgba(192, 64, 64, 0.06); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 7px 10px; line-height: 1.7; }
+.sp-review-summary { font-size: 13px; line-height: 1.9; color: var(--text); background: var(--accent-bg); border: 1px solid var(--accent-dim); border-radius: 12px; padding: 12px 14px; }
+.sp-review-summary strong { color: var(--accent-strong); }
+.sp-review-disclaimer { font-size: 11px; color: var(--text-muted); line-height: 1.7; margin-top: 2px; }
 .sp-master-select { min-height: 44px; cursor: pointer; }
 .sp-manual-missing { font-size: 12px; color: var(--bear); background: rgba(192, 64, 64, 0.08); border: 1px solid rgba(192, 64, 64, 0.25); border-radius: 8px; padding: 8px 10px; line-height: 1.7; }
 .sp-extract { display: flex; flex-direction: column; gap: 8px; }

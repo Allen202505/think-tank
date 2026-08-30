@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
 import StockPoolImportModal from './StockPoolImportModal';
+import { MasterAvatar } from './ui';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
@@ -41,6 +42,21 @@ function fmtPct(v, digits = 2) {
   return `${v > 0 ? '+' : ''}${v.toFixed(digits)}%`;
 }
 
+// 轻量渲染：AI 输出里的 **加粗** 转成 <strong>
+function renderInline(text, keyBase) {
+  const normalized = String(text || '').replace(/\*\*\*/g, '**');
+  const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+}
+
+const REVIEW_CACHE_KEY = 'thinktank_review_cache';
+function loadReviewCache() {
+  try { return JSON.parse(localStorage.getItem(REVIEW_CACHE_KEY) || '{}'); } catch (e) { return {}; }
+}
+function saveReviewCache(cache) {
+  try { localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore */ }
+}
+
 const COST_KEY = 'thinktank_costs';
 function loadCosts() {
   try { return JSON.parse(localStorage.getItem(COST_KEY) || '{}'); } catch (e) { return {}; }
@@ -76,6 +92,11 @@ export default function StockPools() {
   const [suggestResult, setSuggestResult] = useState(null);
   const [suggestError, setSuggestError] = useState('');
   const [suggestEmptied, setSuggestEmptied] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewResult, setReviewResult] = useState(null);
+  const [reviewCache, setReviewCache] = useState({});
   const [days, setDays] = useState('today'); // 默认选中今天（非交易日自动取最近交易日数据）
   const [daysMenuOpen, setDaysMenuOpen] = useState(false);
   const [costs, setCosts] = useState({});
@@ -92,6 +113,7 @@ export default function StockPools() {
 
   const switchPoolTab = (t) => {
     setPoolTab(t);
+    setReviewOpen(false);
     const isMobile = typeof window !== 'undefined' && window.innerWidth <= 900;
     if (isMobile) { setActiveId(null); setDetail(null); return; } // 移动端切页签先看列表
     const list = t === 'mine' ? userPools : PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id));
@@ -106,6 +128,7 @@ export default function StockPools() {
     setHiddenPresetIds(loadHiddenPresets());
     setCosts(loadCosts());
     setPoolTab(loadPoolTab());
+    setReviewCache(loadReviewCache());
     setHydrated(true);
   }, []);
 
@@ -224,7 +247,7 @@ export default function StockPools() {
     });
   };
 
-  const closeDrawers = () => { setImportOpen(false); setSearchOpen(false); };
+  const closeDrawers = () => { setImportOpen(false); setSearchOpen(false); setReviewOpen(false); };
 
   const goImportMaster = () => {
     setSearchOpen(false);
@@ -233,6 +256,61 @@ export default function StockPools() {
     setSuggestQuery('');
     setSuggestResult(null);
     setError('');
+  };
+
+  // 求大师评价我的票：随机邀请大师，结合最新行情给持仓做心理按摩
+  const reviewTargetPool = () => {
+    if (poolTab === 'mine' && active && active.symbols && active.symbols.length) return active;
+    if (poolTab === 'mine' && userPools.length) return userPools.find((p) => p.symbols && p.symbols.length) || null;
+    return null;
+  };
+
+  const runMasterReview = async () => {
+    if (reviewLoading) return;
+    const target = reviewTargetPool();
+    if (!target) {
+      setReviewError('请先在「我的股票池」创建一个含股票的池子');
+      setReviewResult(null);
+      return;
+    }
+    if (!ensureAiReady()) return;
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewResult(null);
+    try {
+      const res = await fetch('/api/pools/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: target.symbols, poolName: target.name, aiConfig: getAiConfig() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
+      setReviewResult(data.result);
+      setReviewCache((prev) => {
+        const next = { ...prev, [target.id]: data.result };
+        saveReviewCache(next);
+        return next;
+      });
+    } catch (e) {
+      setReviewError(e.message || '生成失败，请重试');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const openMasterReview = () => {
+    setSearchOpen(false);
+    setImportOpen(false);
+    setReviewOpen(true);
+    setError('');
+    setReviewError('');
+    const target = reviewTargetPool();
+    if (target && reviewCache[target.id]) {
+      // 已有点评：直接恢复，不重新生成；除非点「再换一批大师」
+      setReviewResult(reviewCache[target.id]);
+      return;
+    }
+    runMasterReview();
   };
 
   const deletePool = (id) => {
@@ -287,22 +365,29 @@ export default function StockPools() {
             <button type="button" role="tab" className={poolTab === 'mine' ? 'active' : ''} aria-selected={poolTab === 'mine'} onClick={() => switchPoolTab('mine')}>我的股票池</button>
           </div>
           <div className="sp-side-actions">
-            <button type="button" className="sp-new" onClick={() => { setImportType(poolTab === 'mine' ? 'mine' : 'master'); setImportOpen(true); setSearchOpen(false); setError(''); }}>
+            <button type="button" className="sp-new" onClick={() => { setImportType(poolTab === 'mine' ? 'mine' : 'master'); setImportOpen(true); setSearchOpen(false); setReviewOpen(false); setError(''); }}>
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
               导入股票池
             </button>
-            <button type="button" className="sp-new sp-new-ai" onClick={() => { setSearchOpen(true); setImportOpen(false); setError(''); }}>
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              搜寻大师股票池
-            </button>
+            {poolTab === 'master' ? (
+              <button type="button" className="sp-new sp-new-ai" onClick={() => { setSearchOpen(true); setImportOpen(false); setReviewOpen(false); setError(''); }}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                搜寻大师股票池
+              </button>
+            ) : (
+              <button type="button" className="sp-new sp-new-ai" onClick={openMasterReview}>
+                <span className="sp-review-ico" aria-hidden="true">🙏</span>
+                求大师评价我的票
+              </button>
+            )}
           </div>
 
-          {pools.length === 0 && !importOpen && !searchOpen && (
+          {pools.length === 0 && !importOpen && !searchOpen && !reviewOpen && (
             <div className="sp-empty">{poolTab === 'mine' ? '还没有「我的股票池」，点上方「导入股票池」创建' : '还没有池子，导入或搜寻一个'}</div>
           )}
 
           {pools.map((p) => (
-            <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}`} onClick={() => { setActiveId(p.id); setError(''); }}>
+            <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}`} onClick={() => { setActiveId(p.id); setError(''); setReviewOpen(false); }}>
               <div className="sp-pool-name">{p.name}</div>
               <div className="sp-pool-meta">{p.symbols.length} 只 · {p.source}</div>
               <button type="button" className="sp-del" onClick={(e) => { e.stopPropagation(); deletePool(p.id); }} title="删除">✕</button>
@@ -312,6 +397,53 @@ export default function StockPools() {
 
         {/* 右侧：池子详情 */}
         <div className="sp-main">
+          {reviewOpen && (
+            <div className="sp-review">
+              <div className="sp-review-head">
+                <div className="sp-review-pool">
+                  <div className="sp-review-title">大师们轮流点评 · 心理按摩</div>
+                </div>
+                <button type="button" className="mg-btn sp-review-refresh" onClick={runMasterReview} disabled={reviewLoading}>
+                  {reviewLoading ? '大师正在发言…' : '↻ 再换一批大师'}
+                </button>
+              </div>
+
+              {reviewError && <div className="mg-error">⚠ {reviewError}</div>}
+
+              {reviewLoading && !reviewResult && (
+                <div className="sp-review-loading">
+                  <div className="sp-review-loading-inner">
+                    <svg className="sp-loading-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                    <span className="sp-review-loading-text">正在邀请大师轮流点评你的持仓<span className="sp-loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
+                  </div>
+                </div>
+              )}
+
+              {reviewResult && (
+                <div className="sp-review-list">
+                  {reviewResult.masters.map((m, i) => (
+                    <div key={m.id || i} className="sp-review-master">
+                      <div className="sp-review-master-head">
+                        <MasterAvatar master={m} size={44} />
+                        <div className="sp-review-master-info">
+                          <div className="sp-review-master-name">{m.emoji ? `${m.emoji} ` : ''}{m.name}</div>
+                          <div className="sp-review-master-title">{m.title || m.style || ''}</div>
+                        </div>
+                      </div>
+                      <div className="sp-review-speech">{renderInline(m.speech, `svc-${i}`)}</div>
+                      {m.risk && <div className="sp-review-risk">⚠ {m.risk}</div>}
+                    </div>
+                  ))}
+                  {reviewResult.summary && (
+                    <div className="sp-review-summary">{renderInline(reviewResult.summary, 'svc-sum')}</div>
+                  )}
+                  <div className="sp-review-disclaimer">本内容由 AI 生成，仅供学习交流与娱乐参考，不构成任何投资建议或意见，据此操作风险自负。</div>
+                </div>
+              )}
+            </div>
+          )}
+          {!reviewOpen && (
+            <>
           {!importOpen && !searchOpen && error && <div className="mg-error">⚠ {error}</div>}
 
           {active && (
@@ -435,6 +567,8 @@ export default function StockPools() {
               )}
             </div>
           )}
+            </>
+          )}
       </div>
 
       {searchOpen && <div className="invite-drawer-backdrop" onClick={closeDrawers} />}
@@ -496,7 +630,7 @@ export default function StockPools() {
         open={importOpen}
         initialType={importType}
         onClose={() => setImportOpen(false)}
-        onCreated={(pool) => { setActiveId(pool.id); setError(''); }}
+        onCreated={(pool) => { setUserPools(loadUserPools()); setActiveId(pool.id); setError(''); setReviewOpen(false); }}
       />
     </div>
     </div>
