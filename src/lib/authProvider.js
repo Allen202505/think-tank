@@ -56,10 +56,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // 乐观退出：先立刻清空 UI，不等 Supabase 网络请求，避免卡顿
+    setUser(null);
     const sb = getSupabase();
     if (!sb) return;
-    await sb.auth.signOut();
-    setUser(null);
+    try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
   }, []);
 
   return (

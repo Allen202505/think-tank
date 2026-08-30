@@ -16,6 +16,7 @@ import TermLibraryModal from './TermLibraryModal';
 
 const LS_KEY = 'thinktank_naval_issues';
 const ASK_HISTORY_KEY = 'thinktank_naval_ask_history';
+const NAVAL_STATE_KEY = 'thinktank_naval_state';
 const TERMS_KEY = 'thinktank_naval_terms';
 const ASK_HISTORY_MAX = 20;
 
@@ -136,6 +137,12 @@ export default function NavalAcademy() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // 先加载本机数据（历史/词条），不等网络，避免刷新后左栏迟迟不出现
+      const map = loadLocal();
+      if (cancelled) return;
+      setLocalMap(map);
+      setAskHistory(loadAskHistory());
+      setTerms(loadTerms());
       let list = null;
       try {
         const res = await fetch('/api/naval/issues');
@@ -143,10 +150,6 @@ export default function NavalAcademy() {
         if (res.ok && data && data.ok && Array.isArray(data.issues)) list = data.issues;
       } catch (e) { /* 走本地 */ }
       if (cancelled) return;
-      const map = loadLocal();
-      setLocalMap(map);
-      setAskHistory(loadAskHistory());
-      setTerms(loadTerms());
       if (!list) {
         list = localList(map);
       } else {
@@ -158,6 +161,22 @@ export default function NavalAcademy() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // 互动持久化：刷新/重开页面后恢复最近一次提问对话与所在模式（不清空浏览器就一直在）
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(NAVAL_STATE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (Array.isArray(s.thread) && s.thread.length) setThread(s.thread);
+        if (s.mode === 'ask' || s.mode === 'daily') setMode(s.mode);
+        if (typeof s.query === 'string') setQuery(s.query);
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(NAVAL_STATE_KEY, JSON.stringify({ thread, mode, query })); } catch (e) { /* ignore */ }
+  }, [thread, mode, query]);
 
   // 回显某条问答到主线程（不调 AI）
   const restoreQA = useCallback((q, content, keyPoint) => {

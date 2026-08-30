@@ -60,9 +60,9 @@ export default function AuthModal({ open, onClose }) {
     }
   };
 
-  const doSignOut = async () => {
-    await signOut();
-    onClose();
+  const doSignOut = () => {
+    onClose(); // 立即关闭，不等待网络
+    signOut();
   };
 
   return (

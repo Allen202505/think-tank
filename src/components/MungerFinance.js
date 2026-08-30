@@ -39,6 +39,8 @@ function renderRich(text) {
   return out;
 }
 
+const MUNGER_STATE_KEY = 'thinktank_munger_state';
+
 export default function MungerFinance() {
   const munger = findMasterById('munger');
   const [link, setLink] = useState('');
@@ -78,6 +80,23 @@ export default function MungerFinance() {
       setDrawerMsgs([]);
     }
   }, [result?.content]);
+
+  // 财报结果持久化：刷新/重开页面后恢复最近一次解读（不清空浏览器就一直在）
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MUNGER_STATE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && s.result && typeof s.result === 'object') setResult(s.result);
+        if (s && typeof s.note === 'string') setNote(s.note);
+        if (s && typeof s.fileName === 'string') setFileName(s.fileName);
+        if (s && (s.reportTab === 'link' || s.reportTab === 'file')) setReportTab(s.reportTab);
+      }
+    } catch (e) { /* 恢复失败不影响 */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(MUNGER_STATE_KEY, JSON.stringify({ result, note, fileName, reportTab })); } catch (e) { /* ignore */ }
+  }, [result, note, fileName, reportTab]);
 
   const sendDrawer = useCallback(async (raw) => {
     const msg = String(raw || drawerInput || '').trim();
