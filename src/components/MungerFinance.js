@@ -52,6 +52,7 @@ export default function MungerFinance() {
   const [result, setResult] = useState(null);
   const [fileName, setFileName] = useState('');
   const fileRef = useRef(null);
+  const hydratedRef = useRef(false); // 恢复完成后再允许保存，避免挂载时把待恢复数据覆盖成 null
 
   // ── 举手提问 · 与芒格单聊浮层（样式与大师PK 一致） ──
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -93,8 +94,11 @@ export default function MungerFinance() {
         if (s && (s.reportTab === 'link' || s.reportTab === 'file')) setReportTab(s.reportTab);
       }
     } catch (e) { /* 恢复失败不影响 */ }
+    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
+    if (!hydratedRef.current) return; // 待恢复完成后再保存
     try { localStorage.setItem(MUNGER_STATE_KEY, JSON.stringify({ result, note, fileName, reportTab })); } catch (e) { /* ignore */ }
   }, [result, note, fileName, reportTab]);
 
@@ -242,7 +246,7 @@ export default function MungerFinance() {
                 <span className="mg-speech-name">{munger.name}</span>
                 <span className="mg-speech-tag">财报解读</span>
               </div>
-              <div className="mg-speech-body">{renderInline(result.content, 'c')}</div>
+              <div className="mg-speech-body">{renderRich(result.content)}</div>
               {result.dataCard && (
                 <details className="mg-data-card" open={false}>
                   <summary>
@@ -285,7 +289,7 @@ export default function MungerFinance() {
               {result && result.content && (
                 <div className="chat-drawer-context">
                   <div className="chat-drawer-context-label">你在向 {munger.name} 请教这份财报：</div>
-                  <div className="chat-drawer-context-body">{renderInline(result.content, 'ctx')}</div>
+                  <div className="chat-drawer-context-body">{renderRich(result.content)}</div>
                 </div>
               )}
               {drawerMsgs.map((m, i) => (

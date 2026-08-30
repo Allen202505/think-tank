@@ -4,7 +4,7 @@
 // 模块1：知识点提问——输入概念，纳瓦尔深入浅出讲解；支持快捷追问 / 收录词条 / 举手提问
 // 模块2：每日知识点——按日期出「第XXXX.XX.XX期」3 个投资指标 + 小测验，左栏历史期数，右侧查看
 // 存储：每日期数走 Supabase（公共历史），未配置/失败时 localStorage 兜底；历史提问/词条存本机
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { MasterAvatar } from './ui';
 import AskDrawer from './AskDrawer';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
@@ -116,6 +116,7 @@ export default function NavalAcademy() {
   const [libraryOpen, setLibraryOpen] = useState(false); // 词条库弹窗
   const [askDrawerOpen, setAskDrawerOpen] = useState(false);
   const [drawerContext, setDrawerContext] = useState('');
+  const hydratedRef = useRef(false); // 恢复完成后再允许保存
 
   // 全局词条变更（TermAddModal 保存后触发）→ 刷新本组件词条
   useEffect(() => {
@@ -173,8 +174,11 @@ export default function NavalAcademy() {
         if (typeof s.query === 'string') setQuery(s.query);
       }
     } catch (e) { /* ignore */ }
+    const t = setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => {
+    if (!hydratedRef.current) return; // 待恢复完成后再保存
     try { localStorage.setItem(NAVAL_STATE_KEY, JSON.stringify({ thread, mode, query })); } catch (e) { /* ignore */ }
   }, [thread, mode, query]);
 
