@@ -326,10 +326,12 @@ export default function NavalAcademy() {
         {/* 词条库 */}
         <div className="nv-terms">
           <div className="nv-terms-head">
-            <span className="nv-history-label">📚 词条库（{terms.length}）</span>
-            <button type="button" className="nv-clear" onClick={() => window.dispatchEvent(new CustomEvent('naval:add-term', { detail: { name: '' } }))}>＋ 添加</button>
+            <span className="nv-history-label">📚 词条库</span>
+            <div className="nv-terms-actions">
+              <button type="button" className="nv-terms-view" onClick={() => setLibraryOpen(true)}>查看 ›</button>
+              <button type="button" className="nv-clear" onClick={() => window.dispatchEvent(new CustomEvent('naval:add-term', { detail: { name: '' } }))}>＋ 添加</button>
+            </div>
           </div>
-          <button type="button" className="nv-terms-viewall" onClick={() => setLibraryOpen(true)}>全部词条 ›</button>
           <div className="nv-terms-hint">💡 在网页任意处选中文字，点右键即可快速添加词条</div>
         </div>
 
