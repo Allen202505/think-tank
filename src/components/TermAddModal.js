@@ -4,9 +4,13 @@
 // 词条库由「纳瓦尔知识学堂」展示；词条讲解在词条库弹窗里点击时才按需生成。
 // 监听 window 'naval:add-term' 事件，供学堂「＋ 添加词条」等入口打开同一弹窗。
 import { useState, useEffect, useCallback } from 'react';
-import { loadTerms, saveTerms, notifyTermsChanged } from '../lib/navalTerms';
+import { loadTerms, saveTerms, notifyTermsChanged, pushTermsCloud } from '../lib/navalTerms';
+import { useAuth } from '../lib/authProvider';
+import { supabaseEnabled } from '../lib/supabaseClient';
 
 export default function TermAddModal() {
+  const { user } = useAuth();
+  const loggedIn = supabaseEnabled && !!user?.id;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [selected, setSelected] = useState('');
@@ -62,6 +66,7 @@ export default function TermAddModal() {
     const next = [term, ...loadTerms().filter((t) => t.name !== n)].slice(0, 500);
     saveTerms(next);
     notifyTermsChanged();
+    if (loggedIn) pushTermsCloud(user.id, next);
   };
 
   const doAdd = () => {

@@ -23,3 +23,50 @@ export function updateTermContent(name, patch) {
 export function notifyTermsChanged() {
   window.dispatchEvent(new CustomEvent('thinktank:terms-changed'));
 }
+
+// ─── 云端同步（Supabase user_terms，每用户一行 JSONB） ───
+import { getSupabase, supabaseEnabled } from './supabaseClient';
+
+export function isTermCloudEnabled() {
+  return supabaseEnabled;
+}
+
+export async function fetchTermsCloud(userId) {
+  if (!supabaseEnabled || !userId) return null;
+  const sb = getSupabase();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb.from('user_terms').select('terms').eq('user_id', userId).maybeSingle();
+    if (error) { console.warn('[navalTerms] fetch error', error.message); return null; }
+    return Array.isArray(data?.terms) ? data.terms : null;
+  } catch (e) { return null; }
+}
+
+export async function pushTermsCloud(userId, terms) {
+  if (!supabaseEnabled || !userId) return;
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    const { error } = await sb.from('user_terms').upsert(
+      { user_id: userId, terms: Array.isArray(terms) ? terms : [], updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) console.warn('[navalTerms] push error', error.message);
+  } catch (e) { /* ignore */ }
+}
+
+// 登录/查看词条库时：合并本地 + 云端，落本地，并把合并结果推上云
+export async function syncTermsOnLogin(userId) {
+  const local = loadTerms();
+  const server = await fetchTermsCloud(userId);
+  const localNames = new Set(local.map((t) => t.name));
+  const merged = [...local];
+  if (Array.isArray(server)) {
+    for (const st of server) {
+      if (st && st.name && !localNames.has(st.name)) merged.push(st);
+    }
+  }
+  saveTerms(merged);
+  await pushTermsCloud(userId, merged);
+  return merged;
+}

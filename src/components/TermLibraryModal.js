@@ -3,7 +3,9 @@
 // 词条库弹窗：可搜索 / 滚动；点某个词条才按需生成讲解（缓存 content），左栏只放入口，方便管理 100+ 词条。
 import { useState, useEffect } from 'react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
-import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged } from '../lib/navalTerms';
+import { useAuth } from '../lib/authProvider';
+import { supabaseEnabled } from '../lib/supabaseClient';
+import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsOnLogin, pushTermsCloud } from '../lib/navalTerms';
 
 // 内联/块级渲染（复用简单 markdown）
 function inlineRich(seg, k) {
@@ -12,24 +14,38 @@ function inlineRich(seg, k) {
 }
 
 export default function TermLibraryModal({ open, onClose }) {
+  const { user } = useAuth();
+  const loggedIn = supabaseEnabled && !!user?.id;
   const [terms, setTerms] = useState([]);
   const [search, setSearch] = useState('');
   const [active, setActive] = useState(null); // { name, content?, keyPoint? }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 打开时加载，并订阅外部变更
+  // 打开时：登录则从云端同步；未登录用本地（并提示注册）
   useEffect(() => {
     if (!open) return;
-    setTerms(loadTerms());
     setSearch('');
     setActive(null);
     setError('');
     setLoading(false);
+    let cancelled = false;
+    const apply = (list) => { if (!cancelled) setTerms(list); };
+    (async () => {
+      if (loggedIn) {
+        const merged = await syncTermsOnLogin(user.id);
+        apply(merged);
+      } else {
+        apply(loadTerms());
+      }
+    })();
     const onTerms = () => setTerms(loadTerms());
     window.addEventListener('thinktank:terms-changed', onTerms);
-    return () => window.removeEventListener('thinktank:terms-changed', onTerms);
-  }, [open]);
+    return () => { cancelled = true; window.removeEventListener('thinktank:terms-changed', onTerms); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, loggedIn, user?.id]);
+
+  const pushCloud = (list) => { if (loggedIn) pushTermsCloud(user.id, list); };
 
   if (!open) return null;
 
@@ -56,6 +72,7 @@ export default function TermLibraryModal({ open, onClose }) {
       const list = updateTermContent(t.name, { content: data.result.content, keyPoint: data.result.keyPoint || '' });
       setTerms(list);
       notifyTermsChanged();
+      pushCloud(list);
       setActive({ name: t.name, content: data.result.content, keyPoint: data.result.keyPoint || '' });
     } catch (e) {
       const em = String((e && e.message) || e);
@@ -70,15 +87,8 @@ export default function TermLibraryModal({ open, onClose }) {
     saveTerms(next);
     notifyTermsChanged();
     setTerms(next);
+    pushCloud(next);
     if (active && active.name === name) { setActive(null); setError(''); }
-  };
-
-  const saveTerm = (name) => {
-    const list = loadTerms();
-    const next = [{ name, at: Date.now() }, ...list.filter((t) => t.name !== name)].slice(0, 500);
-    saveTerms(next);
-    notifyTermsChanged();
-    setTerms(next);
   };
 
   return (
@@ -92,6 +102,12 @@ export default function TermLibraryModal({ open, onClose }) {
           <button type="button" className="nv-clear" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('naval:add-term', { detail: { name: search } })); }}>＋ 添加词条</button>
           <button type="button" className="modal-close drawer-close" onClick={onClose} aria-label="关闭">✕</button>
         </div>
+        {supabaseEnabled && !user && (
+          <div className="term-lib-auth">
+            <div className="term-lib-auth-text">🔒 登录后词条会云端保存，换设备不丢失</div>
+            <button type="button" className="mg-btn term-lib-auth-btn" onClick={() => window.dispatchEvent(new CustomEvent('open-auth'))}>去登录 / 注册</button>
+          </div>
+        )}
         <div className="term-lib-search-wrap">
           <input
             className="mg-input mg-input-line term-lib-search"

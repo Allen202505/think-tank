@@ -1761,6 +1761,13 @@
 .term-lib-search-wrap { flex-shrink: 0; display: flex; padding: 12px 24px 0; }
 .term-lib-search { flex: 1; min-height: 38px; }
 .term-lib-body { padding-top: 14px; }
+.term-lib-auth {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--accent-bg); border: 1px solid var(--accent-dim); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.term-lib-auth-text { font-size: 12.5px; line-height: 1.6; color: var(--text); }
+.term-lib-auth-btn { flex-shrink: 0; }
 .term-lib-empty { font-size: 13px; color: var(--text-muted); line-height: 1.7; padding: 14px 4px; }
 .term-lib-list { display: flex; flex-direction: column; gap: 4px; }
 .term-lib-item {

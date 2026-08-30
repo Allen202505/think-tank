@@ -2764,3 +2764,9 @@
 - 新增 src/lib/navalTerms.js（loadTerms/saveTerms/upsertTerm/updateTermContent，本机 localStorage）。
 - 修复：右键菜单项被 document mousedown 先关闭导致点击不生效（改为菜单内 mousedown 不关闭）。
 - 复用：左栏「＋ 添加」、右键、词条库弹窗共用全局 TermAddModal（naval:add-term 事件）；全局右键菜单 TermAddModal 已在 page.js。
+
+## 2026-08-30 · 词条库云端同步 + 未登录提示注册
+- 新增 Supabase 表 `public.user_terms`（每用户一行 terms jsonb，RLS 仅本人可读写；需在 SQL Editor 运行 schema.sql 新增段）。
+- 词条库云端同步：登录后打开词条库 → 合并本地+云端（syncTermsOnLogin），新增/删除/生成讲解均实时推上云（pushTermsCloud）；未登录仅存本机。
+- 未登录查看词条库 → 抽屉顶部显示「🔒 登录后词条会云端保存，换设备不丢失」+「去登录/注册」按钮（dispatch 'open-auth'，page.js 监听打开登录弹窗）。
+- 全局右键/「＋添加」/回答「收录为词条」也接入登录态推云；表未建时静默降级为本地。

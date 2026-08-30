@@ -404,6 +404,12 @@ export default function Home() {
     setOnNeedConfig(() => setAiSettingsOpen(true));
     return () => setOnNeedConfig(null);
   }, []);
+  // 全局「去登录/注册」事件：词条库等需要账号的功能触发
+  useEffect(() => {
+    const onOpenAuth = () => setAuthOpen(true);
+    window.addEventListener('open-auth', onOpenAuth);
+    return () => window.removeEventListener('open-auth', onOpenAuth);
+  }, []);
 
   const switchTab = (next) => {
     setTab(next);

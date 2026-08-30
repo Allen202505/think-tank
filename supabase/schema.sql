@@ -116,3 +116,30 @@ create policy "naval_issues_insert_today" on public.daily_knowledge_issues
   for insert with check (issue_date = (now() at time zone 'Asia/Shanghai')::date);
 
 grant select, insert on public.daily_knowledge_issues to anon, authenticated;
+
+-- ============================================================
+-- 纳瓦尔知识学堂 · 用户词条（user_terms）—— 云端同步
+-- 每个用户一行，词条以 JSONB 数组存储；RLS 仅本人可读写。
+-- 登录后词条跨设备不丢失；未登录时仅存本机。
+-- ============================================================
+create table if not exists public.user_terms (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  terms jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_terms enable row level security;
+
+drop policy if exists "user_terms_select_own" on public.user_terms;
+create policy "user_terms_select_own" on public.user_terms
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "user_terms_insert_own" on public.user_terms;
+create policy "user_terms_insert_own" on public.user_terms
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "user_terms_update_own" on public.user_terms;
+create policy "user_terms_update_own" on public.user_terms
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update on public.user_terms to anon, authenticated;

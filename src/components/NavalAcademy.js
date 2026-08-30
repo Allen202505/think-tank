@@ -9,7 +9,9 @@ import { MasterAvatar } from './ui';
 import AskDrawer from './AskDrawer';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { NAVAL } from '../lib/navalPrompts';
-import { loadTerms, saveTerms, upsertTerm } from '../lib/navalTerms';
+import { useAuth } from '../lib/authProvider';
+import { supabaseEnabled } from '../lib/supabaseClient';
+import { loadTerms, saveTerms, upsertTerm, pushTermsCloud } from '../lib/navalTerms';
 import TermLibraryModal from './TermLibraryModal';
 
 const LS_KEY = 'thinktank_naval_issues';
@@ -100,6 +102,7 @@ function renderRich(text, keyBase) {
 }
 
 export default function NavalAcademy() {
+  const { user } = useAuth();
   const [mode, setMode] = useState('ask'); // ask | daily
 
   // ── 模块1：知识点提问 ──
@@ -221,7 +224,8 @@ export default function NavalAcademy() {
       saveTerms(next);
       return next;
     });
-  }, []);
+    if (supabaseEnabled && user?.id) pushTermsCloud(user.id, loadTerms());
+  }, [user?.id]);
 
   // 举手提问：与纳瓦尔单聊（复用其它模块 AskDrawer）
   const onAskNaval = useCallback(async (q, convo) => {
