@@ -330,6 +330,7 @@ export default function NavalAcademy() {
             <button type="button" className="nv-clear" onClick={() => window.dispatchEvent(new CustomEvent('naval:add-term', { detail: { name: '' } }))}>＋ 添加</button>
           </div>
           <button type="button" className="nv-terms-viewall" onClick={() => setLibraryOpen(true)}>全部词条 ›</button>
+          <div className="nv-terms-hint">💡 在网页任意处选中文字，点右键即可快速添加词条</div>
         </div>
 
         <div className="nv-news-tabs" role="tablist" aria-label="纳瓦尔知识学堂功能">

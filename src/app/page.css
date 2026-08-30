@@ -1753,6 +1753,7 @@
   font-family: var(--font-sans); margin-top: 2px;
 }
 .nv-terms-viewall:hover { color: var(--accent-strong); background: var(--accent-bg); border-radius: 8px; }
+.nv-terms-hint { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 4px 12px 2px; }
 
 /* 词条库弹窗 */
 .term-lib-drawer { width: min(600px, 94vw); }
