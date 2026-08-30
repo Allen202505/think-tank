@@ -433,7 +433,7 @@
   border-color: var(--accent);
   background: var(--accent-soft, transparent);
 }
-.drawer-overlay { position: fixed; inset: 0; background: var(--overlay); z-index: 1000; }
+.drawer-overlay { position: fixed; inset: 0; background: transparent; z-index: 1000; } /* 侧边浮层去掉暗色遮罩，保留点击外部关闭 */
 .explain-drawer {
   position: fixed; top: 0; right: 0; height: 100%;
   width: min(560px, 94vw);
