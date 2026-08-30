@@ -28,4 +28,5 @@
 
 ## 部署与仓库
 - GitHub: github.com/Allen202505/think-tank（main）
-- 本地开发：npm run dev（3000 端口）
+- 部署：Vercel 已绑定该仓库，push 到 main 即自动触发部署、自动出线上链接，无需每次询问/手动部署；`DEEPSEEK_API_KEY`、Supabase 等必要环境变量已在 Vercel 配置好
+- 本地开发：npm run dev（默认 3000，本机常用 3210）
