@@ -2828,3 +2828,10 @@
 - 接上一条：上版用 1.6s 临时提示（按钮会闪回），用户指出这是 bug。
 - 改为：按钮「已收录」状态**由词条库实时派生**（`terms.some(t => t.name === deriveTermName(prevQ))`），收录后常显「✓ 已收录为词条」；在词条库删除该词条后自动恢复「💾 收录为词条」。
 - 移除 collectFlash / setTimeout。实测：收录后 3 秒+ 仍是「✓ 已收录为词条」，不再变回。
+
+## 2026-08-31 · 大师库新增三位大师
+- `src/data/masters.js` BASE_MASTERS 新增：
+  - 杰里米·西格尔（siegel，股市长线法宝/长期主义，价值投资）
+  - 沃尔特·施洛斯（schloss，深度价值/净资产折价，价值投资）
+- 约翰·涅夫（neff）：此前库里已有「约翰·内夫」（同一人），为避免 id 冲突，合并为一条，改名「约翰·涅夫」并补全画像（knowledge/coreViews/phrases/decisionHabits/riskPref/styleSample），保留真实头像 /avatars/neff.jpg 与 deceased 状态。
+- 大师库总数 73→75，无重复 id；「选择成员/价值投资」分组可见。
