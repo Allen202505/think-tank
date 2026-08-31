@@ -3,6 +3,40 @@
 // 关键原则：用户 Key 即用即弃 —— 不落库、不打日志、不缓存。
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
+// ─── OpenAI 兼容适配（MiMo 等厂商差异） ──────────────────────────────
+// MiMo（小米）官方用 `api-key` 请求头 + `max_completion_tokens` 参数，
+// 且默认开启思维链（产生额外 reasoning tokens 计费）；这里统一适配。
+export function isMiMoProvider(baseUrl) {
+  return /xiaomimimo/i.test(String(baseUrl || ''));
+}
+
+// 构造请求头：Authorization Bearer（OpenAI/DeepSeek 等）+ api-key（MiMo 等）双保险
+export function buildProviderHeaders(cfg, extra = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extra };
+  headers.Authorization = `Bearer ${cfg.apiKey}`;
+  if (isMiMoProvider(cfg.baseUrl)) headers['api-key'] = cfg.apiKey;
+  return headers;
+}
+
+// 构造请求体：MiMo 用 max_completion_tokens 并显式关闭思维链（省钱更稳）
+export function buildProviderBody(cfg, messages, maxTokens, extra = {}) {
+  const body = { model: cfg.model, messages, ...extra };
+  if (isMiMoProvider(cfg.baseUrl)) {
+    body.max_completion_tokens = maxTokens;
+    body.thinking = { type: 'disabled' };
+  } else {
+    body.max_tokens = maxTokens;
+  }
+  return body;
+}
+
+// 解析完整 chat/completions URL（env 的 baseUrl 可能是域名根或已含 /chat/completions）
+export function resolveLlmUrl(baseUrl) {
+  const base = String(baseUrl || 'https://api.deepseek.com/v1').replace(/\/+$/, '');
+  return /\/chat\/completions$/.test(base) ? base : `${base}/chat/completions`;
+}
+
+
 // 清洗前端传来的 AI 配置，只保留安全字段
 export function normalizeAiConfig(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -50,8 +84,8 @@ export async function callChatCompletion(cfg, messages, maxTokens = 2000) {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: cfg.model, max_tokens: maxTokens, messages }),
+        headers: buildProviderHeaders(cfg),
+        body: JSON.stringify(buildProviderBody(cfg, messages, maxTokens)),
         signal: ctrl.signal,
       });
       if (!res.ok) {
@@ -95,8 +129,8 @@ export async function streamChatCompletion(cfg, messages, maxTokens = 2000) {
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: cfg.model, max_tokens: maxTokens, messages, stream: true }),
+      headers: buildProviderHeaders(cfg),
+      body: JSON.stringify(buildProviderBody(cfg, messages, maxTokens, { stream: true })),
       signal: ctrl.signal,
     });
     if (!res.ok) {

@@ -5,7 +5,7 @@
 import { getQuoteContext } from './quoteContext.js';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { SYSTEM_GUARD } from '../../../lib/security';
-import { resolveAiConfig } from '../../../lib/llm.js';
+import { resolveAiConfig, buildProviderHeaders, buildProviderBody, resolveLlmUrl } from '../../../lib/llm.js';
 
 export async function POST(request) {
   try {
@@ -40,21 +40,14 @@ export async function POST(request) {
     }
 
     // 网络偶发抖动时重试一次；带 60s 超时，避免挂死
-    const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
+    const url = resolveLlmUrl(aiCfg.baseUrl);
     const callDeepSeek = () => {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 60000);
       return fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiCfg.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: aiCfg.model,
-          max_tokens: 8192,
-          messages,
-        }),
+        headers: buildProviderHeaders(aiCfg),
+        body: JSON.stringify(buildProviderBody(aiCfg, messages, 8192)),
         signal: ctrl.signal,
       }).finally(() => clearTimeout(timer));
     };
@@ -67,7 +60,7 @@ export async function POST(request) {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      const message = err?.error?.message || err?.message || `DeepSeek API 错误: ${response.status}`;
+      const message = err?.error?.message || err?.message || `模型服务错误: ${response.status}`;
       return Response.json({ error: message }, { status: response.status });
     }
 

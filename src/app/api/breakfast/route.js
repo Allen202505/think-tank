@@ -11,7 +11,7 @@ import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPromp
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
 
-import { resolveAiConfig } from '../../../lib/llm.js';
+import { resolveAiConfig, buildProviderHeaders, buildProviderBody, resolveLlmUrl } from '../../../lib/llm.js';
 import { extractJson, extractContentFromRaw } from '../../../lib/ai';
 
 async function callDeepSeek(messages, maxTokens = 6000, cfg = null) {
@@ -19,22 +19,15 @@ async function callDeepSeek(messages, maxTokens = 6000, cfg = null) {
   if (!aiCfg.apiKey) {
     throw new Error('未配置 API Key，请在设置中填写');
   }
-  const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
+  const url = resolveLlmUrl(aiCfg.baseUrl);
   const attempt = async () => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 120000);
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${aiCfg.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: aiCfg.model,
-          max_tokens: maxTokens,
-          messages,
-        }),
+        headers: buildProviderHeaders(aiCfg),
+        body: JSON.stringify(buildProviderBody(aiCfg, messages, maxTokens)),
         signal: ctrl.signal,
       });
       if (!res.ok) {

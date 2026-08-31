@@ -11,6 +11,7 @@ export const PROVIDERS = {
   deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
   openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
   moonshot: { label: 'Kimi（月之暗面）', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  mimo: { label: 'MiMo（小米）', baseUrl: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.5-pro' },
   qwen: { label: '通义千问（阿里云）', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
   custom: { label: '自定义（OpenAI 兼容）', baseUrl: '', model: '' },
 };

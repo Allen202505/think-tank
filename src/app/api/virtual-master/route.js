@@ -5,7 +5,7 @@ import { ReadableStream } from 'node:stream/web';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { snapColorToPalette } from '../../../data/masters';
 import { RECIPES } from '../../../data/recipes';
-import { resolveAiConfig } from '../../../lib/llm.js';
+import { resolveAiConfig, buildProviderHeaders, buildProviderBody, resolveLlmUrl } from '../../../lib/llm.js';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
 
 function slugify(s) {
@@ -134,7 +134,7 @@ async function fetchArticle(url) {
 
 async function callDeepSeek(messages, maxTokens = 1500, temperature = 0.7, cfg = null) {
   const aiCfg = resolveAiConfig(cfg);
-  const url = /\/chat\/completions$/.test(aiCfg.baseUrl) ? aiCfg.baseUrl : `${aiCfg.baseUrl}/chat/completions`;
+  const url = resolveLlmUrl(aiCfg.baseUrl);
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const ctrl = new AbortController();
@@ -142,13 +142,8 @@ async function callDeepSeek(messages, maxTokens = 1500, temperature = 0.7, cfg =
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aiCfg.apiKey}` },
-        body: JSON.stringify({
-          model: aiCfg.model,
-          max_tokens: maxTokens,
-          temperature,
-          messages,
-        }),
+        headers: buildProviderHeaders(aiCfg),
+        body: JSON.stringify(buildProviderBody(aiCfg, messages, maxTokens, { temperature })),
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`模型服务 ${res.status}`);

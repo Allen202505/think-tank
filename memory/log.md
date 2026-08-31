@@ -2787,3 +2787,11 @@
   - 前端 `aiGate.js`：已用次数同时写 localStorage + cookie（thinktank_free_quota，1 年），读取取两者较大值，刷新/清 localStorage 不重置；
   - 服务端 `rateLimit.js` 新增 `guardFreeDaily`（按 IP 每日免费调用上限 40，仅对未带用户 Key 的请求计数）与 `quotaResponse`（429 + 提示配 Key/明日再来），已接入 11 个 AI 接口（breakfast/chat/explain/munger/naval-ask/naval-daily/pools-extract/pools-review/pools-suggest/virtual-master/zen）；
   - 说明：Vercel 多实例下服务端计数为尽力而为（每实例独立），自建单实例精确；cookie 在无痕窗口关闭后仍会被清，服务端 IP 限额作兜底。
+
+## 2026-08-31 · 底层模型支持 MiMo（小米）切换适配
+- 背景：DeepSeek 涨价，站长计划切换 MiMo（更便宜）。已做代码适配，支持任意 OpenAI 兼容服务。
+- `src/lib/llm.js` 新增适配层：`isMiMoProvider` / `buildProviderHeaders`（MiMo 用 api-key 头，同时保留 Authorization Bearer）/ `buildProviderBody`（MiMo 用 max_completion_tokens 并显式关闭思维链 thinking.disabled 省钱更稳）/ `resolveLlmUrl`。
+- 统一调用层 callChatCompletion / streamChatCompletion 已接入；本地调用（chat/breakfast/virtual-master）与硬编码处（marketData 公司名提取+是否需行情判定、match-masters 大师匹配）全部改为走适配层，消除对 DeepSeek URL 的硬编码。
+- 前端 AI 设置新增 MiMo 预设（baseUrl https://api.xiaomimimo.com/v1，model mimo-v2.5-pro），用户可自带 MiMo Key。
+- 切换方式：Vercel/.env 设 DEEPSEEK_API_KEY=MiMo key、DEEPSEEK_BASE_URL=https://api.xiaomimimo.com/v1、DEEPSEEK_MODEL=mimo-v2.5-pro（或 mimo-v2.5）。
+- 注意：MiMo 思维链默认开启（reasoning tokens 计费），已默认显式关闭；切换后需本地实测各模块 JSON 输出稳定性（大师PK/早餐/芒格/缠论/纳瓦尔/求点评）。

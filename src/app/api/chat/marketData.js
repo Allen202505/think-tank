@@ -15,13 +15,14 @@
  * 容错原则：任何单个请求失败都不致命，返回空即可；数据源挂了会自动降级/跳过。
  */
 
+import { resolveLlmUrl, buildProviderHeaders, buildProviderBody } from '../../../lib/llm.js';
+
 // ─── 常量 ────────────────────────────────────────────────
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
 const EM_QUOTE = 'https://push2.eastmoney.com/api/qt/stock/get';
 const EM_F10 = 'https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew';
 const EM_DATACENTER = 'https://datacenter.eastmoney.com/securities/api/data/v1/get';
 const EM_DATACENTER_WEB = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 // 东方财富网页版搜索框公开使用的固定 token（无需申请）
 const EM_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8';
 const REQUEST_TIMEOUT_MS = 8000;
@@ -220,23 +221,28 @@ const COMPANY_SUFFIXES = [
   '啤酒', '白酒', '水泥', '玻璃', '家电', '农牧', '种业', '电梯', '电气', '仪表',
 ];
 
+
+// 服务端默认模型配置（env 可指向 DeepSeek / MiMo 等任意 OpenAI 兼容服务）
+function serverLlmCfg() {
+  return {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseUrl: (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+  };
+}
+
 // ─── AI 信息层梳理：用 DeepSeek 提取问题里的公司名（比启发式更稳） ───
 async function extractCompaniesViaLLM(query) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) return null;
+  const cfg = serverLlmCfg();
+  if (!cfg.apiKey) return null;
   const prompt = `你是股票信息解析器。只做一件事：从用户问题中提取所有明确提到的公司/股票（A股/港股/美股，可以是中文名、英文代码或数字代码）。规则：只提取明确提到的具体公司，不要猜测、不要联想、不要补充；没有提到任何公司就返回空数组；同一家公司只保留一次。\n只输出一个 JSON 数组，不要任何其他内容，例如：["贵州茅台","英伟达"]\n\n用户问题：${query}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const res = await fetch(DEEPSEEK_URL, {
+    const res = await fetch(resolveLlmUrl(cfg.baseUrl), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        max_tokens: 200,
-        temperature: 0,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: buildProviderHeaders(cfg),
+      body: JSON.stringify(buildProviderBody(cfg, [{ role: 'user', content: prompt }], 200, { temperature: 0 })),
       signal: ctrl.signal,
     });
     if (!res.ok) return null;
@@ -256,21 +262,16 @@ async function extractCompaniesViaLLM(query) {
 // 用 LLM 判断：这个问题是否真的需要某只具体公司的数据才能回答
 // （概念/方法论/投资风格/大盘宏观类问题不需要，避免误提示）
 async function needsCompanyDataRaw(query) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) return false;
+  const cfg = serverLlmCfg();
+  if (!cfg.apiKey) return false;
   const prompt = `判断下面这个问题，是否必须引用某一只具体股票/公司的实时行情或财务数据，才能很好地回答。\n规则：\n- 概念/术语/方法论/投资风格/体系/仓位管理/大盘宏观/行业整体类问题 → false\n- 问"某只具体股票该不该买/卖/持有、它的估值/财报/行情"但没给公司名 → true\n- 用户提到自己持有的某只票/持仓/重仓/套牢/深套，但没有说明是哪只 → true（例如"我有只股票亏了20%""我套牢了""我的票跌惨了"，即使语气像倾诉也要 true）\n- 问题里已提到具体公司名或代码（如"茅台""英伟达""NVDA"）→ false（这种情况由其他流程处理）\n只输出一个 JSON：{"need": true或false}\n\n问题：${query}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(DEEPSEEK_URL, {
+    const res = await fetch(resolveLlmUrl(cfg.baseUrl), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        max_tokens: 40,
-        temperature: 0,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: buildProviderHeaders(cfg),
+      body: JSON.stringify(buildProviderBody(cfg, [{ role: 'user', content: prompt }], 40, { temperature: 0 })),
       signal: ctrl.signal,
     });
     if (!res.ok) return false;

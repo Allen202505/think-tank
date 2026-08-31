@@ -3,8 +3,8 @@
 // 用 DeepSeek 做语义匹配（风格/能力圈 vs 问题类型）；失败时返回空数组，前端回退随机
 import { PRESET_MASTERS } from '../../../data/masters.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { resolveLlmUrl, buildProviderHeaders, buildProviderBody } from '../../../lib/llm.js';
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const CACHE_TTL_MS = 30 * 60000; // 同一问题 30 分钟缓存
 
 const cache = new Map();
@@ -16,8 +16,12 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const question = String(body?.question || '').trim();
   const requestMasters = Array.isArray(body?.masters) && body.masters.length ? body.masters : null;
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey || !question) return Response.json({ ids: [], fallback: true });
+  const cfg = {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseUrl: (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+  };
+  if (!cfg.apiKey || !question) return Response.json({ ids: [], fallback: true });
 
   const cacheKey = question.slice(0, 120);
   const hit = cache.get(cacheKey);
@@ -52,15 +56,10 @@ ${listText}
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);
-    const res = await fetch(DEEPSEEK_API_URL, {
+    const res = await fetch(resolveLlmUrl(cfg.baseUrl), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        max_tokens: 200,
-        temperature: 0.2,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+      headers: buildProviderHeaders(cfg),
+      body: JSON.stringify(buildProviderBody(cfg, [{ role: 'user', content: prompt }], 200, { temperature: 0.2 })),
       signal: ctrl.signal,
     });
     clearTimeout(timer);
