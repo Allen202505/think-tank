@@ -637,7 +637,7 @@ export default function StockPools() {
             <div className="sp-del-modal-title">⚠ 删除股票池</div>
             <div className="sp-del-modal-text">
               {confirmDelete.isPreset ? (
-                <>确定要隐藏「<strong>{confirmDelete.name}</strong>」吗？隐藏后左侧列表不再显示。</>
+                <>确定要删除「<strong>{confirmDelete.name}</strong>」吗？删除后左侧列表不再显示。</>
               ) : (
                 <>确定要删除「<strong>{confirmDelete.name}</strong>」吗？删除后不可恢复。</>
               )}
