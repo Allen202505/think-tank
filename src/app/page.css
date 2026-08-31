@@ -1127,6 +1127,16 @@
 .sp-pool.active .sp-pool-name { color: var(--accent-strong); }
 .sp-pool-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .sp-del { position: absolute; top: 8px; right: 8px; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 12px; }
+/* 股票池删除确认弹窗 */
+.sp-del-modal { position: relative; max-width: 380px; padding: 22px; }
+.sp-del-modal-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.sp-del-modal-text { font-size: 13px; line-height: 1.8; color: var(--text); }
+.sp-del-modal-text strong { color: var(--bear); }
+.sp-del-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.sp-del-cancel { background: transparent; color: var(--text); border-color: var(--border-subtle); }
+.sp-del-cancel:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.sp-del-confirm { background: var(--bear); border-color: var(--bear); color: #fff; }
+.sp-del-confirm:hover { background: #a83232; border-color: #a83232; }
 .sp-del:hover { color: var(--bear); }
 .sp-main { min-width: 0; }
 .sp-placeholder { padding: 40px 0; text-align: center; font-size: 13px; color: var(--text-muted); }

@@ -104,6 +104,7 @@ export default function StockPools() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hiddenPresetIds, setHiddenPresetIds] = useState([]);
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, isPreset }
   // 标记本地数据是否已加载完成：加载完成前禁止写 localStorage，避免用初始空数组覆盖已保存的数据
   const [hydrated, setHydrated] = useState(false);
 
@@ -392,11 +393,7 @@ export default function StockPools() {
               <div className="sp-pool-meta">{p.symbols.length} 只 · {p.source}</div>
               <button type="button" className="sp-del" onClick={(e) => {
                 e.stopPropagation();
-                const isPreset = PRESET_POOLS.some((x) => x.id === p.id);
-                const msg = isPreset
-                  ? `确定要隐藏「${p.name}」吗？隐藏后左侧列表不再显示。`
-                  : `确定要删除「${p.name}」吗？删除后不可恢复。`;
-                if (window.confirm(msg)) deletePool(p.id);
+                setConfirmDelete({ id: p.id, name: p.name, isPreset: PRESET_POOLS.some((x) => x.id === p.id) });
               }} title="删除">✕</button>
             </div>
           ))}
@@ -630,6 +627,25 @@ export default function StockPools() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="modal-overlay" onMouseDown={() => setConfirmDelete(null)}>
+          <div className="modal-content sp-del-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setConfirmDelete(null)} aria-label="关闭">✕</button>
+            <div className="sp-del-modal-title">⚠ 删除股票池</div>
+            <div className="sp-del-modal-text">
+              {confirmDelete.isPreset ? (
+                <>确定要隐藏「<strong>{confirmDelete.name}</strong>」吗？隐藏后左侧列表不再显示。</>
+              ) : (
+                <>确定要删除「<strong>{confirmDelete.name}</strong>」吗？删除后不可恢复。</>
+              )}
+            </div>
+            <div className="mg-foot sp-del-modal-foot">
+              <button type="button" className="mg-btn sp-del-cancel" onClick={() => setConfirmDelete(null)}>取消</button>
+              <button type="button" className="mg-btn sp-del-confirm" onClick={() => { deletePool(confirmDelete.id); setConfirmDelete(null); }}>确认删除</button>
+            </div>
           </div>
         </div>
       )}
