@@ -9,32 +9,18 @@ import { resolveSymbols, getQuote, getMarketOverview } from '../../chat/marketDa
 const MAX_SYMBOLS = 12;     // 最多评价的持仓数
 const MASTER_COUNT = 4;     // 随机邀请的大师人数
 
-// 评价候选池：优先选对 A 股有话语权、且适合「心理按摩」的大师
-const REVIEW_IDS = [
-  // 中国价值
-  'crocodile', 'lilu', 'duan', 'zhangkun', 'zhushaoxing', 'xiezhiyu', 'fengliu', 'dengxiaofeng', 'zhang_lei', 'dang',
-  // A股游资
-  'zhang_mz', 'zhao_lg', 'yangjia', 'fs_wyj', 'zuoshou', 'bj_cj', 'wang_zr', 'chen_xq', 'sun_ge', 'hu_jl', 'fang_xx', 'ningbo_st',
-  // 国际价值/成长（适合长期主义夸奖）
-  'buffett', 'munger', 'lynch', 'graham', 'marks', 'fisher', 'klarman', 'pabrai', 'duan',
-];
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function pickMasters() {
-  const seen = new Set();
-  const pool = [];
-  for (const id of REVIEW_IDS) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    const m = PRESET_MASTERS.find((x) => x.id === id);
-    if (m) pool.push(m);
-  }
-  // 随机洗牌
-  const arr = [...pool];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr.slice(0, MASTER_COUNT);
+  // 从全部预设大师里均匀随机，不区分中外/流派
+  return shuffle(PRESET_MASTERS).slice(0, MASTER_COUNT);
 }
 
 function masterLine(m) {

@@ -2835,3 +2835,7 @@
   - 沃尔特·施洛斯（schloss，深度价值/净资产折价，价值投资）
 - 约翰·涅夫（neff）：此前库里已有「约翰·内夫」（同一人），为避免 id 冲突，合并为一条，改名「约翰·涅夫」并补全画像（knowledge/coreViews/phrases/decisionHabits/riskPref/styleSample），保留真实头像 /avatars/neff.jpg 与 deceased 状态。
 - 大师库总数 73→75，无重复 id；「选择成员/价值投资」分组可见。
+
+## 2026-08-31 · 求大师评价我的票：改为从全部预设大师均匀随机
+- 之前 `/api/pools/review` 从「中外各半」的候选子集里选（REVIEW_CN_IDS + REVIEW_INTL_IDS），中国大师候选多、国际池小，观感上中国居多。
+- 改为 `pickMasters()` 直接从 `PRESET_MASTERS`（全部 75 位）Fisher-Yates 洗牌均匀随机抽 4 位，不区分中外/流派。20 次抽样覆盖 48/75 位（含国际、科技、价值、中国等）。
