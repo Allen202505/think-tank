@@ -2795,3 +2795,13 @@
 - 前端 AI 设置新增 MiMo 预设（baseUrl https://api.xiaomimimo.com/v1，model mimo-v2.5-pro），用户可自带 MiMo Key。
 - 切换方式：Vercel/.env 设 DEEPSEEK_API_KEY=MiMo key、DEEPSEEK_BASE_URL=https://api.xiaomimimo.com/v1、DEEPSEEK_MODEL=mimo-v2.5-pro（或 mimo-v2.5）。
 - 注意：MiMo 思维链默认开启（reasoning tokens 计费），已默认显式关闭；切换后需本地实测各模块 JSON 输出稳定性（大师PK/早餐/芒格/缠论/纳瓦尔/求点评）。
+
+## 📌 待办（2026-08-31）· 底层模型切换 MiMo（用户决定先观察，暂不切换）
+- **状态**：代码适配已完成并推送（commit dd80141），线上仍是 DeepSeek；用户说"先不动，回头再看情况"。
+- **待办内容**：把站点默认模型从 DeepSeek 切到 MiMo（小米）。
+- **切换步骤**：Vercel 环境变量改三个值即可（改完自动部署）：
+  - `DEEPSEEK_API_KEY` = MiMo API Key
+  - `DEEPSEEK_BASE_URL` = https://api.xiaomimimo.com/v1
+  - `DEEPSEEK_MODEL` = mimo-v2.5-pro（想更省可换 mimo-v2.5）
+- **切换前必须实测**：本地用 MiMo Key 跑一遍各模块（大师PK / 巴菲特的早餐 / 芒格财报 / 缠论 / 纳瓦尔 / 求大师评价我的票），重点验证 **JSON 输出稳定性**（严格 JSON + 中文引号「」、无多余内容），确认无解析失败/重试再上线。
+- **触发条件**：用户确认要切时执行（到时若没有 MiMo Key，需用户先在 mimo.mi.com 申请）。
