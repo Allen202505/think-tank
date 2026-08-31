@@ -6,7 +6,7 @@ import { SYSTEM_GUARD } from '../../../lib/security';
 import { getQuoteContext } from '../chat/quoteContext.js';
 import { withTimeout } from '../chat/marketData.js';
 import { enrichThinNews } from '../../../lib/announcementEnrich';
-import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPrompt, buildQuickTurnPrompt } from '../../../lib/prompts';
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
@@ -124,6 +124,8 @@ export async function POST(request) {
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
     const news = body.news;
     const hostId = body.hostId || 'buffett';
     const guestItems = Array.isArray(body.guests) ? body.guests : [];

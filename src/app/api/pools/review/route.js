@@ -1,7 +1,7 @@
 // src/app/api/pools/review —— 求大师评价我的票
 // POST { symbols: ['603977',...], poolName, aiConfig } → { ok, result: { poolName, masters: [{...master, speech, risk}], summary } }
 // 随机邀请几位大师，轮流发言：结合最新市场行情，尽可能夸奖用户的持仓（心理按摩），并略带一句潜在风险。
-import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../../lib/rateLimit';
 import { generateJson } from '../../../../lib/ai';
 import { PRESET_MASTERS } from '../../../../data/masters';
 import { resolveSymbols, getQuote, getMarketOverview } from '../../chat/marketData';
@@ -89,6 +89,8 @@ export async function POST(request) {
     if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
     const symbols = [...new Set((Array.isArray(body.symbols) ? body.symbols : []).map((s) => String(s).trim()).filter((s) => /^\d{6}$/.test(s)))].slice(0, MAX_SYMBOLS);
     const poolName = String(body.poolName || '我的股票池').trim() || '我的股票池';
     const aiConfig = body.aiConfig || null;

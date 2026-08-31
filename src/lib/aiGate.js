@@ -44,21 +44,41 @@ export function hasUserKey() {
   return !!getAiConfig();
 }
 
+// 免费次数同时写入 localStorage + cookie（双写）。
+// 无痕/隐私模式下 localStorage 可能被清空或不可靠，cookie 在同一会话内刷新/新开标签仍保留，
+// 取两者中已用次数较大者，避免「刷新重置 10 次」绕过；服务端另有按 IP 的每日免费总量兜底。
+function getQuotaCookie() {
+  try {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + QUOTA_KEY.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch (e) { return null; }
+}
+function setQuotaCookie(v) {
+  try {
+    const d = new Date();
+    d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 年
+    document.cookie = `${QUOTA_KEY}=${encodeURIComponent(String(v))}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;
+  } catch (e) { /* ignore */ }
+}
+function getFreeUsed() {
+  let used = 0;
+  try { used = Math.max(used, Number(localStorage.getItem(QUOTA_KEY) || 0)); } catch (e) { /* ignore */ }
+  try { used = Math.max(used, Number(getQuotaCookie() || 0)); } catch (e) { /* ignore */ }
+  return Number.isFinite(used) ? used : 0;
+}
+
 // 免费体验次数（未配置 Key 时用站长 Key 的次数）
 export function getFreeRemaining() {
-  try {
-    const used = Number(localStorage.getItem(QUOTA_KEY) || 0);
-    return Math.max(0, FREE_LIMIT - used);
-  } catch (e) { return FREE_LIMIT; }
+  return Math.max(0, FREE_LIMIT - getFreeUsed());
 }
 
 export function consumeFree() {
   if (hasUserKey()) return true; // 用户自带 Key，不占免费次数
-  try {
-    const used = Number(localStorage.getItem(QUOTA_KEY) || 0);
-    localStorage.setItem(QUOTA_KEY, String(used + 1));
-    return getFreeRemaining() > 0;
-  } catch (e) { return false; }
+  const used = getFreeUsed();
+  const next = used + 1;
+  try { localStorage.setItem(QUOTA_KEY, String(next)); } catch (e) { /* ignore */ }
+  setQuotaCookie(next);
+  return next < FREE_LIMIT;
 }
 
 // 全局"打开 AI 设置"回调：由页面顶层注册（弹设置弹窗）

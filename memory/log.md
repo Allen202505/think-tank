@@ -2779,3 +2779,11 @@
 - 修复：导入/创建股票池后左侧列表立即刷新（onCreated 重新 loadUserPools）
 - 新增接口 `src/app/api/pools/review/route.js`
 - 代码已 commit + push 到 GitHub main（fec0389）；Vercel 已绑定仓库，push 自动部署。
+
+## 2026-08-31 · 求大师评价我的票 文案 + 纳瓦尔每日揭晓带题目 + 免费配额防无痕绕过
+- 点评视图头部文案改为「大师评价我的持仓」（原「大师们轮流点评 · 心理按摩」）。
+- 纳瓦尔每日知识点：本期揭晓上期答案时，先复述上期题目再给答案（buildDailyPrompt 指令 + 格式示例更新，prompt 已含上期题目/答案供引用）。
+- 免费体验配额加固（防无痕/隐私模式绕过）：
+  - 前端 `aiGate.js`：已用次数同时写 localStorage + cookie（thinktank_free_quota，1 年），读取取两者较大值，刷新/清 localStorage 不重置；
+  - 服务端 `rateLimit.js` 新增 `guardFreeDaily`（按 IP 每日免费调用上限 40，仅对未带用户 Key 的请求计数）与 `quotaResponse`（429 + 提示配 Key/明日再来），已接入 11 个 AI 接口（breakfast/chat/explain/munger/naval-ask/naval-daily/pools-extract/pools-review/pools-suggest/virtual-master/zen）；
+  - 说明：Vercel 多实例下服务端计数为尽力而为（每实例独立），自建单实例精确；cookie 在无痕窗口关闭后仍会被清，服务端 IP 限额作兜底。

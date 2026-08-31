@@ -3,7 +3,7 @@
 // 今日已生成则直接返回；否则按「每日投资知识点」规则生成并落库（今日唯一）。
 import { generateJson, extractJson } from '../../../../lib/ai';
 import { SYSTEM_GUARD } from '../../../../lib/security';
-import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../../lib/rateLimit';
 import { buildDailyPrompt } from '../../../../lib/navalPrompts';
 import {
   navalDbEnabled,
@@ -35,6 +35,8 @@ export async function POST(request) {
 
   let body = {};
   try { body = await request.json(); } catch (e) { /* ignore */ }
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
 
   const today = shanghaiToday();
   const todayLabel = `第${today.replace(/-/g, '/')}期`;

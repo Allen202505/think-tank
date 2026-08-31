@@ -3,7 +3,7 @@
 // POST { query: '股票名称或代码' }
 import { extractJson, generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { SYSTEM_GUARD } from '../../../lib/security';
-import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { masterProfileLine } from '../../../lib/prompts';
 import { resolveSymbols, getQuote, getMarketOverview } from '../chat/marketData.js';
 
@@ -108,6 +108,8 @@ export async function POST(request) {
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
     const query = String(body.query || '').trim();
     if (!query) return Response.json({ error: '请先输入股票名称或代码' }, { status: 400 });
 

@@ -3,7 +3,7 @@
 // POST { mode: 'report', link|file|content, note } → 芒格深入浅出解读财报
 // POST { mode: 'followup', question, report, prevContent } → 举手提问追加回答
 import { SYSTEM_GUARD } from '../../../lib/security';
-import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
 
@@ -91,6 +91,8 @@ export async function POST(request) {
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
     const mode = body.mode === 'followup' ? 'followup' : 'report';
     const munger = findMasterById('munger');
     if (!munger) return Response.json({ error: '芒格大师缺失' }, { status: 400 });

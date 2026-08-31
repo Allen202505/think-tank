@@ -2,7 +2,7 @@
 // POST { query: '要搞懂的知识点', aiConfig? } → { ok, result: { content, keyPoint, followUps } }
 import { generateJson, extractContentFromRaw } from '../../../../lib/ai';
 import { SYSTEM_GUARD } from '../../../../lib/security';
-import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../../lib/rateLimit';
 import { buildAskPrompt } from '../../../../lib/navalPrompts';
 
 export async function POST(request) {
@@ -11,6 +11,8 @@ export async function POST(request) {
 
   let body;
   try { body = await request.json(); } catch (e) { return Response.json({ error: '请求格式错误' }, { status: 400 }); }
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
   const query = String(body.query || '').trim();
   const context = typeof body.context === 'string' ? body.context.trim().slice(0, 1500) : '';
   if (!query) return Response.json({ error: '请输入要了解的知识点' }, { status: 400 });

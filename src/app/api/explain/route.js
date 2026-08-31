@@ -2,7 +2,7 @@
 // 小白解释 · 流式接口：边生成边推送（SSE），避免等整段返回
 // 比 /api/chat 轻量：不走快照注入、max_tokens 更小；含 45s 超时 + 首次请求重试
 import { buildExplainPrompt } from '../../../lib/prompts.js';
-import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { resolveAiConfig } from '../../../lib/llm.js';
 
 export async function POST(request) {
@@ -10,6 +10,8 @@ export async function POST(request) {
   const _rl = rateLimit('explain:' + getClientIp(request), { limit: 60, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
   const body = await request.json().catch(() => ({}));
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
   const speech = typeof body?.speech === 'string' ? body.speech : '';
   const master = body?.master && typeof body.master === 'object' ? body.master : null;
   const aiCfg = resolveAiConfig(body.aiConfig);

@@ -401,7 +401,7 @@ export default function StockPools() {
             <div className="sp-review">
               <div className="sp-review-head">
                 <div className="sp-review-pool">
-                  <div className="sp-review-title">大师们轮流点评 · 心理按摩</div>
+                  <div className="sp-review-title">大师评价我的持仓</div>
                 </div>
                 <button type="button" className="mg-btn sp-review-refresh" onClick={runMasterReview} disabled={reviewLoading}>
                   {reviewLoading ? '大师正在发言…' : '↻ 再换一批大师'}

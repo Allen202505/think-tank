@@ -3,7 +3,7 @@
 // 支持传入 query：拉取最新行情注入 prompt，让专家引用实时数据
 
 import { getQuoteContext } from './quoteContext.js';
-import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { SYSTEM_GUARD } from '../../../lib/security';
 import { resolveAiConfig } from '../../../lib/llm.js';
 
@@ -13,6 +13,8 @@ export async function POST(request) {
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
     const body = await request.json();
+    const _gq = guardFreeDaily(request, body.aiConfig, { limit: 40 });
+    if (!_gq.ok) return quotaResponse(_gq.retryAfter);
     const aiCfg = resolveAiConfig(body.aiConfig);
 
     if (!aiCfg.apiKey) {
