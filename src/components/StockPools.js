@@ -390,7 +390,14 @@ export default function StockPools() {
             <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}`} onClick={() => { setActiveId(p.id); setError(''); setReviewOpen(false); }}>
               <div className="sp-pool-name">{p.name}</div>
               <div className="sp-pool-meta">{p.symbols.length} 只 · {p.source}</div>
-              <button type="button" className="sp-del" onClick={(e) => { e.stopPropagation(); deletePool(p.id); }} title="删除">✕</button>
+              <button type="button" className="sp-del" onClick={(e) => {
+                e.stopPropagation();
+                const isPreset = PRESET_POOLS.some((x) => x.id === p.id);
+                const msg = isPreset
+                  ? `确定要隐藏「${p.name}」吗？隐藏后左侧列表不再显示。`
+                  : `确定要删除「${p.name}」吗？删除后不可恢复。`;
+                if (window.confirm(msg)) deletePool(p.id);
+              }} title="删除">✕</button>
             </div>
           ))}
         </div>
