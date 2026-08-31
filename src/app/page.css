@@ -1738,6 +1738,8 @@
 }
 .nv-act:hover { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-bg); }
 .nv-act:disabled { opacity: 0.5; cursor: default; }
+.nv-act-done { color: var(--bull, #4caf7d); border-color: var(--bull, #4caf7d); background: rgba(76, 175, 125, 0.12); }
+.nv-act-done:hover { color: var(--bull, #4caf7d); border-color: var(--bull, #4caf7d); background: rgba(76, 175, 125, 0.18); }
 
 /* 快捷追问 */
 .nv-quick-followups { display: flex; flex-direction: column; gap: 4px; }

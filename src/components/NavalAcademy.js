@@ -11,7 +11,7 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { NAVAL } from '../lib/navalPrompts';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
-import { loadTerms, saveTerms, upsertTerm, pushTermsCloud } from '../lib/navalTerms';
+import { loadTerms, saveTerms, upsertTerm, pushTermsCloud, notifyTermsChanged } from '../lib/navalTerms';
 import TermLibraryModal from './TermLibraryModal';
 
 const LS_KEY = 'thinktank_naval_issues';
@@ -114,6 +114,7 @@ export default function NavalAcademy() {
   const [askHistory, setAskHistory] = useState([]); // 历史提问（本机，挂载后再加载）
   const [terms, setTerms] = useState([]);           // 词条库（本机）
   const [libraryOpen, setLibraryOpen] = useState(false); // 词条库弹窗
+  const [collectFlash, setCollectFlash] = useState(''); // 刚收录的问题（按钮短暂显示已收录）
   const [askDrawerOpen, setAskDrawerOpen] = useState(false);
   const [drawerContext, setDrawerContext] = useState('');
   const hydratedRef = useRef(false); // 恢复完成后再允许保存
@@ -247,7 +248,10 @@ export default function NavalAcademy() {
       saveTerms(next);
       return next;
     });
+    notifyTermsChanged(); // 通知词条库（其它视图）刷新
     if (supabaseEnabled && user?.id) pushTermsCloud(user.id, loadTerms());
+    setCollectFlash(q); // 按钮短暂显示「已收录」
+    setTimeout(() => setCollectFlash((cur) => (cur === q ? '' : cur)), 1600);
   }, [user?.id]);
 
   // 举手提问：与纳瓦尔单聊（复用其它模块 AskDrawer）
@@ -459,7 +463,12 @@ export default function NavalAcademy() {
                         <div className="speech-key"><span className="speech-key-text">💡 {m.keyPoint}</span></div>
                       )}
                       <div className="nv-answer-actions">
-                        <button type="button" className="nv-act" onClick={() => collectTerm(prevQ, m)} disabled={!prevQ}>💾 收录为词条</button>
+                        <button
+                          type="button"
+                          className={`nv-act${collectFlash === prevQ ? ' nv-act-done' : ''}`}
+                          onClick={() => collectTerm(prevQ, m)}
+                          disabled={!prevQ}
+                        >{collectFlash === prevQ ? '✓ 已收录为词条' : '💾 收录为词条'}</button>
                         <button type="button" className="nv-act" onClick={() => openDrawer(m.content)}>✋ 举手提问</button>
                       </div>
                       {(() => {
