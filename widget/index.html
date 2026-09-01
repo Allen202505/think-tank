@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>大师吵股 · 桌面组件</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <header class="w-head">
+      <div class="w-brand">
+        <div class="w-title">大师吵股</div>
+        <div class="w-sub">智囊团 · 桌面组件</div>
+      </div>
+      <div class="w-head-right">
+        <button id="refreshBtn" class="icon-btn" title="刷新行情与快讯" aria-label="刷新">⟳</button>
+        <div id="clock" class="w-clock">--:--</div>
+      </div>
+    </header>
+
+    <section class="w-indices" id="indices" aria-label="大盘指数"></section>
+
+    <nav class="w-tabs" role="tablist">
+      <button class="w-tab active" data-tab="quotes" role="tab">行情</button>
+      <button class="w-tab" data-tab="news" role="tab">快讯</button>
+      <button class="w-tab" data-tab="ask" role="tab">问大师</button>
+    </nav>
+
+    <main class="w-content">
+
+      <section id="panel-quotes" class="w-panel active" role="tabpanel">
+        <div class="w-panel-head">
+          <span class="w-panel-label">自选股 · 默认池</span>
+          <span id="quoteTime" class="w-update-time"></span>
+        </div>
+        <ul id="quoteList" class="quote-list"></ul>
+        <div id="quoteEmpty" class="w-empty">行情加载中…</div>
+      </section>
+
+      <section id="panel-news" class="w-panel" role="tabpanel">
+        <div class="w-panel-head">
+          <span class="w-panel-label">7×24 快讯</span>
+          <span class="w-update-time">东财快讯</span>
+        </div>
+        <ul id="newsList" class="news-list"></ul>
+        <div id="newsEmpty" class="w-empty">快讯加载中…</div>
+      </section>
+
+      <section id="panel-ask" class="w-panel" role="tabpanel">
+        <div class="ask-box">
+          <textarea id="askInput" rows="3" maxlength="120"
+            placeholder="例如：贵州茅台现在还能买吗？"></textarea>
+          <div class="ask-chips" id="askChips">
+            <button class="chip" type="button">茅台还能买吗？</button>
+            <button class="chip" type="button">今天大盘怎么看？</button>
+            <button class="chip" type="button">帮我分析宁德时代</button>
+          </div>
+          <button id="askBtn" class="ask-btn" type="button">让大师们吵一下 →</button>
+        </div>
+        <p class="ask-hint">点击后会在浏览器打开「大师吵股」，几位投资大师带着最新行情互相辩论，并给出智囊团裁决。</p>
+      </section>
+
+    </main>
+
+    <footer class="w-foot">
+      <button id="openSiteBtn" class="open-btn" type="button">打开网站 ↗</button>
+      <div class="w-disclaimer">行情仅作展示 · AI 内容不构成投资建议</div>
+    </footer>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -9,3 +9,7 @@ pnpm-lock.yaml
 dist
 out
 
+
+# 桌面组件（widget）
+widget/node_modules
+widget/src-tauri/target

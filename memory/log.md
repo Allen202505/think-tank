@@ -11,10 +11,14 @@
   - **临时的解决办法**：不在平台里塞 czsc（Vercel serverless 跑不了 Python+Rust），而是把原项目装在本机，做成一个 HTTP 服务（`/Users/zxiansheng/Desktop/skill仓库/czsc-service`，端口 127.0.0.1:8701，数据源三级回退 东财→腾讯→新浪），平台以后通过"能力包适配器"调用它 = 精确缠论。本地已验证输出与原项目逐项一致。
   - **为什么不能一直用本地**：本机服务只有开发/自己能用（Vercel 线上服务器够不到你家电脑）。要让"缠中说禅"对**线上用户**提供精确缠论，就必须有一台 24 小时在线的服务器来跑这个服务。
   - **触发条件**：当决定把缠论作为主打能力、要对线上用户提供生产级精确度时执行。
-## 📌 当前待办（2026-08-08 更新 · 最近一次会话状态）
+## 📌 当前待办（2026-09-01 更新 · 最近一次会话状态）
 
 > ⚠️ **最重要：最新代码已本地提交（commit 96f4934），但还没推送到 GitHub，也还没部署到 Vercel 线上！**
 
+- [ ] **（待办 · 用户要求记录）桌面组件（widget）正式发布——暂缓，后面再考虑**
+  - **现状**：`widget/` 目录 MVP 已完成并验证（行情/快讯/问大师三 Tab，Tauri 2 壳：托盘左键显示/隐藏、右键菜单、关闭藏托盘、Dock 点击恢复；`npx tauri dev` 可跑，本机已验证全链路）。
+  - **暂缓原因**：Mac 正式分发需 Apple Developer ID 签名 + 公证（$99/年），用户决定先不上线。
+  - **正式上线前待办**：① 部署 `src/lib/cors.js` + `/api/news` CORS 改动到线上（push main 后 Vercel 自动部署）；② `npx tauri build` 打 .dmg/.exe；③ 网页引导入口（AI 设置抽屉 + 顶部导航 + `/widget` 下载页）；④ 下载渠道放自己服务器（别只放 GitHub Releases，国内访问慢）；⑤ 回流埋点 `utm_source=desktop_widget` 统计「下载→激活→回站→提问」漏斗。
 - [ ] **推送 + 部署**：等用户能翻墙后执行 `git push`，Vercel 会自动部署（部署前先确认未提交的用户改动）
 - [ ] **线上验证**：部署后在 yieldglide.com 用「英伟达」「腾讯控股」提问，确认美股/港股财务注入（Yahoo 路径）生效
 - [ ] **本地完整对话前提**：`.env.local` 已配置 `DEEPSEEK_API_KEY`（本地可跑）
@@ -2839,3 +2843,28 @@
 ## 2026-08-31 · 求大师评价我的票：改为从全部预设大师均匀随机
 - 之前 `/api/pools/review` 从「中外各半」的候选子集里选（REVIEW_CN_IDS + REVIEW_INTL_IDS），中国大师候选多、国际池小，观感上中国居多。
 - 改为 `pickMasters()` 直接从 `PRESET_MASTERS`（全部 75 位）Fisher-Yates 洗牌均匀随机抽 4 位，不区分中外/流派。20 次抽样覆盖 48/75 位（含国际、科技、价值、中国等）。
+
+---
+
+## 2026-09-01
+
+### 桌面组件（widget）MVP 开发
+**背景**: 用户想通过桌面小组件提升站点日活与提问转化（Mac/Windows）。
+
+**已完成**:
+- ✅ `widget/` 纯静态前端：行情（指数 + 10 只默认自选股，红涨绿跌）、7×24 快讯、问大师三 Tab，风格对齐站点（暖米白 + 暗金学院风）
+- ✅ 行情取数三级兜底：东财批量（快路径）→ 腾讯实时 fetch+GBK（兜底，带 CORS；secid 市场前缀映射，修正了上证指数被当平安银行的问题）
+- ✅ 快讯：站点 `/api/news`（已加 CORS）优先，东财快讯 script JSONP 兜底（Chrome 会被 ORB 拦截，仅 Tauri/WKWebView 用）
+- ✅ Tauri 2 桌面壳：`widget/src-tauri/`，托盘常驻 + 左键显示/隐藏 + 右键菜单 + 关闭藏托盘 + Dock 点击恢复 + `open_url` 命令（系统浏览器开外链）
+- ✅ 站点侧：新增 `src/lib/cors.js`，`/api/news` 加 `Access-Control-Allow-Origin: *`（未推送线上，待部署）
+- ✅ 本机验证：`npx tauri dev` 首次编译 6 分钟，窗口 + 托盘 + 数据全链路正常
+
+**决策**:
+- 采用 Tauri 2 跨平台方案（一套代码出 Mac/Windows），不选 Electron（体积大）
+- 桌面组件定位为网站「高频触达 + 回流入口」，不替代网站；跳转带 `?tab=` 深链
+- Mac 签名公证（$99/年）**暂缓**，先内测验证价值，正式发布再买证书
+- 开发模式 devUrl 指向本机 `http://localhost:4111/?api=http://localhost:3210`（联调用），正式构建用 frontendDist + 线上 API
+
+**备注**:
+- 本地开发/预览：`widget/` 下 `python3 -m http.server 4111` + 站点 `npm run dev -p 3210`
+- 知乎分享文案已写（聊天内），未入库
