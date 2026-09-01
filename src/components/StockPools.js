@@ -42,6 +42,23 @@ function fmtPct(v, digits = 2) {
   return `${v > 0 ? '+' : ''}${v.toFixed(digits)}%`;
 }
 
+// 机构评级：仅支持 A 股 6 位代码（0/3/6 开头）
+function isACode(code) {
+  return /^\d{6}$/.test(code || '') && /^(0|3|6)/.test(code);
+}
+function fmtPrice(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  if (n >= 100) return n.toFixed(0);
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+function fmtRatingSummary(summary) {
+  const parts = [];
+  if (summary && summary.short) parts.push(`短 ¥${fmtPrice(summary.short.price)}`);
+  if (summary && summary.long) parts.push(`长 ¥${fmtPrice(summary.long.price)}`);
+  return parts.join(' · ') || '—';
+}
+
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -105,6 +122,9 @@ export default function StockPools() {
   const [error, setError] = useState('');
   const [hiddenPresetIds, setHiddenPresetIds] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, isPreset }
+  const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
+  const [ratingDrawer, setRatingDrawer] = useState(null); // { code, name, r }
+  const fetchedRatingCodes = useRef(new Set()); // 已请求过的代码（避免重复拉取）
   // 标记本地数据是否已加载完成：加载完成前禁止写 localStorage，避免用初始空数组覆盖已保存的数据
   const [hydrated, setHydrated] = useState(false);
 
@@ -191,6 +211,29 @@ export default function StockPools() {
     if (active) loadDetail(active, days);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, days]);
+
+  // 机构评级：池子加载后，为每只 A 股懒加载评级/目标价（点击可看明细）
+  const fetchRatings = useCallback(async (code) => {
+    try {
+      const res = await fetch(`/api/pools/ratings?code=${code}`);
+      const j = await res.json();
+      setRatings((prev) => ({ ...prev, [code]: j }));
+    } catch (e) {
+      setRatings((prev) => ({ ...prev, [code]: { ok: false, summary: null, items: [] } }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (detail && detail.stocks && detail.stocks.length) {
+      detail.stocks.forEach((st) => {
+        if (st.code && isACode(st.code) && !fetchedRatingCodes.current.has(st.code)) {
+          fetchedRatingCodes.current.add(st.code);
+          fetchRatings(st.code);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail]);
 
   const createPool = (name, source, symbols) => {
     const pool = {
@@ -532,7 +575,7 @@ export default function StockPools() {
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
+                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,6 +591,26 @@ export default function StockPools() {
                             <td data-label="名称">{s.name || '—'}</td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="今日" className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
+<td data-label="机构评级">
+  {s.code && isACode(s.code) ? (
+    ratings[s.code] === undefined ? (
+      <span className="sp-rating-loading">…</span>
+    ) : ratings[s.code] && ratings[s.code].ok && ratings[s.code].summary && (ratings[s.code].summary.short || ratings[s.code].summary.long) ? (
+      <button
+        type="button"
+        className="sp-rating-btn"
+        title="查看机构评级与目标价明细"
+        onClick={() => setRatingDrawer({ code: s.code, name: s.name, r: ratings[s.code] })}
+      >
+        {fmtRatingSummary(ratings[s.code].summary)}
+      </button>
+    ) : (
+      <span className="sp-rating-na">—</span>
+    )
+  ) : (
+    <span className="sp-rating-na">—</span>
+  )}
+</td>
                             <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             <td data-label="上涨天数">{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
                             <td data-label="持仓价">
@@ -648,6 +711,64 @@ export default function StockPools() {
             </div>
           </div>
         </div>
+      )}
+      {ratingDrawer && (
+        <>
+          <div className="invite-drawer-backdrop" onClick={() => setRatingDrawer(null)} />
+          <div
+            className="invite-drawer sp-rating-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ratingDrawerTitle"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="invite-head invite-drawer-head">
+              <h3 className="invite-title" id="ratingDrawerTitle">机构评级 · {ratingDrawer.name}（{ratingDrawer.code}）</h3>
+              <button type="button" className="modal-close" onClick={() => setRatingDrawer(null)} aria-label="关闭">×</button>
+            </div>
+            <div className="invite-drawer-body">
+              {ratingDrawer.r && ratingDrawer.r.summary && (ratingDrawer.r.summary.short || ratingDrawer.r.summary.long) && (
+                <div className="sp-rating-summary">
+                  {ratingDrawer.r.summary.short && (
+                    <div className="sp-rating-chip">
+                      <span className="sp-rating-chip-label">短期</span>
+                      <span className="sp-rating-chip-price">¥{fmtPrice(ratingDrawer.r.summary.short.price)}</span>
+                      <span className="sp-rating-chip-meta">{ratingDrawer.r.summary.short.org} · {ratingDrawer.r.summary.short.date}</span>
+                    </div>
+                  )}
+                  {ratingDrawer.r.summary.long && (
+                    <div className="sp-rating-chip">
+                      <span className="sp-rating-chip-label">长期</span>
+                      <span className="sp-rating-chip-price">¥{fmtPrice(ratingDrawer.r.summary.long.price)}</span>
+                      <span className="sp-rating-chip-meta">{ratingDrawer.r.summary.long.org} · {ratingDrawer.r.summary.long.date}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {ratingDrawer.r && ratingDrawer.r.items && ratingDrawer.r.items.length > 0 ? (
+                <div className="sp-rating-list">
+                  {ratingDrawer.r.items.map((it, i) => (
+                    <div key={i} className="sp-rating-item">
+                      <div className="sp-rating-item-head">
+                        <span className="sp-rating-org">{it.org}</span>
+                        {it.rating && <span className="sp-rating-badge">{it.rating}</span>}
+                        <span className="sp-rating-date">{it.date}</span>
+                      </div>
+                      {it.title && <div className="sp-rating-title">{it.title}</div>}
+                      <div className="sp-rating-prices">
+                        {it.short != null && <span>短期 <b>¥{fmtPrice(it.short)}</b></span>}
+                        {it.long != null && <span>长期 <b>¥{fmtPrice(it.long)}</b></span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="sp-rating-empty">该股近期暂无带目标价的机构研报。</div>
+              )}
+              <div className="sp-rating-note">数据源：东方财富研报中心 · 目标价与评级为机构观点，仅供学习参考，不构成投资建议</div>
+            </div>
+          </div>
+        </>
       )}
       <StockPoolImportModal
         open={importOpen}

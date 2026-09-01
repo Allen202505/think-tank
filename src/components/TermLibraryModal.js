@@ -56,7 +56,7 @@ export default function TermLibraryModal({ open, onClose }) {
 
   // 点词条 → 有缓存直接显示，否则按需生成讲解
   const viewTerm = async (t) => {
-    setActive({ name: t.name, content: t.content || '', keyPoint: t.keyPoint || '' });
+    setActive({ name: t.name, content: t.content || '', keyPoint: t.keyPoint || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
     if (t.content) return;
     if (loading) return;
     if (!ensureAiReady()) { setError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
@@ -127,7 +127,7 @@ export default function TermLibraryModal({ open, onClose }) {
               {filtered.map((t) => (
                 <div key={t.name} className={`term-lib-item${active && active.name === t.name ? ' active' : ''}`} onClick={() => viewTerm(t)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') viewTerm(t); }}>
                   <span className="term-lib-item-name">📖 {t.name}</span>
-                  <span className="term-lib-item-badge">{t.content ? '✓' : '·'}</span>
+                  <span className="term-lib-item-badge">{t.content ? '✓' : (t.highlights && t.highlights.length ? '📌' : '·')}</span>
                   <button type="button" className="term-lib-del" title="删除词条" onClick={(e) => { e.stopPropagation(); deleteTerm(t.name); }}>🗑</button>
                 </div>
               ))}
@@ -145,6 +145,14 @@ export default function TermLibraryModal({ open, onClose }) {
               {loading && <div className="mg-loading nv-loading">正在生成讲解…</div>}
               {active && active.content && (
                 <div className="term-lib-detail-body">{inlineRich(active.content, 'lib')}</div>
+              )}
+              {active && Array.isArray(active.highlights) && active.highlights.length > 0 && (
+                <div className="term-lib-highlights">
+                  <div className="term-lib-hl-label">📌 划线摘记</div>
+                  {active.highlights.map((h, i) => (
+                    <div key={i} className="term-lib-hl-item">「{h.text}」</div>
+                  ))}
+                </div>
               )}
               {error && <div className="mg-error">{error}</div>}
             </div>

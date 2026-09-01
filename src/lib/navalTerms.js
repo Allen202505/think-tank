@@ -24,6 +24,24 @@ export function notifyTermsChanged() {
   window.dispatchEvent(new CustomEvent('thinktank:terms-changed'));
 }
 
+// 给词条添加一划线摘记（text 为该段原文）；若无该词条，则用 base 创建（带原文 content）
+export function addTermHighlight(name, text, base = {}) {
+  const list = loadTerms();
+  const clean = String(text || '').trim();
+  if (!clean || !name) return list;
+  const existing = list.find((t) => t.name === name);
+  const hs = (existing && Array.isArray(existing.highlights)) ? existing.highlights : [];
+  if (hs.some((h) => h.text === clean)) return list; // 去重
+  const newHs = [{ text: clean, at: Date.now() }, ...hs];
+  const term = existing
+    ? { ...existing, highlights: newHs }
+    : { name, q: base.q || '', content: base.content || '', keyPoint: base.keyPoint || '', at: Date.now(), highlights: newHs };
+  const next = [term, ...list.filter((t) => t.name !== name)].slice(0, TERMS_MAX);
+  saveTerms(next);
+  return next;
+}
+
+
 // ─── 云端同步（Supabase user_terms，每用户一行 JSONB） ───
 import { getSupabase, supabaseEnabled } from './supabaseClient';
 

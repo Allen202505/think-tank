@@ -11,7 +11,7 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { NAVAL } from '../lib/navalPrompts';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
-import { loadTerms, saveTerms, upsertTerm, pushTermsCloud, notifyTermsChanged } from '../lib/navalTerms';
+import { loadTerms, saveTerms, upsertTerm, pushTermsCloud, notifyTermsChanged, addTermHighlight } from '../lib/navalTerms';
 import TermLibraryModal from './TermLibraryModal';
 
 const LS_KEY = 'thinktank_naval_issues';
@@ -114,6 +114,8 @@ export default function NavalAcademy() {
   const [askHistory, setAskHistory] = useState([]); // 历史提问（本机，挂载后再加载）
   const [terms, setTerms] = useState([]);           // 词条库（本机）
   const [libraryOpen, setLibraryOpen] = useState(false); // 词条库弹窗
+  const threadEndRef = useRef(null); // 新回答生成后自动滚到最新
+  const [hlMenu, setHlMenu] = useState(null); // 划线浮层 { x, y, text, name, q, m }
   const [askDrawerOpen, setAskDrawerOpen] = useState(false);
   const [drawerContext, setDrawerContext] = useState('');
   const hydratedRef = useRef(false); // 恢复完成后再允许保存
@@ -124,6 +126,11 @@ export default function NavalAcademy() {
     window.addEventListener('thinktank:terms-changed', onTerms);
     return () => window.removeEventListener('thinktank:terms-changed', onTerms);
   }, []);
+
+  // 新回答生成 / 切换提问后，自动滚到最新（避免停留在上一次提问上方）
+  useEffect(() => {
+    if (threadEndRef.current) threadEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [thread, askLoading]);
 
   // ── 模块2：每日知识点 ──
   const [issues, setIssues] = useState([]);
@@ -193,14 +200,15 @@ export default function NavalAcademy() {
   }, []);
 
   // 模块1：提问 / 追问
-  const sendAsk = useCallback(async (raw) => {
+  const sendAsk = useCallback(async (raw, opts = {}) => {
     const msg = String(raw || query || '').trim();
     if (!msg || askLoading) return;
     if (!ensureAiReady()) { setAskError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
     consumeFree();
     setAskError('');
     setAskLoading(true);
-    setThread((prev) => [...prev, { role: 'user', text: msg }]);
+    const fresh = opts.fresh === true; // 主输入「开始讲解」/点击历史提问 = 开新对话
+    setThread((prev) => (fresh ? [{ role: 'user', text: msg }] : [...prev, { role: 'user', text: msg }]));
     setQuery('');
     try {
       const res = await fetch('/api/naval/ask', {
@@ -215,7 +223,7 @@ export default function NavalAcademy() {
         keyPoint: data.result.keyPoint || '',
         followUps: Array.isArray(data.result.followUps) ? data.result.followUps : [],
       };
-      setThread((prev) => [...prev, { role: 'naval', ...answer }]);
+      setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', ...answer }] : [...prev, { role: 'naval', ...answer }]));
       // 记录历史提问（问题+答案，去重）
       setAskHistory((prev) => {
         const next = [{ q: msg, at: Date.now(), content: answer.content, keyPoint: answer.keyPoint }, ...prev.filter((h) => h.q !== msg)].slice(0, ASK_HISTORY_MAX);
@@ -225,7 +233,7 @@ export default function NavalAcademy() {
     } catch (e) {
       const em = String((e && e.message) || e);
       const friendly = /failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '讲解失败，请重试');
-      setThread((prev) => [...prev, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', followUps: [] }]);
+      setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', followUps: [] }] : [...prev, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', followUps: [] }]));
     } finally {
       setAskLoading(false);
     }
@@ -235,21 +243,61 @@ export default function NavalAcademy() {
   const openAskHistory = useCallback((h) => {
     if (!h) return;
     if (h.content) restoreQA(h.q, h.content, h.keyPoint);
-    else sendAsk(h.q);
+    else sendAsk(h.q, { fresh: true });
   }, [sendAsk, restoreQA]);
 
   // 收录为词条（从某条回答）
   const collectTerm = useCallback((q, answer) => {
     const name = deriveTermName(q);
     if (!name || !answer || !answer.content) return;
-    setTerms((prev) => {
-      const next = upsertTerm(prev, { name, q, content: answer.content, keyPoint: answer.keyPoint || '', at: Date.now() });
-      saveTerms(next);
-      return next;
-    });
+    // 先从 localStorage 取最新词条，计算 next 并保存，再 setState——避免 notifyTermsChanged
+    // 同步回调读到旧 localStorage 覆盖状态（导致第一次点击"看上去没反应"）
+    const next = upsertTerm(loadTerms(), { name, q, content: answer.content, keyPoint: answer.keyPoint || '', at: Date.now() });
+    saveTerms(next);
+    setTerms(next);
     notifyTermsChanged(); // 通知词条库（其它视图）刷新
-    if (supabaseEnabled && user?.id) pushTermsCloud(user.id, loadTerms());
+    if (supabaseEnabled && user?.id) pushTermsCloud(user.id, next);
   }, [user?.id]);
+
+  // 划线：选中某段内容后，浮出「划线」按钮
+  const handleAnswerMouseUp = useCallback((e, q, m) => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) { setHlMenu(null); return; }
+    if (!e.currentTarget.contains(sel.anchorNode)) { setHlMenu(null); return; }
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const text = sel.toString().trim();
+    setHlMenu({
+      x: Math.max(12, rect.left + rect.width / 2),
+      y: rect.bottom + 8,
+      text,
+      name: deriveTermName(q),
+      q,
+      m,
+    });
+  }, []);
+
+  // 点击「划线」：把该段原文存为词条划线摘记（无词条则带原文自动建，避免再生成）
+  const saveHighlight = useCallback(() => {
+    if (!hlMenu) return;
+    const next = addTermHighlight(hlMenu.name, hlMenu.text, {
+      q: hlMenu.q,
+      content: hlMenu.m.content,
+      keyPoint: hlMenu.m.keyPoint || '',
+    });
+    setTerms(next);
+    notifyTermsChanged();
+    if (supabaseEnabled && user?.id) pushTermsCloud(user.id, next);
+    try { window.getSelection()?.removeAllRanges(); } catch (e) {}
+    setHlMenu(null);
+  }, [hlMenu, user?.id]);
+
+  // 点击划线按钮之外处关闭浮层
+  useEffect(() => {
+    if (!hlMenu) return;
+    const close = (e) => { if (!e.target.closest('.nv-hl-btn')) setHlMenu(null); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [hlMenu]);
 
   // 举手提问：与纳瓦尔单聊（复用其它模块 AskDrawer）
   const onAskNaval = useCallback(async (q, convo) => {
@@ -354,7 +402,7 @@ export default function NavalAcademy() {
         {/* 词条库 */}
         <div className="nv-terms">
           <div className="nv-terms-head">
-            <span className="nv-history-label">📚 词条库</span>
+            <span className="nv-history-label">📚 词条库（{terms.length}）</span>
             <div className="nv-terms-actions">
               <button type="button" className="nv-terms-view" onClick={() => setLibraryOpen(true)}>查看 ›</button>
               <button type="button" className="nv-clear" onClick={() => window.dispatchEvent(new CustomEvent('naval:add-term', { detail: { name: '' } }))}>＋ 添加</button>
@@ -432,10 +480,10 @@ export default function NavalAcademy() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="例如：什么是自由现金流？ROE 和 ROIC 有什么区别？"
-                onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendAsk(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendAsk(undefined, { fresh: true }); } }}
               />
               <div className="mg-foot">
-                <button type="button" className="mg-btn" disabled={askLoading || !query.trim()} onClick={() => sendAsk()}>
+                <button type="button" className="mg-btn" disabled={askLoading || !query.trim()} onClick={() => sendAsk(undefined, { fresh: true })}>
                   {askLoading ? '讲解中…' : '开始讲解'}
                 </button>
               </div>
@@ -455,7 +503,7 @@ export default function NavalAcademy() {
                         <span className="mg-speech-name">{NAVAL.name}</span>
                         <span className="mg-speech-tag">{NAVAL.title}</span>
                       </div>
-                      <div className="mg-speech-body">{renderRich(m.content, `ask${i}`)}</div>
+                      <div className="mg-speech-body" onMouseUp={(e) => handleAnswerMouseUp(e, prevQ, m)}>{renderRich(m.content, `ask${i}`)}</div>
                       {m.keyPoint && (
                         <div className="speech-key"><span className="speech-key-text">💡 {m.keyPoint}</span></div>
                       )}
@@ -496,6 +544,7 @@ export default function NavalAcademy() {
                     <span>{NAVAL.name} 正在整理思路…</span>
                   </div>
                 )}
+                <div ref={threadEndRef} />
               </div>
             )}
           </div>
@@ -562,6 +611,19 @@ export default function NavalAcademy() {
           onClose={() => setAskDrawerOpen(false)}
           onAsk={onAskNaval}
         />
+      )}
+
+      {/* 划线浮层：选中文字后出现，点击存入词条 */}
+      {hlMenu && (
+        <button
+          type="button"
+          className="nv-hl-btn"
+          style={{ left: hlMenu.x, top: hlMenu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={saveHighlight}
+        >
+          ✏️ 划线
+        </button>
       )}
     </div>
   );

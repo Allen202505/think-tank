@@ -1812,7 +1812,7 @@
 .term-lib-item {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 9px;
-  padding: 8px 10px; cursor: pointer; font-family: var(--font-sans); color: var(--text);
+  padding: 8px 14px; cursor: pointer; font-family: var(--font-sans); color: var(--text);
 }
 .term-lib-item:hover { border-color: var(--accent-dim); background: var(--accent-bg); }
 .term-lib-item.active { border-color: var(--accent); background: var(--accent-bg-strong); }
@@ -1843,3 +1843,166 @@
 }
 .drawer-resize-handle:hover { background: rgba(165, 131, 42, 0.14); }
 .drawer-resize-handle:active { background: rgba(165, 131, 42, 0.28); }
+
+/* ── 机构评级（股票池表格 + 明细抽屉） ── */
+.sp-rating-loading { color: var(--text-muted); font-size: 12px; }
+.sp-rating-na { color: var(--text-muted); font-size: 12px; }
+
+.sp-rating-btn {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s ease;
+}
+.sp-rating-btn:hover { border-color: var(--accent-dim); background: var(--accent-bg); }
+.sp-rating-btn:active { transform: scale(0.97); }
+
+.sp-rating-drawer { z-index: 1210; }
+.sp-rating-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.sp-rating-chip {
+  flex: 1 1 150px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sp-rating-chip-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.sp-rating-chip-price {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-rating-chip-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-rating-list { display: flex; flex-direction: column; gap: 8px; }
+.sp-rating-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.sp-rating-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sp-rating-org { font-size: 13px; font-weight: 700; color: var(--text); }
+.sp-rating-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.sp-rating-date {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sp-rating-title {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.sp-rating-prices {
+  margin-top: 7px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sp-rating-prices b {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.sp-rating-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 30px 0;
+}
+.sp-rating-note {
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 10px;
+}
+
+/* ── 纳瓦尔 · 划线 ── */
+.nv-answer .mg-speech-body { user-select: text; }
+.nv-hl-btn {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 1500;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--accent-strong);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+.nv-hl-btn:hover { background: var(--accent); color: #fffdf5; border-color: var(--accent); }
+
+.term-lib-highlights {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--accent-bg);
+  border: 1px dashed var(--accent-dim);
+  border-radius: 10px;
+}
+.term-lib-hl-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--accent-strong);
+  margin-bottom: 8px;
+}
+.term-lib-hl-item {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.term-lib-hl-item:last-child { border-bottom: 0; }
