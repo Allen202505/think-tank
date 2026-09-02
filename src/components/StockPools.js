@@ -52,10 +52,23 @@ function fmtPrice(v) {
   if (n >= 100) return n.toFixed(0);
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
+function hasRating(summary) {
+  if (!summary) return false;
+  if (summary.short || summary.long) return true;
+  const r = summary.rating;
+  if (r && (r.rating || r.orgNum || r.eps)) return true;
+  return false;
+}
 function fmtRatingSummary(summary) {
   const parts = [];
   if (summary && summary.short) parts.push(`短 ¥${fmtPrice(summary.short.price)}`);
   if (summary && summary.long) parts.push(`长 ¥${fmtPrice(summary.long.price)}`);
+  if (summary && summary.rating) {
+    const r = summary.rating;
+    if (r.orgNum) parts.push(`${r.orgNum}家机构`);
+    if (r.rating) parts.push(r.rating);
+    if (!r.orgNum && !r.rating && r.eps) parts.push(`EPS ${fmtPrice(r.eps)}`);
+  }
   return parts.join(' · ') || '—';
 }
 
@@ -595,7 +608,7 @@ export default function StockPools() {
   {s.code && isACode(s.code) ? (
     ratings[s.code] === undefined ? (
       <span className="sp-rating-loading">…</span>
-    ) : ratings[s.code] && ratings[s.code].ok && ratings[s.code].summary && (ratings[s.code].summary.short || ratings[s.code].summary.long) ? (
+    ) : ratings[s.code] && ratings[s.code].ok && ratings[s.code].summary && hasRating(ratings[s.code].summary) ? (
       <button
         type="button"
         className="sp-rating-btn"
@@ -727,7 +740,7 @@ export default function StockPools() {
               <button type="button" className="modal-close" onClick={() => setRatingDrawer(null)} aria-label="关闭">×</button>
             </div>
             <div className="invite-drawer-body">
-              {ratingDrawer.r && ratingDrawer.r.summary && (ratingDrawer.r.summary.short || ratingDrawer.r.summary.long) && (
+              {ratingDrawer.r && ratingDrawer.r.summary && hasRating(ratingDrawer.r.summary) && (
                 <div className="sp-rating-summary">
                   {ratingDrawer.r.summary.short && (
                     <div className="sp-rating-chip">
@@ -741,6 +754,19 @@ export default function StockPools() {
                       <span className="sp-rating-chip-label">长期</span>
                       <span className="sp-rating-chip-price">¥{fmtPrice(ratingDrawer.r.summary.long.price)}</span>
                       <span className="sp-rating-chip-meta">{ratingDrawer.r.summary.long.org} · {ratingDrawer.r.summary.long.date}</span>
+                    </div>
+                  )}
+                  {ratingDrawer.r.summary.rating && (
+                    <div className="sp-rating-chip sp-rating-chip--stat">
+                      <span className="sp-rating-chip-label">机构评级</span>
+                      <span className="sp-rating-chip-price">
+                        {ratingDrawer.r.summary.rating.orgNum ? `${ratingDrawer.r.summary.rating.orgNum}家` : '—'}
+                        {ratingDrawer.r.summary.rating.rating ? ` ${ratingDrawer.r.summary.rating.rating}` : ''}
+                      </span>
+                      <span className="sp-rating-chip-meta">
+                        {ratingDrawer.r.summary.rating.eps != null ? `一致预期EPS ${fmtPrice(ratingDrawer.r.summary.rating.eps)}` : ''}
+                        {ratingDrawer.r.summary.rating.buyNum != null ? ` · 买入${ratingDrawer.r.summary.rating.buyNum}增持${ratingDrawer.r.summary.rating.addNum || 0}` : ''}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -763,9 +789,13 @@ export default function StockPools() {
                   ))}
                 </div>
               ) : (
-                <div className="sp-rating-empty">该股近期暂无带目标价的机构研报。</div>
+                <div className="sp-rating-empty">
+                {ratingDrawer.r && ratingDrawer.r.summary && ratingDrawer.r.summary.rating
+                  ? '该股有机构评级覆盖，但近期研报未给出具体目标价。'
+                  : '该股近期无机构研报覆盖。'}
+              </div>
               )}
-              <div className="sp-rating-note">数据源：东方财富研报中心 · 目标价与评级为机构观点，仅供学习参考，不构成投资建议</div>
+              <div className="sp-rating-note">数据源：东方财富（研报中心 + F10 盈利预测）· 评级与目标价为机构观点，仅供学习参考，不构成投资建议</div>
             </div>
           </div>
         </>

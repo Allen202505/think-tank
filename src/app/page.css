@@ -1881,6 +1881,11 @@
   flex-direction: column;
   gap: 2px;
 }
+.sp-rating-chip--stat {
+  background: var(--accent-bg, rgba(88,101,242,0.08));
+  border-color: var(--accent-dim, rgba(88,101,242,0.4));
+}
+.sp-rating-chip--stat .sp-rating-chip-price { color: var(--accent, var(--accent-fg)); font-size: 17px; }
 .sp-rating-chip-label {
   font-size: 10px;
   letter-spacing: 0.12em;
