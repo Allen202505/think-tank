@@ -115,6 +115,9 @@ export default function StockPools() {
   const [activeId, setActiveId] = useState(null); // 默认选中列表第一项（hydration 完成后设置）
   const [importOpen, setImportOpen] = useState(false);
   const [importType, setImportType] = useState('mine'); // 传给共享导入弹窗的初始类型（mine | master）
+  const [addTarget, setAddTarget] = useState(null);      // 追加股票到已有池子的目标池
+  const [detailVersion, setDetailVersion] = useState(0); // 池子内容变化后强制刷新行情
+  const [notice, setNotice] = useState('');              // 轻提示（添加/创建成功）
   const [poolTab, setPoolTab] = useState('master'); // 左侧列表页签：master=大师的股票池 | mine=我的股票池
   const [searchOpen, setSearchOpen] = useState(false);
   const [suggestQuery, setSuggestQuery] = useState('');
@@ -144,6 +147,7 @@ export default function StockPools() {
   const masterPools = PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id)); // 大师的股票池（可隐藏）
   const pools = poolTab === 'mine' ? userPools : masterPools; // 页签：我的股票池 / 大师的股票池
   const active = pools.find((p) => p.id === activeId) || null;
+  const isUserPool = !!active && userPools.some((p) => p.id === active.id);
 
   const switchPoolTab = (t) => {
     setPoolTab(t);
@@ -223,7 +227,7 @@ export default function StockPools() {
   useEffect(() => {
     if (active) loadDetail(active, days);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, days]);
+  }, [activeId, days, detailVersion]);
 
   // 机构评级：池子加载后，为每只 A 股懒加载评级/目标价（点击可看明细）
   const fetchRatings = useCallback(async (code) => {
@@ -505,6 +509,7 @@ export default function StockPools() {
           {!reviewOpen && (
             <>
           {!importOpen && !searchOpen && error && <div className="mg-error">⚠ {error}</div>}
+          {!importOpen && !searchOpen && notice && <div className="mg-notice">✓ {notice}</div>}
 
           {active && (
             <div className="sp-detail">
@@ -512,6 +517,14 @@ export default function StockPools() {
                 <div>
                   <div className="sp-detail-name">{active.name}</div>
                   <div className="sp-detail-meta">{active.source}{active.note ? ` · ${active.note}` : ''} · {active.symbols.length} 只股票</div>
+                </div>
+                <div className="sp-detail-actions">
+                  {isUserPool && (
+                    <button type="button" className="sp-new sp-add-stock" title="向该池追加股票" onClick={() => { setAddTarget(active); setImportType('mine'); setImportOpen(true); setSearchOpen(false); setReviewOpen(false); setError(''); setNotice(''); }}>
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                      添加股票
+                    </button>
+                  )}
                 </div>
                 <div className="sp-days-wrap">
                   <div className="sp-days" role="group" aria-label="统计区间">
@@ -803,8 +816,23 @@ export default function StockPools() {
       <StockPoolImportModal
         open={importOpen}
         initialType={importType}
-        onClose={() => setImportOpen(false)}
-        onCreated={(pool) => { setUserPools(loadUserPools()); setActiveId(pool.id); setError(''); setReviewOpen(false); }}
+        target={addTarget}
+        onClose={() => { setImportOpen(false); setAddTarget(null); }}
+        onCreated={(pool, info) => {
+          setUserPools(loadUserPools());
+          setActiveId(pool.id);
+          setAddTarget(null);
+          setDetailVersion((v) => v + 1);
+          if (info && info.mode === 'add') {
+            const n = info.added || 0;
+            setNotice(n > 0 ? `已向「${pool.name}」添加 ${n} 只股票` : `「${pool.name}」已包含这些股票，无需重复添加`);
+          } else {
+            const n = info && info.added ? info.added : (pool.symbols ? pool.symbols.length : 0);
+            setNotice(`已创建「${pool.name}」，共 ${n} 只股票`);
+          }
+          setError('');
+          setReviewOpen(false);
+        }}
       />
     </div>
     </div>

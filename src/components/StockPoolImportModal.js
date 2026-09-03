@@ -12,7 +12,7 @@ import { useAuth } from '../lib/authProvider';
 
 const MASTER_OPTIONS = PRESET_MASTERS.map((m) => ({ value: m.name, label: m.name }));
 
-export default function StockPoolImportModal({ open, onClose, initialType = 'mine', onCreated }) {
+export default function StockPoolImportModal({ open, onClose, initialType = 'mine', onCreated, target }) {
   const { user } = useAuth();
   const [importType, setImportType] = useState(initialType || 'mine');
   const [importMode, setImportMode] = useState('manual');
@@ -56,16 +56,31 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
 
   const selectedMasterName = () => masterSelect.trim();
 
-  const createPool = (name, source, symbols) => {
+  // target 存在 → 追加到该池；否则 → 新建池子（原导入逻辑保持一致）
+  const commit = (symbols, source, name) => {
+    const codes = [...new Set(symbols)];
+    if (target) {
+      const pools = loadUserPools();
+      const cur = pools.find((p) => p.id === target.id) || target;
+      const merged = [...new Set([...(cur.symbols || []), ...codes])];
+      const added = merged.length - (cur.symbols ? cur.symbols.length : 0);
+      const updated = pools.map((p) => (p.id === target.id ? { ...p, symbols: merged } : p));
+      saveUserPools(updated);
+      const newPool = updated.find((p) => p.id === target.id) || { ...cur, symbols: merged };
+      if (user?.id) upsertPoolServer(newPool, user.id); // 登录后同步到云端
+      if (onCreated) onCreated(newPool, { mode: 'add', added });
+      return newPool;
+    }
     const pool = {
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       name,
       source: source || '手动导入',
       createdAt: new Date().toISOString().slice(0, 10),
-      symbols: [...new Set(symbols)],
+      symbols: codes,
     };
     saveUserPools([...loadUserPools(), pool]);
     if (user?.id) upsertPoolServer(pool, user.id); // 登录后同步到云端
+    if (onCreated) onCreated(pool, { mode: 'create', added: codes.length });
     return pool;
   };
 
@@ -105,10 +120,14 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
   const submitManual = () => {
     const codes = manualPreview.map((st) => st.code);
     if (!codes.length) { setError('请先解析出至少一只股票'); return; }
+    if (target) {
+      commit(codes, target.source || '手动导入', target.name);
+      if (onClose) onClose();
+      return;
+    }
     const isMaster = importType === 'master';
     if (isMaster && !selectedMasterName()) { setError('请先选择大师'); return; }
-    const pool = createPool(nextPoolName(isMaster), isMaster ? '手动整理' : '手动导入', codes);
-    if (onCreated) onCreated(pool);
+    commit(codes, isMaster ? '手动整理' : '手动导入', nextPoolName(isMaster));
     if (onClose) onClose();
   };
 
@@ -145,10 +164,14 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
   const submitExtracted = () => {
     const codes = extracted.map((st) => st.code);
     if (!codes.length) { setError('请先提取出至少一只股票'); return; }
+    if (target) {
+      commit(codes, extractSource || target.source || '手动导入', target.name);
+      if (onClose) onClose();
+      return;
+    }
     const isMaster = importType === 'master';
     if (isMaster && !selectedMasterName()) { setError('请先选择大师'); return; }
-    const pool = createPool(nextPoolName(isMaster), extractSource || (isMaster ? '手动整理' : '手动导入'), codes);
-    if (onCreated) onCreated(pool);
+    commit(codes, extractSource || (isMaster ? '手动整理' : '手动导入'), nextPoolName(isMaster));
     if (onClose) onClose();
   };
 
@@ -157,18 +180,22 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
       <div className="invite-drawer-backdrop" onClick={onClose} />
       <div className="invite-drawer" role="dialog" aria-modal="true" aria-labelledby="poolDrawerTitle" onClick={(e) => e.stopPropagation()}>
         <div className="invite-head invite-drawer-head">
-          <h3 className="invite-title" id="poolDrawerTitle">导入股票池</h3>
+          <h3 className="invite-title" id="poolDrawerTitle">{target ? `添加股票 · ${target.name}` : '导入股票池'}</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="关闭">×</button>
         </div>
         <div className="invite-drawer-body">
           {error && <div className="mg-error">⚠ {error}</div>}
 
           <div className="sp-form sp-form-drawer">
-            <div className="sp-form-label">导入类型</div>
-            <div className="mg-mode" role="group" aria-label="导入类型">
-              <button type="button" className={importType === 'mine' ? 'active' : ''} onClick={() => setImportType('mine')}>我的股票池</button>
-              <button type="button" className={importType === 'master' ? 'active' : ''} onClick={() => setImportType('master')}>大师的股票池</button>
-            </div>
+            {!target && (
+              <>
+                <div className="sp-form-label">导入类型</div>
+                <div className="mg-mode" role="group" aria-label="导入类型">
+                  <button type="button" className={importType === 'mine' ? 'active' : ''} onClick={() => setImportType('mine')}>我的股票池</button>
+                  <button type="button" className={importType === 'master' ? 'active' : ''} onClick={() => setImportType('master')}>大师的股票池</button>
+                </div>
+              </>
+            )}
             {importType === 'master' && (
               <>
                 <div className="sp-form-label">选择大师</div>
@@ -179,6 +206,9 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
                   ))}
                 </select>
               </>
+            )}
+            {target && (
+              <div className="sp-add-hint">将解析出的股票追加到「{target.name}」，重复代码会自动去重。</div>
             )}
             <div className="sp-form-label">输入方式</div>
             <div className="mg-mode" role="group" aria-label="输入方式">
@@ -207,7 +237,7 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
                         </div>
                       ))}
                     </div>
-                    <button type="button" className="mg-btn" onClick={submitManual} disabled={!manualPreview.length}>创建股票池</button>
+                    <button type="button" className="mg-btn" onClick={submitManual} disabled={!manualPreview.length}>{target ? '添加到该池' : '创建股票池'}</button>
                   </div>
                 )}
               </>
@@ -232,7 +262,7 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
                         </div>
                       ))}
                     </div>
-                    <button type="button" className="mg-btn" onClick={submitExtracted} disabled={!extracted.length}>提交到选股池</button>
+                    <button type="button" className="mg-btn" onClick={submitExtracted} disabled={!extracted.length}>{target ? '添加到该池' : '提交到选股池'}</button>
                   </div>
                 )}
                 {extractEmpty && (
