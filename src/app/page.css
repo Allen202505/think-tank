@@ -1121,12 +1121,17 @@
 .sp-form-drawer .mg-btn { align-self: stretch; }
 .sp-empty { font-size: 12px; color: var(--text-muted); padding: 12px 4px; }
 .sp-pool { position: relative; padding: 10px 30px 10px 12px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; }
+.sp-pool.can-add { padding-right: 52px; }
 .sp-pool:hover { border-color: var(--accent-dim); }
 .sp-pool.active { border-color: var(--accent); background: var(--accent-bg-strong); box-shadow: var(--shadow-soft); }
-.sp-pool-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.sp-pool-name { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-pool.active .sp-pool-name { color: var(--accent-strong); }
-.sp-pool-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-.sp-del { position: absolute; top: 8px; right: 8px; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 12px; }
+.sp-pool-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-pool-actions { position: absolute; top: 7px; right: 6px; display: inline-flex; align-items: center; gap: 1px; }
+.sp-pool-add,
+.sp-del { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 12px; line-height: 1; border-radius: 5px; transition: color 0.15s, background 0.15s; }
+.sp-pool-add:hover { color: var(--accent); background: var(--accent-bg); }
+.sp-del:hover { color: var(--bear); background: rgba(192, 64, 64, 0.08); }
 /* 股票池删除确认弹窗 */
 .sp-del-modal { position: relative; max-width: 380px; padding: 22px; }
 .sp-del-modal-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
@@ -1137,7 +1142,6 @@
 .sp-del-cancel:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
 .sp-del-confirm { background: var(--bear); border-color: var(--bear); color: #fff; }
 .sp-del-confirm:hover { background: #a83232; border-color: #a83232; }
-.sp-del:hover { color: var(--bear); }
 .sp-main { min-width: 0; }
 .sp-placeholder { padding: 40px 0; text-align: center; font-size: 13px; color: var(--text-muted); }
 .sp-detail { display: flex; flex-direction: column; gap: 12px; }

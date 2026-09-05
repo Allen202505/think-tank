@@ -319,6 +319,17 @@ export default function StockPools() {
     setError('');
   };
 
+  // 从列表/详情把股票追加到已有池子（我的股票池）
+  const openAddPool = (pool) => {
+    setAddTarget(pool);
+    setImportType('mine');
+    setImportOpen(true);
+    setSearchOpen(false);
+    setReviewOpen(false);
+    setError('');
+    setNotice('');
+  };
+
   // 求大师评价我的票：随机邀请大师，结合最新行情给持仓做心理按摩
   const reviewTargetPool = () => {
     if (poolTab === 'mine' && active && active.symbols && active.symbols.length) return active;
@@ -447,16 +458,26 @@ export default function StockPools() {
             <div className="sp-empty">{poolTab === 'mine' ? '还没有「我的股票池」，点上方「导入股票池」创建' : '还没有池子，导入或搜寻一个'}</div>
           )}
 
-          {pools.map((p) => (
-            <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}`} onClick={() => { setActiveId(p.id); setError(''); setReviewOpen(false); }}>
-              <div className="sp-pool-name">{p.name}</div>
-              <div className="sp-pool-meta">{p.symbols.length} 只 · {p.source}</div>
-              <button type="button" className="sp-del" onClick={(e) => {
-                e.stopPropagation();
-                setConfirmDelete({ id: p.id, name: p.name, isPreset: PRESET_POOLS.some((x) => x.id === p.id) });
-              }} title="删除">✕</button>
-            </div>
-          ))}
+          {pools.map((p) => {
+            const isUserOwned = userPools.some((up) => up.id === p.id);
+            return (
+              <div key={p.id} className={`sp-pool${activeId === p.id ? ' active' : ''}${p.preset ? ' preset' : ''}${isUserOwned ? ' can-add' : ''}`} onClick={() => { setActiveId(p.id); setError(''); setReviewOpen(false); }}>
+                <div className="sp-pool-name">{p.name}</div>
+                <div className="sp-pool-meta">{p.symbols.length} 只 · {p.source}</div>
+                <div className="sp-pool-actions">
+                  {isUserOwned && (
+                    <button type="button" className="sp-pool-add" title={`向「${p.name}」添加股票`} aria-label={`向「${p.name}」添加股票`} onClick={(e) => { e.stopPropagation(); openAddPool(p); }}>
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    </button>
+                  )}
+                  <button type="button" className="sp-del" onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete({ id: p.id, name: p.name, isPreset: PRESET_POOLS.some((x) => x.id === p.id) });
+                  }} title="删除">✕</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* 右侧：池子详情 */}
@@ -520,7 +541,7 @@ export default function StockPools() {
                 </div>
                 <div className="sp-detail-actions">
                   {isUserPool && (
-                    <button type="button" className="sp-new sp-add-stock" title="向该池追加股票" onClick={() => { setAddTarget(active); setImportType('mine'); setImportOpen(true); setSearchOpen(false); setReviewOpen(false); setError(''); setNotice(''); }}>
+                    <button type="button" className="sp-new sp-add-stock" title="向该池追加股票" onClick={() => openAddPool(active)}>
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
                       添加股票
                     </button>
