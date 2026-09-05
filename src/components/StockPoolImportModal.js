@@ -89,6 +89,8 @@ export default function StockPoolImportModal({ open, onClose, initialType = 'min
     const pools = loadUserPools();
     const prefix = isMaster ? '大师的股票池' : '我的股票池';
     const n = pools.filter((p) => p.name.startsWith(prefix)).length + 1;
+    // 第一个「我的股票池」不追加序号（避免「我的股票池 1」）
+    if (!isMaster && n === 1) return prefix;
     return `${prefix} ${n}`;
   };
 

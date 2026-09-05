@@ -539,14 +539,6 @@ export default function StockPools() {
                   <div className="sp-detail-name">{active.name}</div>
                   <div className="sp-detail-meta">{active.source}{active.note ? ` · ${active.note}` : ''} · {active.symbols.length} 只股票</div>
                 </div>
-                <div className="sp-detail-actions">
-                  {isUserPool && (
-                    <button type="button" className="sp-new sp-add-stock" title="向该池追加股票" onClick={() => openAddPool(active)}>
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-                      添加股票
-                    </button>
-                  )}
-                </div>
                 <div className="sp-days-wrap">
                   <div className="sp-days" role="group" aria-label="统计区间">
                     {SHORT_OPTIONS.map((o) => (

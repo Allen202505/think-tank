@@ -1149,8 +1149,6 @@
 .sp-detail-head > div:first-child { flex: 1; min-width: 0; }
 .sp-days-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
 
-.sp-detail-actions { display: inline-flex; align-items: center; flex-shrink: 0; gap: 8px; }
-.sp-add-stock { width: auto; white-space: nowrap; font-size: 12px; padding: 6px 12px; }
 .mg-notice {
   margin: 10px 0 0;
   padding: 10px 14px;

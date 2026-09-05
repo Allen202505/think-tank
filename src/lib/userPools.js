@@ -6,8 +6,16 @@ import { getSupabase, supabaseEnabled } from './supabaseClient';
 
 const LS_KEY = 'thinktank_user_pools';
 
+// 自动命名修正：早期默认把第一个池子命名为「我的股票池 1」，这里统一归正为「我的股票池」
+function normalizePool(p) {
+  if (p && typeof p === 'object' && p.name === '我的股票池 1') {
+    return { ...p, name: '我的股票池' };
+  }
+  return p;
+}
+
 export function loadUserPoolsLocal() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch (e) { return []; }
+  try { return (JSON.parse(localStorage.getItem(LS_KEY) || '[]') || []).map(normalizePool); } catch (e) { return []; }
 }
 export function saveUserPoolsLocal(pools) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(pools)); } catch (e) { /* ignore */ }
@@ -46,7 +54,7 @@ export async function fetchPoolsServer(userId) {
   if (!sb) return [];
   const { data, error } = await sb.from('user_stock_pools').select('*').order('created_at', { ascending: false });
   if (error) { console.warn('[userPools] fetch 失败', error.message); return []; }
-  return (data || []).map((r) => ({
+  return (data || []).map((r) => normalizePool({
     id: r.id,
     name: r.name,
     source: r.source || '',
