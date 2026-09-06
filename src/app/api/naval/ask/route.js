@@ -4,6 +4,25 @@ import { generateJson, extractContentFromRaw } from '../../../../lib/ai';
 import { SYSTEM_GUARD } from '../../../../lib/security';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../../lib/rateLimit';
 import { buildAskPrompt } from '../../../../lib/navalPrompts';
+// 兜底：AI 未填 formula 字段时，从讲解正文里抽取含“公式/计算”的一行
+function extractFormulaFromContent(content) {
+  const text = String(content || '');
+  const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
+  const isFormula = (s) => /[=＝]/.test(s) && /[÷×*/\-+%]/.test(s) && s.length <= 90;
+  // 1) 含“公式/机制”关键词或“=且带运算符”的行
+  for (const line of lines) {
+    if (/公式|机制|计算方式|=|＝/.test(line) && isFormula(line)) return line;
+    if (isFormula(line)) return line;
+  }
+  // 2) 按句号/分号切出含“=且带运算符”的短句
+  for (const seg of text.split(/[。；;]/)) {
+    const t = seg.trim();
+    if (isFormula(t) && t.length <= 120) return t;
+  }
+  return '';
+}
+
+
 
 export async function POST(request) {
   const rl = rateLimit('naval:ask:' + getClientIp(request), { limit: 30, windowMs: 60000 });
@@ -62,7 +81,12 @@ export async function POST(request) {
       : [];
     return Response.json({
       ok: true,
-      result: { content: final.content.trim(), keyPoint: String(final.keyPoint || '').trim(), formula: String(final.formula || '').trim(), followUps },
+      result: {
+        content: final.content.trim(),
+        keyPoint: String(final.keyPoint || '').trim(),
+        formula: String(final.formula || '').trim() || extractFormulaFromContent(final.content),
+        followUps,
+      },
     });
   } catch (e) {
     const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
