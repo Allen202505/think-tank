@@ -9,9 +9,31 @@ import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsOnLogin, pushTermsCloud } from '../lib/navalTerms';
 
 // 内联/块级渲染（复用简单 markdown）
-function inlineRich(seg, k) {
+// 把已「划线」的原文片段在渲染时加上下划线（与纳瓦尔回答保持一致）
+function underlineInline(seg, highlights, k) {
+  const hs = (highlights || []).filter((h) => typeof h === 'string' && h.trim());
+  if (!seg || !hs.length) return seg;
+  const escaped = hs.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a, b) => b.length - a.length);
+  const re = new RegExp('(' + escaped.join('|') + ')', 'g');
+  const out = [];
+  let last = 0;
+  let m;
+  let idx = 0;
+  while ((m = re.exec(seg))) {
+    if (m.index > last) out.push(seg.slice(last, m.index));
+    out.push(<span key={`${k}-hl${idx++}`} className="nv-hl-underline">{m[0]}</span>);
+    last = re.lastIndex;
+  }
+  if (last < seg.length) out.push(seg.slice(last));
+  return out.length ? out : seg;
+}
+
+function inlineRich(seg, k, highlights) {
   const parts = String(seg || '').split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${k}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
+  return parts.map((p, i) => {
+    const inner = underlineInline(String(p).replace(/\*\*/g, ''), highlights, `${k}-${i}`);
+    return i % 2 === 1 ? <strong key={`${k}-${i}`}>{inner}</strong> : inner;
+  });
 }
 
 export default function TermLibraryModal({ open, onClose }) {
@@ -148,15 +170,7 @@ export default function TermLibraryModal({ open, onClose }) {
                 )}
                 {loading && <div className="mg-loading nv-loading">正在生成讲解…</div>}
                 {active && active.content && (
-                  <div className="term-lib-detail-body">{inlineRich(active.content, 'lib')}</div>
-                )}
-                {active && Array.isArray(active.highlights) && active.highlights.length > 0 && (
-                  <div className="term-lib-highlights">
-                    <div className="term-lib-hl-label">📌 划线摘记</div>
-                    {active.highlights.map((h, i) => (
-                      <div key={i} className="term-lib-hl-item">「{h.text}」</div>
-                    ))}
-                  </div>
+                  <div className="term-lib-detail-body">{inlineRich(active.content, 'lib', (active.highlights || []).map((h) => h.text))}</div>
                 )}
                 {error && <div className="mg-error">{error}</div>}
               </div>
