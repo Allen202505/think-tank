@@ -136,6 +136,7 @@ export default function NavalAcademy() {
   const [askHistory, setAskHistory] = useState([]); // 历史提问（本机，挂载后再加载）
   const [terms, setTerms] = useState([]);           // 词条库（本机）
   const [libraryOpen, setLibraryOpen] = useState(false); // 词条库弹窗
+  const [confirmClear, setConfirmClear] = useState(false); // 清空历史提问二次确认
   const threadEndRef = useRef(null); // 新回答生成后自动滚到最新
   const [hlMenu, setHlMenu] = useState(null); // 划线浮层 { x, y, text, name, q, m }
   const [askDrawerOpen, setAskDrawerOpen] = useState(false);
@@ -342,10 +343,11 @@ export default function NavalAcademy() {
     setAskDrawerOpen(true);
   }, []);
 
-  // 清空历史提问
+  // 清空历史提问（需二次确认后执行）
   const clearAskHistory = useCallback(() => {
     saveAskHistory([]);
     setAskHistory([]);
+    setConfirmClear(false);
   }, []);
 
   // 模块2：生成今日知识点
@@ -442,7 +444,7 @@ export default function NavalAcademy() {
           <div className="nv-ask-history">
             <div className="nv-ask-history-head">
               <span className="nv-history-label">🕘 历史提问（{askHistory.length}）</span>
-              <button type="button" className="nv-clear" onClick={clearAskHistory}>清空</button>
+              <button type="button" className="nv-clear" onClick={() => setConfirmClear(true)}>清空</button>
             </div>
             <div className="nv-ask-history-list">
               {askHistory.map((h) => (
@@ -628,6 +630,23 @@ export default function NavalAcademy() {
 
       {/* 词条库弹窗 */}
       <TermLibraryModal open={libraryOpen} onClose={() => setLibraryOpen(false)} />
+
+      {/* 清空历史提问 · 二次确认 */}
+      {confirmClear && (
+        <div className="modal-overlay" onMouseDown={() => setConfirmClear(false)}>
+          <div className="modal-content sp-del-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setConfirmClear(false)} aria-label="关闭">✕</button>
+            <div className="sp-del-modal-title">⚠ 清空历史提问</div>
+            <div className="sp-del-modal-text">
+              <>确定要清空全部 <strong>{askHistory.length}</strong> 条历史提问吗？清空后不可恢复。</>
+            </div>
+            <div className="mg-foot sp-del-modal-foot">
+              <button type="button" className="mg-btn sp-del-cancel" onClick={() => setConfirmClear(false)}>取消</button>
+              <button type="button" className="mg-btn sp-del-confirm" onClick={clearAskHistory}>确认清空</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 举手提问（与其它模块一致） */}
       {askDrawerOpen && (
