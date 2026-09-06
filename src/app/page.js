@@ -423,6 +423,23 @@ export default function Home() {
     } catch (e) { /* ignore */ }
   };
 
+  // 大师PK · 快速「点评我的持仓」：必须先有持仓池，然后复用选股池的点评功能
+  const openMyHoldingReview = () => {
+    let hasPool = false;
+    try {
+      const pools = JSON.parse(localStorage.getItem('thinktank_user_pools') || '[]') || [];
+      hasPool = Array.isArray(pools) && pools.some((p) => p && Array.isArray(p.symbols) && p.symbols.length);
+    } catch (e) { /* ignore */ }
+    if (!hasPool) {
+      setNotice('请先在「我的股票池」创建一个含股票的持仓池，再来让大师点评。');
+      setError('');
+      return;
+    }
+    setNotice('');
+    switchTab('pools');
+    setTimeout(() => window.dispatchEvent(new CustomEvent('thinktank:open-pool-review')), 80);
+  };
+
   const drawerResize = useDrawerResize();
   const STORAGE_KEY = 'master-debate-state-v1';
 
@@ -1562,6 +1579,9 @@ export default function Home() {
               className="question-input"
               disabled={loading}
             />
+            <div className="quick-ask-row">
+              <button type="button" className="quick-ask-chip" onClick={openMyHoldingReview}>🙏 请大师点评一下我的持仓</button>
+            </div>
             {error && <div className="error-msg">⚠ {error}</div>}
             {notice && <div className="context-notice">ℹ️ {notice}</div>}
             {matchingHint && <div className="summon-status">🔍 {t('summonMatching')}</div>}

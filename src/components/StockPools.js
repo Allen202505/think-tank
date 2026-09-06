@@ -337,9 +337,8 @@ export default function StockPools() {
     return null;
   };
 
-  const runMasterReview = async () => {
+  const runMasterReviewFor = async (target) => {
     if (reviewLoading) return;
-    const target = reviewTargetPool();
     if (!target) {
       setReviewError('请先在「我的股票池」创建一个含股票的池子');
       setReviewResult(null);
@@ -370,6 +369,8 @@ export default function StockPools() {
     }
   };
 
+  const runMasterReview = async () => runMasterReviewFor(reviewTargetPool());
+
   const openMasterReview = () => {
     setSearchOpen(false);
     setImportOpen(false);
@@ -384,6 +385,27 @@ export default function StockPools() {
     }
     runMasterReview();
   };
+
+  // 大师PK「快速点评我的持仓」入口：切到我的股票池并复用同一点评功能
+  useEffect(() => {
+    const onOpenPoolReview = () => {
+      setPoolTab('mine');
+      setSearchOpen(false);
+      setImportOpen(false);
+      setReviewOpen(true);
+      setError('');
+      setReviewError('');
+      const target = userPools.find((p) => p.symbols && p.symbols.length) || null;
+      if (target && reviewCache[target.id]) {
+        setReviewResult(reviewCache[target.id]);
+        return;
+      }
+      runMasterReviewFor(target);
+    };
+    window.addEventListener('thinktank:open-pool-review', onOpenPoolReview);
+    return () => window.removeEventListener('thinktank:open-pool-review', onOpenPoolReview);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPools, reviewCache]);
 
   const deletePool = (id) => {
     const isPreset = PRESET_POOLS.some((p) => p.id === id);
