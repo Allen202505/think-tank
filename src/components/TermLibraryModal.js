@@ -122,43 +122,48 @@ export default function TermLibraryModal({ open, onClose }) {
           />
         </div>
         <div className="explain-drawer-body term-lib-body">
-          {filtered.length === 0 ? (
-            <div className="term-lib-empty">{q ? '没有匹配的词条' : '还没有词条。右键选中文字，或点上方「＋ 添加词条」收录。'}</div>
-          ) : (
-            <div className="term-lib-list">
-              {filtered.map((t) => (
-                <div key={t.name} className={`term-lib-item${active && active.name === t.name ? ' active' : ''}`} onClick={() => viewTerm(t)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') viewTerm(t); }}>
-                  <span className="term-lib-item-name">📖 {t.name}</span>
-                  <span className="term-lib-item-badge">{t.content ? '✓' : (t.highlights && t.highlights.length ? '📌' : '·')}</span>
-                  <button type="button" className="term-lib-del" title="删除词条" onClick={(e) => { e.stopPropagation(); deleteTerm(t.name); }}>🗑</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {(active || loading) && (
-            <div className="term-lib-detail">
-              {active && (
-                <div className="term-lib-detail-head">
-                  <span className="term-lib-detail-name">{active.name}</span>
-                  <button type="button" className="nv-clear" onClick={() => { setActive(null); setError(''); }}>收起</button>
-                </div>
-              )}
-              {loading && <div className="mg-loading nv-loading">正在生成讲解…</div>}
-              {active && active.content && (
-                <div className="term-lib-detail-body">{inlineRich(active.content, 'lib')}</div>
-              )}
-              {active && Array.isArray(active.highlights) && active.highlights.length > 0 && (
-                <div className="term-lib-highlights">
-                  <div className="term-lib-hl-label">📌 划线摘记</div>
-                  {active.highlights.map((h, i) => (
-                    <div key={i} className="term-lib-hl-item">「{h.text}」</div>
-                  ))}
-                </div>
-              )}
-              {error && <div className="mg-error">{error}</div>}
-            </div>
-          )}
+          <div className="term-lib-list-col">
+            {filtered.length === 0 ? (
+              <div className="term-lib-empty">{q ? '没有匹配的词条' : '还没有词条。右键选中文字，或点上方「＋ 添加词条」收录。'}</div>
+            ) : (
+              <div className="term-lib-list">
+                {filtered.map((t) => (
+                  <div key={t.name} className={`term-lib-item${active && active.name === t.name ? ' active' : ''}`} onClick={() => viewTerm(t)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') viewTerm(t); }}>
+                    <span className="term-lib-item-name">📖 {t.name}</span>
+                    <span className="term-lib-item-badge">{t.content ? '✓' : (t.highlights && t.highlights.length ? '📌' : '·')}</span>
+                    <button type="button" className="term-lib-del" title="删除词条" onClick={(e) => { e.stopPropagation(); deleteTerm(t.name); }}>🗑</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="term-lib-detail-col">
+            {(active || loading) ? (
+              <div className="term-lib-detail">
+                {active && (
+                  <div className="term-lib-detail-head">
+                    <span className="term-lib-detail-name">{active.name}</span>
+                    <button type="button" className="nv-clear" onClick={() => { setActive(null); setError(''); }}>收起</button>
+                  </div>
+                )}
+                {loading && <div className="mg-loading nv-loading">正在生成讲解…</div>}
+                {active && active.content && (
+                  <div className="term-lib-detail-body">{inlineRich(active.content, 'lib')}</div>
+                )}
+                {active && Array.isArray(active.highlights) && active.highlights.length > 0 && (
+                  <div className="term-lib-highlights">
+                    <div className="term-lib-hl-label">📌 划线摘记</div>
+                    {active.highlights.map((h, i) => (
+                      <div key={i} className="term-lib-hl-item">「{h.text}」</div>
+                    ))}
+                  </div>
+                )}
+                {error && <div className="mg-error">{error}</div>}
+              </div>
+            ) : (
+              <div className="term-lib-detail-placeholder">← 从左侧选择一个词条，右侧查看讲解</div>
+            )}
+          </div>
         </div>
       </aside>
     </div>

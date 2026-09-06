@@ -1816,10 +1816,14 @@
 .nv-terms-hint { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 4px 12px 2px; }
 
 /* 词条库弹窗 */
-.term-lib-drawer { width: min(600px, 94vw); }
+.term-lib-drawer { width: min(940px, 96vw); }
 .term-lib-search-wrap { flex-shrink: 0; display: flex; padding: 12px 24px 0; }
 .term-lib-search { flex: 1; min-height: 38px; }
-.term-lib-body { padding-top: 14px; }
+/* 词条库主体：左词条列表 + 右讲解，两栏独立滚动 */
+.term-lib-body { flex: 1 1 auto; display: flex; gap: 18px; padding: 14px 24px 24px; overflow: hidden; min-height: 0; }
+.term-lib-list-col { flex: 0 0 280px; min-width: 0; overflow-y: auto; padding-right: 14px; border-right: 1px solid var(--border-subtle); }
+.term-lib-detail-col { flex: 1 1 auto; min-width: 0; overflow-y: auto; padding-left: 2px; }
+.term-lib-detail-placeholder { font-size: 13px; color: var(--text-muted); line-height: 1.7; padding: 14px 4px; }
 .term-lib-auth {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   background: var(--accent-bg); border: 1px solid var(--accent-dim); border-radius: 10px;
@@ -1847,10 +1851,16 @@
 .term-lib-del:hover { color: var(--bear); background: rgba(224, 85, 85, 0.12); }
 .term-lib-item-name { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .term-lib-item-badge { flex-shrink: 0; font-size: 12px; color: var(--text-muted); }
-.term-lib-detail { margin-top: 12px; border-top: 1px dashed var(--border-subtle); padding-top: 12px; }
+.term-lib-detail { margin-top: 0; border-top: 0; padding-top: 0; }
 .term-lib-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; font-weight: 800; color: var(--accent-strong); margin-bottom: 8px; }
 .term-lib-detail-name { font-family: var(--font-serif); }
 .term-lib-detail-body { font-size: 13.5px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+@media (max-width: 720px) {
+  .term-lib-body { flex-direction: column; overflow-y: auto; }
+  .term-lib-list-col { flex: none; border-right: 0; padding-right: 0; overflow: visible; }
+  .term-lib-detail-col { overflow: visible; padding-left: 0; }
+}
 
 /* 侧边浮层拖拽调宽把手（靠左边缘，右对齐抽屉） */
 .drawer-resize-handle {
