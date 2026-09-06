@@ -2031,3 +2031,26 @@
   border-radius: 2px;
   padding: 0 1px;
 }
+/* 纳瓦尔回答 / 词条库：单独提炼「计算公式」卡片 */
+.nv-formula {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  background: var(--accent-bg, rgba(88,101,242,0.08));
+  border: 1px dashed var(--accent-dim, rgba(88,101,242,0.35));
+  border-radius: 10px;
+}
+.nv-formula-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-strong, var(--accent));
+  margin-bottom: 6px;
+}
+.nv-formula-text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -35,7 +35,7 @@ export function addTermHighlight(name, text, base = {}) {
   const newHs = [{ text: clean, at: Date.now() }, ...hs];
   const term = existing
     ? { ...existing, highlights: newHs }
-    : { name, q: base.q || '', content: base.content || '', keyPoint: base.keyPoint || '', at: Date.now(), highlights: newHs };
+    : { name, q: base.q || '', content: base.content || '', keyPoint: base.keyPoint || '', formula: base.formula || '', at: Date.now(), highlights: newHs };
   const next = [term, ...list.filter((t) => t.name !== name)].slice(0, TERMS_MAX);
   saveTerms(next);
   return next;

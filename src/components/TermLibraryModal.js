@@ -58,7 +58,7 @@ export default function TermLibraryModal({ open, onClose }) {
 
   // 点词条 → 有缓存直接显示，否则按需生成讲解
   const viewTerm = async (t) => {
-    setActive({ name: t.name, content: t.content || '', keyPoint: t.keyPoint || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
+    setActive({ name: t.name, content: t.content || '', keyPoint: t.keyPoint || '', formula: t.formula || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
     if (t.content) return;
     if (loading) return;
     if (!ensureAiReady()) { setError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
@@ -73,11 +73,11 @@ export default function TermLibraryModal({ open, onClose }) {
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '生成讲解失败，请重试');
-      const list = updateTermContent(t.name, { content: data.result.content, keyPoint: data.result.keyPoint || '' });
+      const list = updateTermContent(t.name, { content: data.result.content, keyPoint: data.result.keyPoint || '', formula: data.result.formula || '' });
       setTerms(list);
       notifyTermsChanged();
       pushCloud(list);
-      setActive({ name: t.name, content: data.result.content, keyPoint: data.result.keyPoint || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
+      setActive({ name: t.name, content: data.result.content, keyPoint: data.result.keyPoint || '', formula: data.result.formula || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
     } catch (e) {
       const em = String((e && e.message) || e);
       setError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '生成讲解失败，请重试'));
@@ -149,6 +149,12 @@ export default function TermLibraryModal({ open, onClose }) {
                 {loading && <div className="mg-loading nv-loading">正在生成讲解…</div>}
                 {active && active.content && (
                   <div className="term-lib-detail-body">{inlineRich(active.content, 'lib', (active.highlights || []).map((h) => h.text))}</div>
+                )}
+                {active && active.formula && (
+                  <div className="nv-formula">
+                    <div className="nv-formula-label">🧮 计算公式</div>
+                    <div className="nv-formula-text">{active.formula}</div>
+                  </div>
                 )}
                 {error && <div className="mg-error">{error}</div>}
               </div>

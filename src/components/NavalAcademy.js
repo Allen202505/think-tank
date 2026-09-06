@@ -190,12 +190,12 @@ export default function NavalAcademy() {
   }, [thread, mode, query]);
 
   // 回显某条问答到主线程（不调 AI）
-  const restoreQA = useCallback((q, content, keyPoint) => {
+  const restoreQA = useCallback((q, content, keyPoint, formula) => {
     if (!content) return;
     setAskError('');
     setThread([
       { role: 'user', text: q || '（词条）' },
-      { role: 'naval', content, keyPoint: keyPoint || '', followUps: [] },
+      { role: 'naval', content, keyPoint: keyPoint || '', formula: formula || '', followUps: [] },
     ]);
   }, []);
 
@@ -221,19 +221,20 @@ export default function NavalAcademy() {
       const answer = {
         content: data.result.content,
         keyPoint: data.result.keyPoint || '',
+        formula: String(data.result.formula || '').trim(),
         followUps: Array.isArray(data.result.followUps) ? data.result.followUps : [],
       };
       setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', ...answer }] : [...prev, { role: 'naval', ...answer }]));
       // 记录历史提问（问题+答案，去重）
       setAskHistory((prev) => {
-        const next = [{ q: msg, at: Date.now(), content: answer.content, keyPoint: answer.keyPoint }, ...prev.filter((h) => h.q !== msg)].slice(0, ASK_HISTORY_MAX);
+        const next = [{ q: msg, at: Date.now(), content: answer.content, keyPoint: answer.keyPoint, formula: answer.formula }, ...prev.filter((h) => h.q !== msg)].slice(0, ASK_HISTORY_MAX);
         saveAskHistory(next);
         return next;
       });
     } catch (e) {
       const em = String((e && e.message) || e);
       const friendly = /failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '讲解失败，请重试');
-      setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', followUps: [] }] : [...prev, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', followUps: [] }]));
+      setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', formula: '', followUps: [] }] : [...prev, { role: 'naval', content: `⚠️ ${friendly}`, keyPoint: '', formula: '', followUps: [] }]));
     } finally {
       setAskLoading(false);
     }
@@ -242,7 +243,7 @@ export default function NavalAcademy() {
   // 点击历史提问：直接回显已存问答（无答案的旧记录才重新提问）
   const openAskHistory = useCallback((h) => {
     if (!h) return;
-    if (h.content) restoreQA(h.q, h.content, h.keyPoint);
+    if (h.content) restoreQA(h.q, h.content, h.keyPoint, h.formula);
     else sendAsk(h.q, { fresh: true });
   }, [sendAsk, restoreQA]);
 
@@ -252,7 +253,7 @@ export default function NavalAcademy() {
     if (!name || !answer || !answer.content) return;
     // 先从 localStorage 取最新词条，计算 next 并保存，再 setState——避免 notifyTermsChanged
     // 同步回调读到旧 localStorage 覆盖状态（导致第一次点击"看上去没反应"）
-    const next = upsertTerm(loadTerms(), { name, q, content: answer.content, keyPoint: answer.keyPoint || '', at: Date.now() });
+    const next = upsertTerm(loadTerms(), { name, q, content: answer.content, keyPoint: answer.keyPoint || '', formula: answer.formula || '', at: Date.now() });
     saveTerms(next);
     setTerms(next);
     notifyTermsChanged(); // 通知词条库（其它视图）刷新
@@ -283,6 +284,7 @@ export default function NavalAcademy() {
       q: hlMenu.q,
       content: hlMenu.m.content,
       keyPoint: hlMenu.m.keyPoint || '',
+      formula: hlMenu.m.formula || '',
     });
     setTerms(next);
     notifyTermsChanged();
@@ -509,6 +511,12 @@ export default function NavalAcademy() {
   const hlTexts = termName ? ((terms.find((t) => t.name === termName) || {}).highlights || []).map((h) => h.text).filter(Boolean) : [];
   return renderRich(m.content, `ask${i}`, hlTexts);
 })()}</div>
+                      {m.formula && (
+                        <div className="nv-formula">
+                          <div className="nv-formula-label">🧮 计算公式</div>
+                          <div className="nv-formula-text">{m.formula}</div>
+                        </div>
+                      )}
                       {m.keyPoint && (
                         <div className="speech-key"><span className="speech-key-text">💡 {m.keyPoint}</span></div>
                       )}

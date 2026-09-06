@@ -25,7 +25,7 @@ export async function POST(request) {
         { role: 'system', content: buildAskPrompt(query, context) },
         { role: 'user', content: `请讲解：${query}` },
       ],
-      '{"content":"讲解正文","keyPoint":"一句话核心","followUps":["追问1","追问2"]}',
+      '{"content":"讲解正文","keyPoint":"一句话核心","formula":"核心计算公式（无则为空）","followUps":["追问1","追问2"]}',
       1400,
       true,
       body.aiConfig,
@@ -48,7 +48,7 @@ export async function POST(request) {
             { role: 'assistant', content: String(final.content || '') },
             { role: 'user', content: '上面的回答太简短。请严格按 350-550 字把这个问题展开成完整小专题（直觉比喻→机制/公式→具体例子→深层洞察→场景与局限），逐段写清楚，不要只给定义句。' },
           ],
-          '{"content":"讲解正文","keyPoint":"一句话核心","followUps":["追问1","追问2"]}',
+          '{"content":"讲解正文","keyPoint":"一句话核心","formula":"核心计算公式（无则为空）","followUps":["追问1","追问2"]}',
           1600,
           true,
           body.aiConfig,
@@ -62,7 +62,7 @@ export async function POST(request) {
       : [];
     return Response.json({
       ok: true,
-      result: { content: final.content.trim(), keyPoint: String(final.keyPoint || '').trim(), followUps },
+      result: { content: final.content.trim(), keyPoint: String(final.keyPoint || '').trim(), formula: String(final.formula || '').trim(), followUps },
     });
   } catch (e) {
     const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
