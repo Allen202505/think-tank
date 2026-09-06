@@ -36,12 +36,33 @@ export async function POST(request) {
       if (fallback) return Response.json({ ok: true, result: { content: fallback, keyPoint: '', followUps: [] } });
       return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
     }
-    const followUps = Array.isArray(c.followUps)
-      ? c.followUps.filter((f) => typeof f === 'string' && f.trim()).slice(0, 3)
+    let final = c;
+    // 回答过短（常是模型偷懒只给一两句定义）→ 追加“扩写”指令重试一次，取更长者
+    if (final.content.trim().length < 200) {
+      try {
+        const { parsed: parsed2 } = await generateJson(
+          [
+            { role: 'system', content: SYSTEM_GUARD },
+            { role: 'system', content: buildAskPrompt(query, context) },
+            { role: 'user', content: `请讲解：${query}` },
+            { role: 'assistant', content: String(final.content || '') },
+            { role: 'user', content: '上面的回答太简短。请严格按 350-550 字把这个问题展开成完整小专题（直觉比喻→机制/公式→具体例子→深层洞察→场景与局限），逐段写清楚，不要只给定义句。' },
+          ],
+          '{"content":"讲解正文","keyPoint":"一句话核心","followUps":["追问1","追问2"]}',
+          1600,
+          true,
+          body.aiConfig,
+        );
+        const c2 = parsed2 && typeof parsed2.content === 'string' && parsed2.content.trim() ? parsed2 : null;
+        if (c2 && c2.content.trim().length > final.content.trim().length) final = c2;
+      } catch (e) { /* 扩写失败则保留原回答 */ }
+    }
+    const followUps = Array.isArray(final.followUps)
+      ? final.followUps.filter((f) => typeof f === 'string' && f.trim()).slice(0, 3)
       : [];
     return Response.json({
       ok: true,
-      result: { content: c.content.trim(), keyPoint: String(c.keyPoint || '').trim(), followUps },
+      result: { content: final.content.trim(), keyPoint: String(final.keyPoint || '').trim(), followUps },
     });
   } catch (e) {
     const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
