@@ -1816,7 +1816,7 @@
 .nv-terms-hint { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 4px 12px 2px; }
 
 /* 词条库弹窗 */
-.term-lib-drawer { width: min(940px, 96vw); }
+.term-lib-drawer { width: min(1200px, 96vw); }
 .term-lib-search-wrap { flex-shrink: 0; display: flex; padding: 12px 24px 0; }
 .term-lib-search { flex: 1; min-height: 38px; }
 /* 词条库主体：左词条列表 + 右讲解，两栏独立滚动 */

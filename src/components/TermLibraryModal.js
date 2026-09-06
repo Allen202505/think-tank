@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { useAuth } from '../lib/authProvider';
-import { useDrawerResize } from '../lib/drawerResize';
+import { useDrawerResize, KEY_TERM_LIB, DEFAULT_TERM_LIB } from '../lib/drawerResize';
 import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsOnLogin, pushTermsCloud } from '../lib/navalTerms';
 
@@ -15,7 +15,7 @@ function inlineRich(seg, k) {
 }
 
 export default function TermLibraryModal({ open, onClose }) {
-  const { style, handleProps } = useDrawerResize();
+  const { style, handleProps } = useDrawerResize({ defaultWidth: DEFAULT_TERM_LIB, storageKey: KEY_TERM_LIB });
   const { user } = useAuth();
   const loggedIn = supabaseEnabled && !!user?.id;
   const [terms, setTerms] = useState([]);
