@@ -473,7 +473,7 @@ export default function NavalAcademy() {
         {mode === 'ask' && (
           <div className="nv-ask">
             <div className="mg-card nv-ask-card">
-              <div className="mg-card-label">想弄懂哪个投资/财务问题？「是不是/为什么」的判断也能直接问</div>
+              <div className="mg-card-label">想弄懂哪个投资/财务问题？</div>
               <textarea
                 className="mg-input nv-input"
                 rows={3}
