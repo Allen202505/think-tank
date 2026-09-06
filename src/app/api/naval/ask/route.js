@@ -15,8 +15,8 @@ export async function POST(request) {
     if (!_gq.ok) return quotaResponse(_gq.retryAfter);
   const query = String(body.query || '').trim();
   const context = typeof body.context === 'string' ? body.context.trim().slice(0, 1500) : '';
-  if (!query) return Response.json({ error: '请输入要了解的知识点' }, { status: 400 });
-  if (query.length > 300) return Response.json({ error: '知识点描述过长，请精简到 300 字以内' }, { status: 400 });
+  if (!query) return Response.json({ error: '请输入你的投资/财务问题' }, { status: 400 });
+  if (query.length > 300) return Response.json({ error: '问题过长，请精简到 300 字以内' }, { status: 400 });
 
   try {
     const { raw, parsed } = await generateJson(

@@ -29,7 +29,7 @@ function breakSentences(line) {
 function inlineRich(seg) {
   const normalized = String(seg || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 // 块级：保留换行/列表/【标题】，避免大师回复挤成一大坨
 function renderRich(text) {

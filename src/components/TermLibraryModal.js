@@ -11,7 +11,7 @@ import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsO
 // 内联/块级渲染（复用简单 markdown）
 function inlineRich(seg, k) {
   const parts = String(seg || '').split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${k}-${i}`}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${k}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 
 export default function TermLibraryModal({ open, onClose }) {
@@ -24,21 +24,23 @@ export default function TermLibraryModal({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 打开时：登录则从云端同步；未登录用本地（并提示注册）
+  // 打开时：先立即展示本地词条（避免“左侧有词、弹窗却是0”），随后登录态再异步合并云端；云端失败也保留本地
   useEffect(() => {
     if (!open) return;
     setSearch('');
     setActive(null);
     setError('');
     setLoading(false);
+    setTerms(loadTerms());
     let cancelled = false;
     const apply = (list) => { if (!cancelled) setTerms(list); };
     (async () => {
-      if (loggedIn) {
+      if (!loggedIn) return; // 未登录：本地词条已展示
+      try {
         const merged = await syncTermsOnLogin(user.id);
         apply(merged);
-      } else {
-        apply(loadTerms());
+      } catch (e) {
+        apply(loadTerms()); // 云端同步失败：保留本地
       }
     })();
     const onTerms = () => setTerms(loadTerms());

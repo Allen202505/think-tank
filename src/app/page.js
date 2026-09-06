@@ -56,8 +56,8 @@ function countVotes(items) {
 // 轻量 Markdown 渲染：把 AI 输出里常见的 **加粗** / - 列表 转成可读样式（仅用于解释浮层）
 function inlineRich(seg, keyBase) {
   const normalized = String(seg).replace(/\*\*\*/g, '**'); // ***x*** → **x**
-  const parts = normalized.split(/\*\*(.+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+  const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 function renderExplainText(text) {
   const lines = String(text || '').split('\n');

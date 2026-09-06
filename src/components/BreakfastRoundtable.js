@@ -15,7 +15,7 @@ import { syncPoolsOnLogin } from '../lib/userPools';
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 
 // ── 定调/相关性徽章：把回复开头的 🟢🟡⚪🔴 从正文剥离，右上角渲染成徽章（样式同大师PK） ──

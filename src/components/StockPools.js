@@ -76,7 +76,7 @@ function fmtRatingSummary(summary) {
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 
 const REVIEW_CACHE_KEY = 'thinktank_review_cache';

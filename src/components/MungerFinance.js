@@ -9,7 +9,7 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 
 // 长段落按句末标点兜底断行（AI 忘记分段时的兜底，避免整段挤成一坨）
@@ -23,7 +23,7 @@ function breakSentences(line) {
 function inlineRich(seg) {
   const normalized = String(seg || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 // 块级：保留换行/列表/【标题】，用于举手提问抽屉内的大师回复
 function renderRich(text) {

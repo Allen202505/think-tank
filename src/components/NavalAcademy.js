@@ -78,7 +78,7 @@ function deriveTermName(q) {
 function inlineRich(seg, keyBase) {
   const normalized = String(seg || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : p));
+  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
 }
 // 块级渲染：保留换行 / 列表 / 【标题】 / 分割线
 function renderRich(text, keyBase) {
@@ -473,13 +473,13 @@ export default function NavalAcademy() {
         {mode === 'ask' && (
           <div className="nv-ask">
             <div className="mg-card nv-ask-card">
-              <div className="mg-card-label">想搞懂哪个知识点？</div>
+              <div className="mg-card-label">想弄懂哪个投资/财务问题？「是不是/为什么」的判断也能直接问</div>
               <textarea
                 className="mg-input nv-input"
                 rows={3}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="例如：什么是自由现金流？ROE 和 ROIC 有什么区别？"
+                placeholder="例如：什么是自由现金流？新三板是不是企业能把内部股权拿来交易？ROE 和 ROIC 有什么区别？"
                 onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendAsk(undefined, { fresh: true }); } }}
               />
               <div className="mg-foot">
