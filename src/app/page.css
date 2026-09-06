@@ -75,15 +75,6 @@
 .invite-input::placeholder { color: #c6c0b4; opacity: 1; }
 [data-theme="light"] .invite-input::placeholder { color: #a8a295; }
 .error-msg { margin-top: 8px; padding: 9px 13px; background: rgba(224,85,85,0.08); border: 1px solid #c04040; color: var(--bear); font-size: 12px; border-radius: 6px; font-family: var(--font-mono); }
-.quick-ask-row { display: flex; justify-content: flex-start; margin-top: 10px; }
-.quick-ask-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(88, 101, 242, 0.08); color: var(--accent, var(--accent-fg));
-  border: 1px dashed var(--accent-dim, rgba(88,101,242,0.35)); border-radius: 999px;
-  padding: 7px 14px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s;
-}
-.quick-ask-chip:hover { background: var(--accent, #5865f2); color: #fffdf5; border-color: var(--accent, #5865f2); }
 .question-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 10px; gap: 10px; flex-wrap: wrap; }
 .btn-submit { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); padding: 10px 24px; font-family: var(--font-sans); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 6px; transition: transform 0.15s, box-shadow 0.15s, filter 0.15s; }
 .btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.35); filter: brightness(1.06); }
