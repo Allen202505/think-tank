@@ -12,6 +12,7 @@ import { NAVAL } from '../lib/navalPrompts';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, upsertTerm, pushTermsCloud, notifyTermsChanged, addTermHighlight } from '../lib/navalTerms';
+import { renderInlineRich } from '../lib/renderInlineMd';
 import TermLibraryModal from './TermLibraryModal';
 
 const LS_KEY = 'thinktank_naval_issues';
@@ -74,33 +75,9 @@ function deriveTermName(q) {
   return (s && s.trim()) || String(q || '').trim();
 }
 
-// 把已「划线」的原文片段在渲染时加上下划线（支持多段、去重、正则转义）
-function underlineText(seg, highlights, keyBase) {
-  const hs = (highlights || []).filter((h) => typeof h === 'string' && h.trim());
-  if (!seg || !hs.length) return seg;
-  const escaped = hs.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a, b) => b.length - a.length);
-  const re = new RegExp('(' + escaped.join('|') + ')', 'g');
-  const out = [];
-  let last = 0;
-  let m;
-  let k = 0;
-  while ((m = re.exec(seg))) {
-    if (m.index > last) out.push(seg.slice(last, m.index));
-    out.push(<span key={`${keyBase}-hl${k++}`} className="nv-hl-underline">{m[0]}</span>);
-    last = re.lastIndex;
-  }
-  if (last < seg.length) out.push(seg.slice(last));
-  return out.length ? out : seg;
-}
-
-// 内联：**加粗**
+// 内联：**加粗** 且支持「划线」下划线（跨加粗边界也能正确标注）
 function inlineRich(seg, keyBase, highlights) {
-  const normalized = String(seg || '').replace(/\*\*\*/g, '**');
-  const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => {
-    const inner = underlineText(String(p).replace(/\*\*/g, ''), highlights, `${keyBase}-${i}`);
-    return i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{inner}</strong> : inner;
-  });
+  return renderInlineRich(seg, keyBase, highlights);
 }
 // 块级渲染：保留换行 / 列表 / 【标题】 / 分割线
 function renderRich(text, keyBase, highlights) {

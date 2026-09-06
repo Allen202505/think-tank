@@ -7,33 +7,11 @@ import { useAuth } from '../lib/authProvider';
 import { useDrawerResize, KEY_TERM_LIB, DEFAULT_TERM_LIB } from '../lib/drawerResize';
 import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, updateTermContent, notifyTermsChanged, syncTermsOnLogin, pushTermsCloud } from '../lib/navalTerms';
+import { renderInlineRich } from '../lib/renderInlineMd';
 
-// 内联/块级渲染（复用简单 markdown）
-// 把已「划线」的原文片段在渲染时加上下划线（与纳瓦尔回答保持一致）
-function underlineInline(seg, highlights, k) {
-  const hs = (highlights || []).filter((h) => typeof h === 'string' && h.trim());
-  if (!seg || !hs.length) return seg;
-  const escaped = hs.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a, b) => b.length - a.length);
-  const re = new RegExp('(' + escaped.join('|') + ')', 'g');
-  const out = [];
-  let last = 0;
-  let m;
-  let idx = 0;
-  while ((m = re.exec(seg))) {
-    if (m.index > last) out.push(seg.slice(last, m.index));
-    out.push(<span key={`${k}-hl${idx++}`} className="nv-hl-underline">{m[0]}</span>);
-    last = re.lastIndex;
-  }
-  if (last < seg.length) out.push(seg.slice(last));
-  return out.length ? out : seg;
-}
-
+// 内联：**加粗** 且支持「划线」下划线（跨加粗边界也能正确标注）
 function inlineRich(seg, k, highlights) {
-  const parts = String(seg || '').split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => {
-    const inner = underlineInline(String(p).replace(/\*\*/g, ''), highlights, `${k}-${i}`);
-    return i % 2 === 1 ? <strong key={`${k}-${i}`}>{inner}</strong> : inner;
-  });
+  return renderInlineRich(seg, k, highlights);
 }
 
 export default function TermLibraryModal({ open, onClose }) {
@@ -99,7 +77,7 @@ export default function TermLibraryModal({ open, onClose }) {
       setTerms(list);
       notifyTermsChanged();
       pushCloud(list);
-      setActive({ name: t.name, content: data.result.content, keyPoint: data.result.keyPoint || '' });
+      setActive({ name: t.name, content: data.result.content, keyPoint: data.result.keyPoint || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
     } catch (e) {
       const em = String((e && e.message) || e);
       setError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '生成讲解失败，请重试'));
