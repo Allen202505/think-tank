@@ -2011,6 +2011,16 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
 }
 .nv-hl-btn:hover { background: var(--accent); color: #fffdf5; border-color: var(--accent); }
+/* 已「划线」的原文片段：下划线 + 轻微底色，收录到笔记后也能直接看到 */
+.nv-hl-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent);
+  background: rgba(88, 101, 242, 0.12);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 
 .term-lib-highlights {
   margin-top: 14px;

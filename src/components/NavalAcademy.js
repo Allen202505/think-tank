@@ -74,14 +74,36 @@ function deriveTermName(q) {
   return (s && s.trim()) || String(q || '').trim();
 }
 
+// 把已「划线」的原文片段在渲染时加上下划线（支持多段、去重、正则转义）
+function underlineText(seg, highlights, keyBase) {
+  const hs = (highlights || []).filter((h) => typeof h === 'string' && h.trim());
+  if (!seg || !hs.length) return seg;
+  const escaped = hs.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((a, b) => b.length - a.length);
+  const re = new RegExp('(' + escaped.join('|') + ')', 'g');
+  const out = [];
+  let last = 0;
+  let m;
+  let k = 0;
+  while ((m = re.exec(seg))) {
+    if (m.index > last) out.push(seg.slice(last, m.index));
+    out.push(<span key={`${keyBase}-hl${k++}`} className="nv-hl-underline">{m[0]}</span>);
+    last = re.lastIndex;
+  }
+  if (last < seg.length) out.push(seg.slice(last));
+  return out.length ? out : seg;
+}
+
 // 内联：**加粗**
-function inlineRich(seg, keyBase) {
+function inlineRich(seg, keyBase, highlights) {
   const normalized = String(seg || '').replace(/\*\*\*/g, '**');
   const parts = normalized.split(/\*\*([\s\S]+?)\*\*/g);
-  return parts.map((p, i) => (i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{p}</strong> : String(p).replace(/\*\*/g, '')));
+  return parts.map((p, i) => {
+    const inner = underlineText(String(p).replace(/\*\*/g, ''), highlights, `${keyBase}-${i}`);
+    return i % 2 === 1 ? <strong key={`${keyBase}-${i}`}>{inner}</strong> : inner;
+  });
 }
 // 块级渲染：保留换行 / 列表 / 【标题】 / 分割线
-function renderRich(text, keyBase) {
+function renderRich(text, keyBase, highlights) {
   const lines = String(text || '').split('\n');
   const out = [];
   let list = [];
@@ -90,13 +112,13 @@ function renderRich(text, keyBase) {
     const line = raw.trim();
     if (!line) { flush(); continue; }
     const marker = line.match(/^【(.+?)】$/);
-    if (marker) { flush(); out.push(<div key={`${keyBase}-h${out.length}`} className="explain-inline-head">{inlineRich(marker[1], `${keyBase}-h${out.length}`)}</div>); continue; }
+    if (marker) { flush(); out.push(<div key={`${keyBase}-h${out.length}`} className="explain-inline-head">{inlineRich(marker[1], `${keyBase}-h${out.length}`, highlights)}</div>); continue; }
     if (/^[-*_]{3,}$/.test(line)) { flush(); out.push(<div key={`${keyBase}-hr${out.length}`} className="markdown-hr" />); continue; }
     const bullet = line.match(/^[-*•]\s+(.*)/);
-    if (bullet) { list.push(<li key={`${keyBase}-li${list.length}`}>{inlineRich(bullet[1], `${keyBase}-li${list.length}`)}</li>); continue; }
+    if (bullet) { list.push(<li key={`${keyBase}-li${list.length}`}>{inlineRich(bullet[1], `${keyBase}-li${list.length}`, highlights)}</li>); continue; }
     flush();
     const numbered = line.match(/^\d+[.、)]\s+(.*)/);
-    out.push(<p key={`${keyBase}-p${out.length}`} className="explain-text">{inlineRich(numbered ? numbered[1] : line, `${keyBase}-p${out.length}`)}</p>);
+    out.push(<p key={`${keyBase}-p${out.length}`} className="explain-text">{inlineRich(numbered ? numbered[1] : line, `${keyBase}-p${out.length}`, highlights)}</p>);
   }
   flush();
   return out;
@@ -503,7 +525,11 @@ export default function NavalAcademy() {
                         <span className="mg-speech-name">{NAVAL.name}</span>
                         <span className="mg-speech-tag">{NAVAL.title}</span>
                       </div>
-                      <div className="mg-speech-body" onMouseUp={(e) => handleAnswerMouseUp(e, prevQ, m)}>{renderRich(m.content, `ask${i}`)}</div>
+                      <div className="mg-speech-body" onMouseUp={(e) => handleAnswerMouseUp(e, prevQ, m)}>{(() => {
+  const termName = deriveTermName(prevQ);
+  const hlTexts = termName ? ((terms.find((t) => t.name === termName) || {}).highlights || []).map((h) => h.text).filter(Boolean) : [];
+  return renderRich(m.content, `ask${i}`, hlTexts);
+})()}</div>
                       {m.keyPoint && (
                         <div className="speech-key"><span className="speech-key-text">💡 {m.keyPoint}</span></div>
                       )}
