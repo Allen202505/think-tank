@@ -8,7 +8,8 @@ import { buildAskPrompt } from '../../../../lib/navalPrompts';
 function extractFormulaFromContent(content) {
   const text = String(content || '');
   const lines = text.split('\n').map((s) => s.trim()).filter(Boolean);
-  const isFormula = (s) => /[=＝]/.test(s) && /[÷×*/\-+%]/.test(s) && s.length <= 90;
+  const isFormula = (s) =>
+    /[=＝]/.test(s) && /[÷×*/\-+%]/.test(s) && /[\u4e00-\u9fa5A-Za-z]/.test(s) && s.length <= 90;
   // 1) 含“公式/机制”关键词或“=且带运算符”的行
   for (const line of lines) {
     if (/公式|机制|计算方式|=|＝/.test(line) && isFormula(line)) return line;
