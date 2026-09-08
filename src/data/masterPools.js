@@ -2,15 +2,6 @@
 // 仅供学习演示；池内为大师公开重仓/公开推荐过的标的（A股 6 位代码 / 美股代码 / 港股代码）
 export const PRESET_POOLS = [
   {
-    id: 'pool_buffett',
-    name: '巴菲特',
-    source: '伯克希尔 13F 持仓（2026-06-30 披露）',
-    preset: true,
-    note: '以美股为主（美元计价，组合统计为混合口径、vs 沪深300 仅参考）；持仓价为公开报道的估算成本，仅部分重仓股可查',
-    symbols: ['002594', 'AAPL', 'AXP', 'GOOGL', 'KO', 'BAC', 'CVX', 'OXY', 'CB', 'MCO', 'KHC', 'DAL', 'LEN'],
-    costs: { AAPL: 35, KO: 3.25, AXP: 8.49, MCO: 10.05 }, // 公开报道的估算成本（13F 不披露成本，仅供参考）
-  },
-  {
     id: 'pool_cambrian',
     name: '寒武纪的鳄鱼',
     source: '寒武纪的鳄鱼笔记/公开选股（用户整理）',
@@ -27,6 +18,15 @@ export const PRESET_POOLS = [
       '300470', '600618', '600298', '603970', '600819', '688295', '600160', '002827',
       '601600',
     ],
+  },
+  {
+    id: 'pool_buffett',
+    name: '巴菲特',
+    source: '伯克希尔 13F 持仓（2026-06-30 披露）',
+    preset: true,
+    note: '以美股为主（美元计价，组合统计为混合口径、vs 沪深300 仅参考）；持仓价为公开报道的估算成本，仅部分重仓股可查',
+    symbols: ['002594', 'AAPL', 'AXP', 'GOOGL', 'KO', 'BAC', 'CVX', 'OXY', 'CB', 'MCO', 'KHC', 'DAL', 'LEN'],
+    costs: { AAPL: 35, KO: 3.25, AXP: 8.49, MCO: 10.05 }, // 公开报道的估算成本（13F 不披露成本，仅供参考）
   },
   {
     id: 'pool_linyuan',
