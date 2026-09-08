@@ -142,7 +142,6 @@ const DAY_OPTIONS = [
   { label: '30天', v: 30 },
   { label: '60天', v: 60 },
   { label: '120天', v: 120 },
-  { label: '半年', v: 120 },
   { label: '一年', v: 250 },
   { label: '两年', v: 500 },
   { label: '三年', v: 750 },
