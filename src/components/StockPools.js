@@ -497,18 +497,17 @@ export default function StockPools() {
     if (!detail || !stats || !detail.temperature) return items;
     const t = detail.temperature;
     if (isShort && short) {
-      const defs = [
-        { k: 'today', label: '今日鱼池', d: short.today },
-        { k: 'yesterday', label: '昨日鱼池', d: short.yesterday },
-        { k: 'week', label: '本周鱼池', d: short.week },
-      ];
-      for (const { k, label, d } of defs) {
-        if (d && t[k] != null) {
-          items.push({
-            key: k, label, score: t[k],
-            detail: `${fmtPct(d.ret)} · 上涨 ${d.up ?? 0} / 下跌 ${d.down ?? 0} · vs 上证 ${fmtPct(d.indexRet)}`,
-          });
-        }
+      // 只展示当前选中周期的那一支（今天→今日鱼池，昨天→昨日鱼池，本周→本周鱼池）
+      const pick = {
+        today: { label: '今日鱼池', d: short.today },
+        yesterday: { label: '昨日鱼池', d: short.yesterday },
+        week: { label: '本周鱼池', d: short.week },
+      }[days];
+      if (pick && pick.d && t[days] != null) {
+        items.push({
+          key: days, label: pick.label, score: t[days],
+          detail: `${fmtPct(pick.d.ret)} · 上涨 ${pick.d.up ?? 0} / 下跌 ${pick.d.down ?? 0} · vs 上证 ${fmtPct(pick.d.indexRet)}`,
+        });
       }
     } else if (t.period != null) {
       const opt = DAY_OPTIONS.find((o) => o.v === days);
