@@ -1106,13 +1106,13 @@ export default function StockPools() {
         <div className="modal-overlay" onMouseDown={() => setFlowerOpen(false)}>
           <div className="modal-content sp-del-modal" onMouseDown={(e) => e.stopPropagation()}>
             <button type="button" className="modal-close" onClick={() => setFlowerOpen(false)} aria-label="关闭">✕</button>
-            <div className="sp-del-modal-title">🌸 今天赚到啦，送你一朵小红花</div>
+            <div className="sp-del-modal-title">今日红利，兑换一朵小红花 🌸</div>
             <div className="sp-del-modal-text">
-              今天运气不错，你的持仓是红的（今日 {dayRed ? fmtPct(dayRet) : '—'}）。
-              赚钱的日子，不妨把好运分一点出去——一朵小红花、一份小心意，
-              让今天的好心情也温暖到需要的人。
+              <p>持仓飘红，是市场给你的小小回响。</p>
+              <p>我们相信，好运是一种会流动的能量——分一点给需要的人，快乐便有了双倍的重量。</p>
+              <p>一朵小红花、一顿简餐、一份暖冬包裹……心意没有大小，只有到达。</p>
+              <p className="sp-flower-italic">公益纯属自愿，请依心意和能力而行。您的善意，已比涨幅更动人。</p>
             </div>
-            <div className="sp-flower-note">公益为自愿行为，与本网站无关 · 理性捐赠，量力而行，心意最重要。</div>
             <div className="mg-foot sp-del-modal-foot">
               <button type="button" className="mg-btn sp-del-cancel" onClick={() => setFlowerOpen(false)}>再想想</button>
               <a className="mg-btn sp-flower-go" href="https://gongyi.qq.com/" target="_blank" rel="noopener noreferrer" onClick={() => setFlowerOpen(false)}>去腾讯公益 →</a>

@@ -2333,3 +2333,8 @@
 /* 弹窗沿用站内删除确认框同款（sp-del-modal）风格：仅补充文案/按钮细节 */
 .sp-flower-note { font-size: 11px; line-height: 1.7; color: var(--text-muted); margin-top: 10px; }
 a.sp-flower-go { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* 小红花弹窗 · 新文案排版 */
+.sp-del-modal-text p { margin: 0 0 8px; }
+.sp-del-modal-text p:last-child { margin-bottom: 0; }
+.sp-del-modal-text .sp-flower-italic { font-style: italic; color: var(--text-muted); margin-top: 8px; }
