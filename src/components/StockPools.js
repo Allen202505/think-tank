@@ -692,12 +692,16 @@ export default function StockPools() {
                           const meta = tempMeta(it.score);
                           return (
                             <div key={it.key} className={`sp-thermo ${meta.key}`} title={meta.hint}>
-                              <div className="sp-thermo-score">{Math.round(it.score)}<span className="sp-thermo-deg">°</span></div>
-                              <div className="sp-thermo-tube">
-                                <div className="sp-thermo-fill" style={{ height: `${Math.max(2, Math.min(100, it.score))}%` }} />
+                              <div className="sp-thermo-top">
+                                <div className="sp-thermo-name">
+                                  <span className="sp-thermo-label">{it.label}</span>
+                                  <span className="sp-thermo-level">{meta.label}</span>
+                                </div>
+                                <div className="sp-thermo-score">{Math.round(it.score)}<span className="sp-thermo-deg">°</span></div>
                               </div>
-                              <div className="sp-thermo-label">{it.label}</div>
-                              <div className="sp-thermo-level">{meta.label}</div>
+                              <div className="sp-thermo-track">
+                                <div className="sp-thermo-fill" style={{ width: `${Math.max(2, Math.min(100, it.score))}%` }} />
+                              </div>
                               <div className="sp-thermo-detail">{it.detail}</div>
                             </div>
                           );
