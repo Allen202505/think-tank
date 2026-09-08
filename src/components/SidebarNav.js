@@ -1,14 +1,17 @@
 'use client';
 
-// 左侧极简纵向 Tab 导航：带小图标，默认选中大师PK；能力专项为未来占位（弱化置灰）
+import NavIcon from './Icons';
+
+// 左侧极简纵向 Tab 导航：黑白线性图标，默认选中大师PK
 export default function SidebarNav({ tab, onSwitch, t }) {
   const items = [
-    { id: 'ask', icon: '⚔️', label: t('tabsAsk') },
-    { id: 'breakfast', icon: '📰', label: t('tabsBreakfast') },
-    { id: 'munger', icon: '📖', label: t('tabsMunger') },
-    { id: 'zen', icon: '🧘', label: t('tabsZen') },
-    { id: 'pools', icon: '🎯', label: t('tabsPools') },
-    { id: 'naval', icon: '📚', label: t('tabsNaval') },
+    { id: 'ask', label: t('tabsAsk') },
+    { id: 'breakfast', label: t('tabsBreakfast') },
+    { id: 'munger', label: t('tabsMunger') },
+    { id: 'zen', label: t('tabsZen') },
+    { id: 'pools', label: t('tabsPools') },
+    { id: 'radar', label: t('tabsRadar') },
+    { id: 'naval', label: t('tabsNaval') },
   ];
   return (
     <nav className="vt-nav" aria-label="主导航">
@@ -20,11 +23,12 @@ export default function SidebarNav({ tab, onSwitch, t }) {
           onClick={() => onSwitch(it.id)}
           aria-pressed={tab === it.id}
         >
-          <span className="vt-icon" aria-hidden="true">{it.icon}</span>
+          <span className="vt-icon" aria-hidden="true">
+            <NavIcon id={it.id} size={18} />
+          </span>
           <span className="vt-label">{it.label}</span>
         </button>
       ))}
-
     </nav>
   );
 }

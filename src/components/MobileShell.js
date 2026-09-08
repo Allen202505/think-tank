@@ -1,15 +1,18 @@
 'use client';
 
+import NavIcon from './Icons';
+
 // 移动端壳层：顶部极简 header + 底部固定 Tab（桌面端隐藏）
 // 默认进入大师PK；header 提供「功能大厅」入口；底部 Tab 一键切换 5 大模块。
 export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, onOpenHistory, onToggleQr, onOpenHall, onOpenAiSettings, onOpenAuth }) {
   const items = [
-    { id: 'ask', icon: '⚔️', label: t('tabAskShort') },
-    { id: 'breakfast', icon: '📰', label: t('tabBreakfastShort') },
-    { id: 'munger', icon: '📖', label: t('tabMungerShort') },
-    { id: 'zen', icon: '🧘', label: t('tabZenShort') },
-    { id: 'pools', icon: '🎯', label: t('tabPoolsShort') },
-    { id: 'naval', icon: '📚', label: t('tabNavalShort') },
+    { id: 'ask', label: t('tabAskShort') },
+    { id: 'breakfast', label: t('tabBreakfastShort') },
+    { id: 'munger', label: t('tabMungerShort') },
+    { id: 'zen', label: t('tabZenShort') },
+    { id: 'pools', label: t('tabPoolsShort') },
+    { id: 'radar', label: t('tabRadarShort') },
+    { id: 'naval', label: t('tabNavalShort') },
   ];
 
   return (
@@ -62,7 +65,7 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
             onClick={() => onSwitch(it.id)}
             aria-pressed={tab === it.id}
           >
-            <span className="mobile-tab-icon" aria-hidden="true">{it.icon}</span>
+            <span className="mobile-tab-icon" aria-hidden="true"><NavIcon id={it.id} size={18} /></span>
             <span className="mobile-tab-label">{it.label}</span>
           </button>
         ))}

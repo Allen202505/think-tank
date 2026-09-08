@@ -1,16 +1,19 @@
 'use client';
 
+import NavIcon from './Icons';
+
 // 功能大厅（移动端）：全屏浮层，5 大模块入口大卡，点卡片直达对应能力
 export default function FeatureHall({ open, onClose, onSwitch, t }) {
   if (!open) return null;
 
   const cards = [
-    { id: 'ask', icon: '⚔️', name: t('tabsAsk'), desc: t('hallAskDesc') },
-    { id: 'breakfast', icon: '📰', name: t('tabsBreakfast'), desc: t('hallBreakfastDesc') },
-    { id: 'munger', icon: '📖', name: t('tabsMunger'), desc: t('hallMungerDesc') },
-    { id: 'zen', icon: '🧘', name: t('tabsZen'), desc: t('hallZenDesc') },
-    { id: 'pools', icon: '🎯', name: t('tabsPools'), desc: t('hallPoolsDesc') },
-    { id: 'naval', icon: '📚', name: t('tabsNaval'), desc: t('hallNavalDesc') },
+    { id: 'ask', name: t('tabsAsk'), desc: t('hallAskDesc') },
+    { id: 'breakfast', name: t('tabsBreakfast'), desc: t('hallBreakfastDesc') },
+    { id: 'munger', name: t('tabsMunger'), desc: t('hallMungerDesc') },
+    { id: 'zen', name: t('tabsZen'), desc: t('hallZenDesc') },
+    { id: 'pools', name: t('tabsPools'), desc: t('hallPoolsDesc') },
+    { id: 'radar', name: t('tabsRadar'), desc: t('hallRadarDesc') },
+    { id: 'naval', name: t('tabsNaval'), desc: t('hallNavalDesc') },
   ];
 
   return (
@@ -30,7 +33,7 @@ export default function FeatureHall({ open, onClose, onSwitch, t }) {
             className="feature-hall-card"
             onClick={() => { onSwitch(c.id); onClose(); }}
           >
-            <span className="feature-hall-card-icon" aria-hidden="true">{c.icon}</span>
+            <span className="feature-hall-card-icon" aria-hidden="true"><NavIcon id={c.id} size={26} /></span>
             <span className="feature-hall-card-name">{c.name}</span>
             <span className="feature-hall-card-desc">{c.desc}</span>
           </button>
