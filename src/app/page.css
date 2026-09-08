@@ -1236,8 +1236,10 @@
 .sp-stat-sub { font-size: 11px; color: var(--text-muted); }
 .up { color: #d13b3b; }
 .down { color: #1e9e5a; }
-.sp-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
-.sp-table th, .sp-table td { padding: 9px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-subtle); }
+.sp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sp-table { width: 100%; min-width: 1180px; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+.sp-table th, .sp-table td { padding: 9px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+.sp-name { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 .sp-table th { background: var(--bg-input); color: var(--text-muted); font-weight: 700; font-size: 12px; }
 .sp-table td.num, .sp-table th.num { text-align: left; font-family: var(--font-mono); }
 .sp-table tr:last-child td { border-bottom: 0; }
@@ -1471,6 +1473,8 @@
   .sp-back { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; background: transparent; border: 1px solid var(--border-subtle); color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
   .sp-back-hidden { display: none !important; }
   .sp-workspace.has-active .sp-side { display: none; }
+  .sp-table { min-width: 0; }
+  .sp-table td { white-space: normal; }
   .sp-table thead { display: none; }
   .sp-table, .sp-table tbody { display: block; }
   .sp-table tbody tr {
@@ -1899,6 +1903,9 @@
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: all .15s ease;
 }
 .sp-rating-btn:hover { border-color: var(--accent-dim); background: var(--accent-bg); }

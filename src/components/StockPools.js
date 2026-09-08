@@ -71,6 +71,25 @@ function fmtRatingSummary(summary) {
   }
   return parts.join(' · ') || '—';
 }
+// 区间单元格：r 未返回=加载中；ok:false=无数据；展示 两位小数 + 悬浮日期
+function rangeValCell(r, key, dateKey) {
+  if (!r) return <span className="sp-rating-loading">…</span>;
+  if (r.ok === false) return <span className="sp-rating-na">—</span>;
+  const n = r && r[key];
+  if (!Number.isFinite(Number(n))) return <span className="sp-rating-na">—</span>;
+  const d = r && r[dateKey] ? `（日期 ${r[dateKey]}）` : '';
+  return <span className="mono" title={d || undefined}>{Number(n).toFixed(2)}</span>;
+}
+
+// 表格里的紧凑评级：只留结论+机构数（短/长目标价等明细在抽屉里看），避免挤占名称列
+function fmtRatingCompact(summary) {
+  if (!summary) return '评级';
+  const r = summary.rating;
+  if (r && (r.rating || r.orgNum)) return [r.rating, r.orgNum ? `${r.orgNum}家` : ''].filter(Boolean).join('·') || '评级';
+  if (summary.short) return `目标 ¥${fmtPrice(summary.short.price)}`;
+  if (summary.long) return `目标 ¥${fmtPrice(summary.long.price)}`;
+  return '评级';
+}
 
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>
 function renderInline(text, keyBase) {
@@ -141,6 +160,8 @@ export default function StockPools() {
   const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
   const [ratingDrawer, setRatingDrawer] = useState(null); // { code, name, r }
   const fetchedRatingCodes = useRef(new Set()); // 已请求过的代码（避免重复拉取）
+  const [ranges, setRanges] = useState({});        // code -> { histLow, histHigh, yLow, yHigh, ... }（历史/近一年区间）
+  const fetchedRangeCodes = useRef(new Set());     // 已请求过区间数据的代码
   // 标记本地数据是否已加载完成：加载完成前禁止写 localStorage，避免用初始空数组覆盖已保存的数据
   const [hydrated, setHydrated] = useState(false);
 
@@ -248,6 +269,35 @@ export default function StockPools() {
           fetchRatings(st.code);
         }
       });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail]);
+
+  // 历史/近一年区间：池子加载后按小批量懒加载（美股/港股/A股都支持），避免一次打爆数据源
+  const fetchRange = useCallback(async (code) => {
+    try {
+      const res = await fetch(`/api/pools/range?code=${encodeURIComponent(code)}`);
+      const j = await res.json();
+      setRanges((prev) => ({ ...prev, [code]: j && j.ok ? { ok: true, ...j.result } : { ok: false } }));
+    } catch (e) {
+      setRanges((prev) => ({ ...prev, [code]: { ok: false } }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (detail && detail.stocks && detail.stocks.length) {
+      const need = detail.stocks
+        .map((st) => st.code)
+        .filter((code) => code && !fetchedRangeCodes.current.has(code));
+      if (need.length) {
+        need.forEach((code) => fetchedRangeCodes.current.add(code));
+        const runBatch = async (i) => {
+          if (i >= need.length) return;
+          await Promise.all(need.slice(i, i + 6).map(fetchRange));
+          runBatch(i + 6);
+        };
+        runBatch(0);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
@@ -611,10 +661,11 @@ export default function StockPools() {
                     </div>
                   )}
 
+                  <div className="sp-table-scroll">
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
+                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -627,10 +678,14 @@ export default function StockPools() {
                         return (
                           <tr key={s.code || s.name}>
                             <td className="mono" data-label="代码">{s.code}</td>
-                            <td data-label="名称">{s.name || '—'}</td>
+                            <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="今日" className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
-<td data-label="机构评级">
+                            <td data-label="历史最低">{rangeValCell(ranges[s.code], 'histLow', 'histLowDate')}</td>
+                            <td data-label="历史最高">{rangeValCell(ranges[s.code], 'histHigh', 'histHighDate')}</td>
+                            <td data-label="近一年最低">{rangeValCell(ranges[s.code], 'yLow', 'yLowDate')}</td>
+                            <td data-label="近一年最高">{rangeValCell(ranges[s.code], 'yHigh', 'yHighDate')}</td>
+                            <td data-label="机构评级">
   {s.code && isACode(s.code) ? (
     ratings[s.code] === undefined ? (
       <span className="sp-rating-loading">…</span>
@@ -638,10 +693,10 @@ export default function StockPools() {
       <button
         type="button"
         className="sp-rating-btn"
-        title="查看机构评级与目标价明细"
         onClick={() => setRatingDrawer({ code: s.code, name: s.name, r: ratings[s.code] })}
+        title={`${fmtRatingSummary(ratings[s.code].summary)}（点击查看明细）`}
       >
-        {fmtRatingSummary(ratings[s.code].summary)}
+        {fmtRatingCompact(ratings[s.code].summary)}
       </button>
     ) : (
       <span className="sp-rating-na">—</span>
@@ -669,6 +724,7 @@ export default function StockPools() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </>
               )}
             </div>
