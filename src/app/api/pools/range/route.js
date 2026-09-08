@@ -47,9 +47,10 @@ async function fetchEmLong(secid, fqt = 1) {
   for (const line of rows) {
     const p = String(line).split(',');
     const date = p[0];
+    const close = Number(p[2]);
     const high = Number(p[3]);
     const low = Number(p[4]);
-    if (date && Number.isFinite(high) && Number.isFinite(low) && high > 0) bars.push({ date, high, low });
+    if (date && close > 0 && Number.isFinite(high) && Number.isFinite(low) && high > 0) bars.push({ date, close, high, low });
   }
   return bars.length ? bars : null;
 }
@@ -72,8 +73,8 @@ async function fetchTencentLong(secid, fqt = true) {
   const rows = fqt ? (node.qfqday || []) : (node.day || []);
   const bars = rows
     .filter((b) => Array.isArray(b) && b.length >= 5)
-    .map((b) => ({ date: String(b[0]), high: Number(b[3]), low: Number(b[4]) }))
-    .filter((b) => Number.isFinite(b.high) && Number.isFinite(b.low) && b.high > 0);
+    .map((b) => ({ date: String(b[0]), close: Number(b[2]), high: Number(b[3]), low: Number(b[4]) }))
+    .filter((b) => Number.isFinite(b.close) && b.close > 0 && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high > 0);
   return bars.length ? bars : null;
 }
 
@@ -90,8 +91,8 @@ async function fetchSinaLong(secid) {
     const json = await res.json();
     if (!Array.isArray(json)) return null;
     const bars = json
-      .map((b) => ({ date: String(b.day || '').slice(0, 10), high: Number(b.high), low: Number(b.low) }))
-      .filter((b) => b.date && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high > 0);
+      .map((b) => ({ date: String(b.day || '').slice(0, 10), close: Number(b.close), high: Number(b.high), low: Number(b.low) }))
+      .filter((b) => b.date && Number.isFinite(b.close) && b.close > 0 && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high > 0);
     return bars.length ? bars : null;
   } catch (e) {
     return null;
@@ -127,7 +128,8 @@ async function fetchYahooLong(info, useAdj = true) {
     const f = useAdj && adj[i] != null && adj[i] > 0 && close > 0 ? adj[i] / close : 1;
     const high = rawH * f;
     const low = rawL * f;
-    if (high > 0 && low > 0 && high >= low) bars.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), high, low });
+    const closeAdj = close * f;
+    if (high > 0 && low > 0 && high >= low && closeAdj > 0) bars.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: closeAdj, high, low });
   }
   if (bars.length < 20) throw new Error('bars too few');
   return bars;
@@ -187,6 +189,15 @@ function rangeStat(bars) {
   };
 }
 
+// 现价在收盘价分布中的分位（%）：有多少历史交易日收盘价 ≤ 现价
+function rankPct(bars, price) {
+  if (!Array.isArray(bars) || !bars.length || price == null || !Number.isFinite(price)) return null;
+  const closes = bars.filter((b) => b.close > 0).map((b) => b.close);
+  if (!closes.length) return null;
+  const n = closes.filter((c) => c <= price).length;
+  return Math.round((n / closes.length) * 1000) / 10; // 保留 1 位小数
+}
+
 export async function GET(request) {
   try {
     const _rl = rateLimit('pools-range:' + getClientIp(request), { limit: 600, windowMs: 60000 });
@@ -194,6 +205,8 @@ export async function GET(request) {
     const url = new URL(request.url);
     const code = String(url.searchParams.get('code') || '').trim();
     if (!code) return Response.json({ error: '缺少股票代码' }, { status: 400 });
+    const priceRaw = url.searchParams.get('price');
+    const priceParam = priceRaw != null && priceRaw.trim() !== '' ? Number(priceRaw) : null;
 
     const info = await cached(`range-info:${code}`, RANGE_TTL, async () => {
       const list = await resolveSymbols(code).catch(() => []);
@@ -208,9 +221,21 @@ export async function GET(request) {
     }));
     const stat = rangeStat(bars);
     if (!stat) return Response.json({ error: '历史区间数据不足' }, { status: 422 });
+    // 现价优先用调用方传入的最新价；没传则用 K 线最后一根收盘价兜底
+    const curPrice = priceParam != null && Number.isFinite(priceParam) ? priceParam : (bars[bars.length - 1]?.close ?? null);
+    const histPct = rankPct(bars, curPrice);
+    const yearBars = bars.slice(-250);
+    const yPct = rankPct(yearBars, curPrice);
     return Response.json({
       ok: true,
-      result: { code: info.symbol, name: info.name || info.symbol, market: info.market, ...stat },
+      result: {
+        code: info.symbol,
+        name: info.name || info.symbol,
+        market: info.market,
+        ...stat,
+        histPct,
+        yPct,
+      },
     });
   } catch (e) {
     return Response.json({ error: e.message || '服务器内部错误' }, { status: 500 });

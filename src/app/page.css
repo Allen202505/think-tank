@@ -1234,10 +1234,36 @@
 .sp-stat-val { font-size: 24px; font-weight: 800; color: var(--text); margin: 6px 0 4px; font-family: var(--font-mono); }
 .sp-stat-unit { font-size: 12px; color: var(--text-muted); font-weight: 600; }
 .sp-stat-sub { font-size: 11px; color: var(--text-muted); }
+
+/* ── 鱼池温度计 ── */
+.sp-thermo-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px 16px; }
+.sp-thermo-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.sp-thermo-title { font-size: 13px; font-weight: 700; }
+.sp-thermo-sub { font-size: 11px; color: var(--text-muted); }
+.sp-thermos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.sp-thermo { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; }
+.sp-thermo-score { font-size: 28px; font-weight: 800; font-family: var(--font-mono); line-height: 1; }
+.sp-thermo-deg { font-size: 13px; font-weight: 600; }
+.sp-thermo-tube { position: relative; width: 20px; height: 108px; border-radius: 12px; background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.11)); border: 1px solid var(--border-subtle); overflow: hidden; }
+.sp-thermo-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 0 0 10px 10px; transition: height .4s ease; }
+.sp-thermo-label { font-size: 12px; font-weight: 600; }
+.sp-thermo-level { font-size: 11px; font-weight: 700; }
+.sp-thermo-detail { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; }
+/* 冷热配色（沿用 A 股红涨绿跌习惯） */
+.sp-thermo.hot .sp-thermo-score, .sp-thermo.hot .sp-thermo-level { color: #d13b3b; }
+.sp-thermo.hot .sp-thermo-fill { background: linear-gradient(180deg, #f0683f, #d13b3b); }
+.sp-thermo.warm .sp-thermo-score, .sp-thermo.warm .sp-thermo-level { color: #e07b1f; }
+.sp-thermo.warm .sp-thermo-fill { background: linear-gradient(180deg, #f5a623, #e07b1f); }
+.sp-thermo.normal .sp-thermo-score, .sp-thermo.normal .sp-thermo-level { color: #b98a12; }
+.sp-thermo.normal .sp-thermo-fill { background: linear-gradient(180deg, #e8c453, #c79a1d); }
+.sp-thermo.cool .sp-thermo-score, .sp-thermo.cool .sp-thermo-level { color: #1e9e5a; }
+.sp-thermo.cool .sp-thermo-fill { background: linear-gradient(180deg, #4cbf82, #1e9e5a); }
+.sp-thermo.cold .sp-thermo-score, .sp-thermo.cold .sp-thermo-level { color: #3f7fd4; }
+.sp-thermo.cold .sp-thermo-fill { background: linear-gradient(180deg, #6aa3e8, #3f7fd4); }
 .up { color: #d13b3b; }
 .down { color: #1e9e5a; }
 .sp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.sp-table { width: 100%; min-width: 1180px; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+.sp-table { width: 100%; min-width: 1280px; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
 .sp-table th, .sp-table td { padding: 9px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
 .sp-name { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 .sp-table th { background: var(--bg-input); color: var(--text-muted); font-weight: 700; font-size: 12px; }

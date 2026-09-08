@@ -81,6 +81,27 @@ function rangeValCell(r, key, dateKey) {
   return <span className="mono" title={d || undefined}>{Number(n).toFixed(2)}</span>;
 }
 
+// 历史分位：现价在历史/近一年收盘价分布中的位置（0-100%）
+function rangePctCell(r) {
+  if (!r) return <span className="sp-rating-loading">…</span>;
+  if (r.ok === false || r.histPct == null || !Number.isFinite(Number(r.histPct))) return <span className="sp-rating-na">—</span>;
+  const pct = Math.round(Number(r.histPct));
+  const tip = r.yPct != null && Number.isFinite(Number(r.yPct))
+    ? `历史分位 ${pct}%（现价高于历史 ${pct}% 交易日的收盘价） · 近一年分位 ${Math.round(Number(r.yPct))}%`
+    : `历史分位 ${pct}%`;
+  return <span className="mono" title={tip}>{pct}%</span>;
+}
+
+// 温度档位：0-100 → 滚烫/温热/常温/偏凉/冰冷
+function tempMeta(score) {
+  if (score == null || !Number.isFinite(score)) return { key: 'na', label: '—', hint: '' };
+  if (score >= 80) return { key: 'hot', label: '滚烫', hint: '池水太热，注意别追高' };
+  if (score >= 60) return { key: 'warm', label: '温热', hint: '池水温热，趋势尚可' };
+  if (score >= 40) return { key: 'normal', label: '常温', hint: '不冷不热，随大盘波动' };
+  if (score >= 20) return { key: 'cool', label: '偏凉', hint: '池水偏凉，留意错杀机会' };
+  return { key: 'cold', label: '冰冷', hint: '池水冰冷，多看少动等回暖' };
+}
+
 // 表格里的紧凑评级：只留结论+机构数（短/长目标价等明细在抽屉里看），避免挤占名称列
 function fmtRatingCompact(summary) {
   if (!summary) return '评级';
@@ -274,9 +295,11 @@ export default function StockPools() {
   }, [detail]);
 
   // 历史/近一年区间：池子加载后按小批量懒加载（美股/港股/A股都支持），避免一次打爆数据源
-  const fetchRange = useCallback(async (code) => {
+  const fetchRange = useCallback(async (code, price) => {
     try {
-      const res = await fetch(`/api/pools/range?code=${encodeURIComponent(code)}`);
+      const qs = new URLSearchParams({ code });
+      if (price != null && Number.isFinite(Number(price))) qs.set('price', String(price));
+      const res = await fetch(`/api/pools/range?${qs.toString()}`);
       const j = await res.json();
       setRanges((prev) => ({ ...prev, [code]: j && j.ok ? { ok: true, ...j.result } : { ok: false } }));
     } catch (e) {
@@ -293,7 +316,10 @@ export default function StockPools() {
         need.forEach((code) => fetchedRangeCodes.current.add(code));
         const runBatch = async (i) => {
           if (i >= need.length) return;
-          await Promise.all(need.slice(i, i + 6).map(fetchRange));
+          await Promise.all(need.slice(i, i + 6).map((code) => {
+            const st = detail.stocks.find((x) => x.code === code);
+            return fetchRange(code, st && st.price);
+          }));
           runBatch(i + 6);
         };
         runBatch(0);
@@ -466,6 +492,37 @@ export default function StockPools() {
   const rangeActive = RANGE_OPTIONS.find((o) => o.v === days);
   const isShort = typeof days !== 'number';
 
+  // 鱼池温度计条目：短周期同时给 今日/昨日/本周；区间模式给当前所选周期
+  const tempItems = (() => {
+    const items = [];
+    if (!detail || !stats || !detail.temperature) return items;
+    const t = detail.temperature;
+    if (isShort && short) {
+      const defs = [
+        { k: 'today', label: '今日鱼池', d: short.today },
+        { k: 'yesterday', label: '昨日鱼池', d: short.yesterday },
+        { k: 'week', label: '本周鱼池', d: short.week },
+      ];
+      for (const { k, label, d } of defs) {
+        if (d && t[k] != null) {
+          items.push({
+            key: k, label, score: t[k],
+            detail: `${fmtPct(d.ret)} · 上涨 ${d.up ?? 0} / 下跌 ${d.down ?? 0} · vs 上证 ${fmtPct(d.indexRet)}`,
+          });
+        }
+      }
+    } else if (t.period != null) {
+      const opt = DAY_OPTIONS.find((o) => o.v === days);
+      items.push({
+        key: 'period',
+        label: opt ? `近${opt.label}` : '区间',
+        score: t.period,
+        detail: `${fmtPct(stats.intervalRet)} · 上涨 ${stats.upInRange} / 下跌 ${stats.downInRange} · 跑赢大盘 ${stats.beatDays}/${stats.cmpDays} 天`,
+      });
+    }
+    return items;
+  })();
+
   return (
     <div className={`sp-workspace${active ? ' has-active' : ''}`}>
       <div className="mg-top">
@@ -624,6 +681,30 @@ export default function StockPools() {
 
               {!loading && detail && stats && (
                 <>
+                  {tempItems.length > 0 && (
+                    <div className="sp-thermo-card">
+                      <div className="sp-thermo-card-head">
+                        <span className="sp-thermo-title">🌡️ 鱼池温度计</span>
+                        <span className="sp-thermo-sub">0–100 综合分：收益跑赢大盘 + 赚钱效应 + 跑赢天数</span>
+                      </div>
+                      <div className="sp-thermos">
+                        {tempItems.map((it) => {
+                          const meta = tempMeta(it.score);
+                          return (
+                            <div key={it.key} className={`sp-thermo ${meta.key}`} title={meta.hint}>
+                              <div className="sp-thermo-score">{Math.round(it.score)}<span className="sp-thermo-deg">°</span></div>
+                              <div className="sp-thermo-tube">
+                                <div className="sp-thermo-fill" style={{ height: `${Math.max(2, Math.min(100, it.score))}%` }} />
+                              </div>
+                              <div className="sp-thermo-label">{it.label}</div>
+                              <div className="sp-thermo-level">{meta.label}</div>
+                              <div className="sp-thermo-detail">{it.detail}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {isShort && short ? (
                     <div className="sp-short">
                       {[
@@ -665,7 +746,7 @@ export default function StockPools() {
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
+                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>历史分位</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -681,6 +762,7 @@ export default function StockPools() {
                             <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="今日" className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
+                            <td data-label="历史分位">{rangePctCell(ranges[s.code])}</td>
                             <td data-label="历史最低">{rangeValCell(ranges[s.code], 'histLow', 'histLowDate')}</td>
                             <td data-label="历史最高">{rangeValCell(ranges[s.code], 'histHigh', 'histHighDate')}</td>
                             <td data-label="近一年最低">{rangeValCell(ranges[s.code], 'yLow', 'yLowDate')}</td>

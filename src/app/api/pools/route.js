@@ -231,6 +231,18 @@ function poolPeriodStat(stockRets) {
   return { ret, up, down };
 }
 
+// 鱼池温度：0-100 综合分。收益跑赢大盘越多、上涨家数占比越高、跑赢天数占比越高 → 越热。
+function clamp100(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+function tempScore({ ret, indexRet, up, down, beatDays, cmpDays }) {
+  if (ret == null) return null;
+  const upN = Number(up) || 0;
+  const downN = Number(down) || 0;
+  const upRatio = upN + downN > 0 ? upN / (upN + downN) : 0.5;
+  const beat = (cmpDays || 0) > 0 ? (beatDays || 0) / (cmpDays || 0) : null;
+  const idx = indexRet == null ? 0 : indexRet;
+  return clamp100(50 + (ret - idx) * 8 + (upRatio - 0.5) * 40 + (beat != null ? (beat - 0.5) * 30 : 0));
+}
+
 export async function POST(request) {
   try {
   const _rl = rateLimit('pools:' + getClientIp(request), { limit: 120, windowMs: 60000 });
@@ -331,6 +343,14 @@ export async function POST(request) {
     const intervalRet = okStocks.length ? okStocks.reduce((a, s) => a + (s.ret || 0), 0) / okStocks.length : 0;
     const indexRet = idxWin && idxWin.length > 1 ? (idxWin[idxWin.length - 1].close / idxWin[0].close - 1) * 100 : null;
 
+    // 鱼池温度计：今日/昨日/本周 + 当前所选周期（供前端直接展示）
+    const temperature = {
+      today: tempScore({ ret: short.today?.ret, indexRet: short.today?.indexRet, up: short.today?.up, down: short.today?.down }),
+      yesterday: tempScore({ ret: short.yesterday?.ret, indexRet: short.yesterday?.indexRet, up: short.yesterday?.up, down: short.yesterday?.down }),
+      week: tempScore({ ret: short.week?.ret, indexRet: short.week?.indexRet, up: short.week?.up, down: short.week?.down }),
+      period: tempScore({ ret: intervalRet, indexRet, up: upInRange, down: downInRange, beatDays, cmpDays }),
+    };
+
     return Response.json({
       ok: true,
       result: {
@@ -354,6 +374,7 @@ export async function POST(request) {
           avgUpDaysRatio: okStocks.length ? okStocks.reduce((a, s) => a + (s.totalDays ? s.upDays / s.totalDays : 0), 0) / okStocks.length : null,
         },
         short,
+        temperature,
       },
     });
   } catch (e) {
