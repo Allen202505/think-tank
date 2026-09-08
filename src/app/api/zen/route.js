@@ -6,6 +6,8 @@ import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { masterProfileLine } from '../../../lib/prompts';
 import { resolveSymbols, getQuote, getMarketOverview } from '../chat/marketData.js';
+import { getKline } from '../chat/uziSkills.js';
+import { buildChanContextLines } from './chanContext.js';
 
 // 「缠中说禅」大师画像（缠论禅师；能力域复用 chan_czsc）
 const ZEN_MASTER = {
@@ -46,7 +48,7 @@ async function fetchTencentQuote(secid) {
     return {
       price: f[3], prevClose: f[4], open: f[5], volume: f[6],
       change: f[31], changePct: f[32], high: f[33], low: f[34],
-      amountWan: f[37], pe: f[39], totalMvYi: f[45],
+      amountWan: f[37], turnoverPct: f[38], pe: f[39], totalMvYi: f[45],
     };
   } catch (e) {
     return null;
@@ -81,15 +83,53 @@ async function fetchTencentMarket() {
   }
 }
 
-// 行情 → 可读文本
+// 行情 → 可读文本（东财/腾讯/Yahoo 字段兼容；缺失字段显示 —，不把 undefined 喂给模型）
+function fmtNum(v, digits = 2) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(digits) : null;
+}
+// 成交额 → 亿元：腾讯 amountWan 单位万元，东财 amount 单位元
+function amountYi(q) {
+  if (q.amountWan != null) return Number(q.amountWan) / 10000;
+  if (q.amount != null) return Number(q.amount) / 1e8;
+  return null;
+}
 function quoteLine(q) {
-  if (!q) return '（行情获取失败）';
-  if (q.price != null) {
-    const amount = q.amountWan ? ` | 成交额 ${(Number(q.amountWan) / 10000).toFixed(2)}亿` : '';
-    const mv = q.totalMvYi ? ` | 总市值 ${q.totalMvYi}亿` : '';
-    return `最新价 ${q.price} | 涨跌幅 ${q.changePct}% | 今开 ${q.open} | 昨收 ${q.prevClose} | 最高 ${q.high} | 最低 ${q.low} | 成交量 ${q.volume}手${amount}${q.pe ? ` | PE ${q.pe}` : ''}${mv}`;
+  if (!q || (q.price == null && q.f2 == null)) return '（行情获取失败）';
+  const parts = [];
+  const price = q.price != null ? q.price : q.f2;
+  if (price != null) parts.push(`最新价 ${fmtNum(price) ?? '—'}`);
+  const pct = q.changePct != null ? q.changePct : q.f3;
+  if (pct != null) parts.push(`涨跌幅 ${fmtNum(pct) ?? '—'}%`);
+  if (q.open != null || q.f17 != null) parts.push(`今开 ${fmtNum(q.open ?? q.f17) ?? '—'}`);
+  if (q.prevClose != null || q.f18 != null) parts.push(`昨收 ${fmtNum(q.prevClose ?? q.f18) ?? '—'}`);
+  if (q.high != null || q.f15 != null) parts.push(`最高 ${fmtNum(q.high ?? q.f15) ?? '—'}`);
+  if (q.low != null || q.f16 != null) parts.push(`最低 ${fmtNum(q.low ?? q.f16) ?? '—'}`);
+  const vol = q.volume != null ? q.volume : q.f5;
+  if (vol != null && Number.isFinite(Number(vol))) parts.push(`成交量 ${Number(vol).toLocaleString()}手`);
+  const amount = amountYi(q);
+  if (amount != null && Number.isFinite(amount)) parts.push(`成交额 ${amount.toFixed(2)}亿`);
+  if (q.turnoverPct != null) parts.push(`换手率 ${fmtNum(q.turnoverPct) ?? '—'}%`);
+  if (q.pe != null) parts.push(`PE ${fmtNum(q.pe) ?? '—'}`);
+  const mvYi = q.totalMvYi != null ? Number(q.totalMvYi) : (q.marketCap != null ? Number(q.marketCap) / 1e8 : null);
+  if (mvYi != null && Number.isFinite(mvYi)) parts.push(`总市值 ${mvYi.toFixed(0)}亿`);
+  return parts.length ? parts.join(' | ') : '（行情获取失败）';
+}
+
+// 行情双源并行：东财给价格/涨跌幅/PE，腾讯补 开高低/量额/总市值（任一失败不影响另一）
+async function loadQuote(info) {
+  const [em, tx] = await Promise.all([
+    getQuote(info).catch(() => null),
+    fetchTencentQuote(info.secid),
+  ]);
+  if (!em || em.price == null) return tx || em; // 东财失败 → 腾讯
+  if (!tx) return em;
+  const q = { ...em };
+  for (const k of ['open', 'high', 'low', 'volume', 'amountWan', 'totalMvYi', 'turnoverPct']) {
+    if (q[k] == null && tx[k] != null) q[k] = tx[k];
   }
-  return `最新价 ${q.f2 ?? '-'} | 涨跌幅 ${q.f3 ?? '-'}% | 今开 ${q.f17 ?? '-'} | 昨收 ${q.f18 ?? '-'} | 最高 ${q.f15 ?? '-'} | 最低 ${q.f16 ?? '-'} | 成交量 ${q.f5 ?? '-'} | 成交额 ${q.f6 ?? '-'}`;
+  return q;
 }
 
 // 模型偶尔把内层 JSON 整体塞进 content 字符串：解包并合并字段
@@ -117,13 +157,16 @@ export async function POST(request) {
     const info = (symbols || [])[0];
     if (!info) return Response.json({ error: '未能识别该股票，请尝试输入股票名称或 6 位代码（如 600519）' }, { status: 404 });
 
-    let quote = await getQuote(info).catch(() => null);
-    if (!quote || quote.price == null) quote = await fetchTencentQuote(info.secid); // push2 不稳时用腾讯
-    const market = (await getMarketOverview().catch(() => null)) || (await fetchTencentMarket());
+    const [quote, market, kline] = await Promise.all([
+      loadQuote(info),
+      (async () => (await getMarketOverview().catch(() => null)) || (await fetchTencentMarket()))(),
+      getKline(info).catch(() => null),
+    ]);
 
     const dataBlock = [
       `【标的】${info.name || info.symbol}（${info.secid}，${info.market}）`,
       `【最新行情】${quoteLine(quote)}`,
+      ...buildChanContextLines(quote, kline),
       `【大盘环境】${market || '（获取失败）'}`,
     ].join('\n');
 
