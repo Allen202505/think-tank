@@ -105,6 +105,13 @@
 - **保留**：代码全部保留（components/MasterRadar.js、api/radar/*、data/radarAccounts.js、lib/radarFetch.js、Lucide 图标等），i18n key 也保留；能力就绪后放开入口即可（含 ?tab=radar 直达）。
 - **待办不变**：香港 VPS + 自建 RSSHub + ZHIHU_COOKIE 解锁后放开；隐藏期间线上仍走公共 RSSHub 配置能力。
 
+
+### 我的股票池 · 今日红盘「小红花公益入口」（2026-09-08 · 已推送线上）
+- **触发**：在「大师的选股池 → 我的股票池」下，当当前用户池**当日等权收益 > 0（红盘）**时，「我的股票池」页签下方出现 🌸 小红花入口（显示今日 +x.xx% · 捐朵小红花）。
+- **交互**：不是直接跳转——先弹窗（暖心文案：今天赚到啦，送你一朵小红花…），可选「再想想」或「去腾讯公益 →」（新窗口打开 https://gongyi.qq.com/）。
+- **克制**：每天最多**自动弹出一次**（localStorage 记日期，用户可手动再点入口打开）；文案含「公益为自愿行为，与本网站无关 · 理性捐赠，量力而行」。
+- **实现**：`components/StockPools.js`（sp-flower 入口 + sp-flower-modal）+ `page.css`；红盘判断用 `detail.short.today.ret > 0`（仅我的股票池）。实测紫金矿业 +3.01% 触发正常、无报错。
+
 ---
 
 

@@ -255,6 +255,8 @@ export default function StockPools() {
   const [error, setError] = useState('');
   const [hiddenPresetIds, setHiddenPresetIds] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, isPreset }
+  const [flowerOpen, setFlowerOpen] = useState(false);      // 小红花公益弹窗
+  const flowerAutoRef = useRef(false);                      // 每天最多自动弹一次
   const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
   const [ratingDrawer, setRatingDrawer] = useState(null); // { code, name, r }
   const [rangeDrawer, setRangeDrawer] = useState(null); // { code, name, r, type: 'hist' | 'year' }
@@ -592,6 +594,27 @@ export default function StockPools() {
 
   const stats = detail ? detail.stats : null;
   const short = detail ? detail.short : null;
+
+  // 我的股票池今日红盘 → 小红花公益引导（🌸 仅当日盈利时出现）
+  const dayRet =
+    poolTab === 'mine' && isUserPool && detail && detail.short && detail.short.today
+      ? Number(detail.short.today.ret)
+      : null;
+  const dayRed = Number.isFinite(dayRet) && dayRet > 0;
+
+  // 当天第一次出现红盘时自动弹出一次温暖引导（每天最多一次）
+  useEffect(() => {
+    if (!dayRed || flowerAutoRef.current) return;
+    flowerAutoRef.current = true;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem('thinktank_flower_auto') !== today) {
+        localStorage.setItem('thinktank_flower_auto', today);
+        setFlowerOpen(true);
+      }
+    } catch (e) { /* ignore */ }
+  }, [dayRed]);
+
   const SHORT_OPTIONS = DAY_OPTIONS.slice(0, 3); // 今天/昨天/本周
   const RANGE_OPTIONS = DAY_OPTIONS.slice(3); // 30天~三年，收进「更多」下拉
   const rangeActive = RANGE_OPTIONS.find((o) => o.v === days);
@@ -703,6 +726,13 @@ export default function StockPools() {
             <button type="button" role="tab" className={poolTab === 'master' ? 'active' : ''} aria-selected={poolTab === 'master'} onClick={() => switchPoolTab('master')}>大师的股票池</button>
             <button type="button" role="tab" className={poolTab === 'mine' ? 'active' : ''} aria-selected={poolTab === 'mine'} onClick={() => switchPoolTab('mine')}>我的股票池</button>
           </div>
+          {dayRed && (
+            <button type="button" className="sp-flower" onClick={() => setFlowerOpen(true)} title="今日盈利，去捐朵小红花吧">
+              <span className="sp-flower-ico" aria-hidden="true">🌸</span>
+              <span className="sp-flower-txt">今日 {fmtPct(dayRet)} · 捐朵小红花</span>
+              <span className="sp-flower-arrow" aria-hidden="true">›</span>
+            </button>
+          )}
           <div className="sp-side-actions">
             <button type="button" className="sp-new" onClick={() => { setImportType(poolTab === 'mine' ? 'mine' : 'master'); setImportOpen(true); setSearchOpen(false); setReviewOpen(false); setError(''); }}>
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -1072,6 +1102,26 @@ export default function StockPools() {
           </div>
         </>
       )}
+      {flowerOpen && (
+        <div className="modal-overlay" onMouseDown={() => setFlowerOpen(false)}>
+          <div className="modal-content sp-flower-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setFlowerOpen(false)} aria-label="关闭">✕</button>
+            <div className="sp-flower-hero" aria-hidden="true">🌸</div>
+            <div className="sp-flower-title">今天赚到啦，送你一朵小红花</div>
+            <div className="sp-flower-text">
+              今天运气不错，你的持仓是红的（今日 {dayRed ? fmtPct(dayRet) : '—'}）。
+              赚钱的日子，不妨把好运分一点出去——一朵小红花、一份小心意，
+              让今天的好心情也温暖到需要的人。
+            </div>
+            <div className="sp-flower-note">公益为自愿行为，与本网站无关 · 理性捐赠，量力而行，心意最重要。</div>
+            <div className="sp-flower-foot">
+              <button type="button" className="mg-btn sp-flower-cancel" onClick={() => setFlowerOpen(false)}>再想想</button>
+              <a className="mg-btn sp-flower-go" href="https://gongyi.qq.com/" target="_blank" rel="noopener noreferrer" onClick={() => setFlowerOpen(false)}>去腾讯公益 →</a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmDelete && (
         <div className="modal-overlay" onMouseDown={() => setConfirmDelete(null)}>
           <div className="modal-content sp-del-modal" onMouseDown={(e) => e.stopPropagation()}>

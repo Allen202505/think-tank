@@ -2314,3 +2314,30 @@
 }
 .rd-linkcard-go:hover { filter: brightness(1.07); }
 .rd-linkcard-hint { font-size: 11.5px; line-height: 1.7; color: var(--text-muted); border-top: 1px dashed var(--border-subtle); padding-top: 10px; margin: 0; }
+
+/* 🌸 我的股票池 · 今日盈利小红花公益入口 */
+.sp-flower {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.08), rgba(255, 200, 87, 0.10));
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  border-radius: 11px;
+  cursor: pointer; text-align: left; font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+.sp-flower:hover { border-color: #e74c3c; background: linear-gradient(135deg, rgba(231, 76, 60, 0.14), rgba(255, 200, 87, 0.16)); }
+.sp-flower-ico { font-size: 18px; line-height: 1; flex-shrink: 0; }
+.sp-flower-txt { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 800; color: #c0392b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-flower-arrow { color: #c0392b; font-size: 16px; line-height: 1; flex-shrink: 0; }
+.sp-flower-modal { position: relative; padding: 30px 24px 22px; text-align: center; border-radius: 16px; }
+.sp-flower-hero { font-size: 44px; line-height: 1; margin: 2px 0 12px; }
+.sp-flower-title { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: 0.02em; }
+.sp-flower-text { font-size: 13.5px; line-height: 1.9; color: var(--text); margin-top: 10px; }
+.sp-flower-note { font-size: 11px; line-height: 1.7; color: var(--text-muted); margin-top: 12px; }
+.sp-flower-foot { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+a.sp-flower-go { display: inline-flex; align-items: center; text-decoration: none; }
+.sp-flower-cancel { background: transparent; color: var(--text); border-color: var(--border-subtle); }
+.sp-flower-cancel:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.sp-flower-go { background: #e74c3c; border-color: #e74c3c; }
+.sp-flower-go:hover { background: #c0392b; border-color: #c0392b; filter: none; }
