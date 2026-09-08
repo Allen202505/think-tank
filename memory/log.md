@@ -98,6 +98,13 @@
 - 选股池：接口返回 `meta.cacheUntilMs`，前端 localStorage 持久缓存 → 收盘后“拿过一次就不再请求”（第二次进入实测 POST/评级/区间均 0），失败负缓存 10 分钟。
 - 明确结论并记录待办：知乎正文解锁需「香港 VPS(免备案) + 自建 RSSHub + ZHIHU_COOKIE」；Vercel 与 VPS 分工；不部署时知乎只提供链接、观点提炼走可抓平台或用户一键提炼。
 
+
+### 跟踪大师动态：暂时隐藏（2026-09-08 深夜 · 已推送线上）
+- **原因**：能力未就绪（知乎正文需 Cookie/香港 VPS；公共 RSSHub 偶发抽风），先隐藏入口，避免把半成品暴露给线上用户。
+- **做法**：桌面左侧导航 / 移动端底部 / 功能大厅入口全部移除；page.js 卸载组件与 tab 分支。
+- **保留**：代码全部保留（components/MasterRadar.js、api/radar/*、data/radarAccounts.js、lib/radarFetch.js、Lucide 图标等），i18n key 也保留；能力就绪后放开入口即可（含 ?tab=radar 直达）。
+- **待办不变**：香港 VPS + 自建 RSSHub + ZHIHU_COOKIE 解锁后放开；隐藏期间线上仍走公共 RSSHub 配置能力。
+
 ---
 
 

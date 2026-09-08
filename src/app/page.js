@@ -37,7 +37,6 @@ import MungerFinance from '../components/MungerFinance';
 import ZenShortTerm from '../components/ZenShortTerm';
 import StockPools from '../components/StockPools';
 import NavalAcademy from '../components/NavalAcademy';
-import MasterRadar from '../components/MasterRadar';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
 
@@ -396,8 +395,6 @@ export default function Home() {
         setTab('zen');
       } else if (t === 'pools') {
         setTab('pools');
-      } else if (t === 'radar') {
-        setTab('radar');
       } else if (t === 'naval') {
         setTab('naval');
       }
@@ -420,7 +417,7 @@ export default function Home() {
     if (next === 'breakfast') setShowBreakfast(true);
     try {
       const url = new URL(window.location.href);
-      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'radar' || next === 'naval') url.searchParams.set('tab', next);
+      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'naval') url.searchParams.set('tab', next);
       else url.searchParams.delete('tab');
       window.history.replaceState({}, '', url.toString());
     } catch (e) { /* ignore */ }
@@ -1838,9 +1835,6 @@ export default function Home() {
         <StockPools />
       </div>
 
-      <div className={`mg-workspace-wrap${tab === 'radar' ? '' : ' ws-hidden'}`}>
-        <MasterRadar active={tab === 'radar'} />
-      </div>
 
       <div className={`mg-workspace-wrap${tab === 'naval' ? '' : ' ws-hidden'}`}>
         <NavalAcademy />

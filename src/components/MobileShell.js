@@ -11,7 +11,8 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
     { id: 'munger', label: t('tabMungerShort') },
     { id: 'zen', label: t('tabZenShort') },
     { id: 'pools', label: t('tabPoolsShort') },
-    { id: 'radar', label: t('tabRadarShort') },
+    // 跟踪大师动态：暂时隐藏
+    // { id: 'radar', label: t('tabRadarShort') },
     { id: 'naval', label: t('tabNavalShort') },
   ];
 

@@ -12,7 +12,8 @@ export default function FeatureHall({ open, onClose, onSwitch, t }) {
     { id: 'munger', name: t('tabsMunger'), desc: t('hallMungerDesc') },
     { id: 'zen', name: t('tabsZen'), desc: t('hallZenDesc') },
     { id: 'pools', name: t('tabsPools'), desc: t('hallPoolsDesc') },
-    { id: 'radar', name: t('tabsRadar'), desc: t('hallRadarDesc') },
+    // 跟踪大师动态：暂时隐藏
+    // { id: 'radar', name: t('tabsRadar'), desc: t('hallRadarDesc') },
     { id: 'naval', name: t('tabsNaval'), desc: t('hallNavalDesc') },
   ];
 
