@@ -26,6 +26,37 @@ function savePoolTab(t) {
   try { localStorage.setItem(POOL_TAB_KEY, t); } catch (e) { /* ignore */ }
 }
 
+// ── 本地持久缓存：收盘/非交易时段"拿过一次"就不再重复请求（刷新/重启也不丢） ──
+// 有效期来自服务端 meta.cacheUntilMs（收盘后=下一开盘；盘中≈60s）
+const POOL_LS_CACHE = 'thinktank_pool_cache_v2';
+function poolCacheGet(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(POOL_LS_CACHE) || '{}');
+    const it = all[key];
+    if (it && it.u && it.u > Date.now()) return it.v;
+    if (it) { delete all[key]; localStorage.setItem(POOL_LS_CACHE, JSON.stringify(all)); }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+function poolCacheSet(key, untilMs, value) {
+  try {
+    const all = JSON.parse(localStorage.getItem(POOL_LS_CACHE) || '{}');
+    all[key] = { u: untilMs || 0, v: value };
+    const keys = Object.keys(all);
+    if (keys.length > 600) {
+      // 超出上限：先清已过期，再删最早过期的一批
+      const now = Date.now();
+      keys.filter((k) => all[k].u <= now).forEach((k) => delete all[k]);
+      let rest = Object.keys(all);
+      if (rest.length > 600) {
+        rest.sort((a, b) => (all[a].u || 0) - (all[b].u || 0));
+        rest.slice(0, rest.length - 600).forEach((k) => delete all[k]);
+      }
+    }
+    localStorage.setItem(POOL_LS_CACHE, JSON.stringify(all));
+  } catch (e) { /* ignore */ }
+}
+
 // 本周是区间数据，标注「周一 ~ 最后交易日」，如 08-10 ~ 08-14
 function weekRange(dateStr) {
   const d = new Date(`${dateStr}T00:00:00`);
@@ -292,6 +323,9 @@ export default function StockPools() {
   const loadSeq = useRef(0); // 请求序号：丢弃过期响应，避免大池子加载慢时旧数据覆盖新选中的池子
   const loadDetail = useCallback(async (pool, d) => {
     if (!pool || !pool.symbols || !pool.symbols.length) return;
+    const cKey = `d:${pool.id}:${String(d)}:${[...pool.symbols].sort().join(',')}`;
+    const cached = poolCacheGet(cKey);
+    if (cached) { setDetail(cached); return; } // 有效期内直接用本地数据，不请求
     const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
@@ -306,6 +340,8 @@ export default function StockPools() {
       if (loadSeq.current !== seq) return; // 已切到别的池子，丢弃
       if (!res.ok || data.error) throw new Error(data.error || '加载失败，请重试');
       setDetail(data.result);
+      const until = data && data.meta && data.meta.cacheUntilMs;
+      if (until && until > Date.now()) poolCacheSet(cKey, until, data.result);
     } catch (e) {
       if (loadSeq.current !== seq) return;
       setError(e.message || '加载失败，请重试');
@@ -321,12 +357,21 @@ export default function StockPools() {
 
   // 机构评级：池子加载后，为每只 A 股懒加载评级/目标价（点击可看明细）
   const fetchRatings = useCallback(async (code) => {
+    const hit = poolCacheGet(`r:${code}`);
+    if (hit) { setRatings((prev) => ({ ...prev, [code]: hit })); return; }
     try {
       const res = await fetch(`/api/pools/ratings?code=${code}`);
       const j = await res.json();
       setRatings((prev) => ({ ...prev, [code]: j }));
+      const until = j && j.meta && j.meta.cacheUntilMs;
+      if (until && until > Date.now()) {
+        poolCacheSet(`r:${code}`, until, j);
+      } else {
+        poolCacheSet(`r:${code}`, Date.now() + 10 * 60 * 1000, j); // 无有效期=失败，短时负缓存
+      }
     } catch (e) {
       setRatings((prev) => ({ ...prev, [code]: { ok: false, summary: null, items: [] } }));
+      poolCacheSet(`r:${code}`, Date.now() + 10 * 60 * 1000, { ok: false, summary: null, items: [] });
     }
   }, []);
 
@@ -344,14 +389,26 @@ export default function StockPools() {
 
   // 历史/近一年区间：池子加载后按小批量懒加载（美股/港股/A股都支持），避免一次打爆数据源
   const fetchRange = useCallback(async (code, price) => {
+    const rKey = `g:${code}:${price != null && Number.isFinite(Number(price)) ? String(price) : ''}`;
+    const hit = poolCacheGet(rKey);
+    if (hit) { setRanges((prev) => ({ ...prev, [code]: hit })); return; }
     try {
       const qs = new URLSearchParams({ code });
       if (price != null && Number.isFinite(Number(price))) qs.set('price', String(price));
       const res = await fetch(`/api/pools/range?${qs.toString()}`);
       const j = await res.json();
-      setRanges((prev) => ({ ...prev, [code]: j && j.ok ? { ok: true, ...j.result } : { ok: false } }));
+      const norm = j && j.ok ? { ok: true, ...j.result } : { ok: false };
+      setRanges((prev) => ({ ...prev, [code]: norm }));
+      const until = j && j.meta && j.meta.cacheUntilMs;
+      if (until && until > Date.now()) {
+        poolCacheSet(rKey, until, norm);
+      } else if (!j || !j.ok) {
+        // 失败/不支持：短时负缓存，避免每次进入都重试
+        poolCacheSet(rKey, Date.now() + 10 * 60 * 1000, norm);
+      }
     } catch (e) {
       setRanges((prev) => ({ ...prev, [code]: { ok: false } }));
+      poolCacheSet(rKey, Date.now() + 10 * 60 * 1000, { ok: false });
     }
   }, []);
 

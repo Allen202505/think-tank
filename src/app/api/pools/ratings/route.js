@@ -136,7 +136,7 @@ export async function GET(request) {
 
   const hit = cache.get(code);
   if (hit && Date.now() - hit.at < CACHE_TTL) {
-    return Response.json({ ok: true, ...hit.payload });
+    return Response.json({ ok: true, meta: { cacheUntilMs: hit.at + CACHE_TTL }, ...hit.payload });
   }
 
   try {
@@ -148,7 +148,7 @@ export async function GET(request) {
     if (rating) summary.rating = rating;
     const payload = { summary, items };
     cache.set(code, { at: Date.now(), payload });
-    return Response.json({ ok: true, ...payload });
+    return Response.json({ ok: true, meta: { cacheUntilMs: Date.now() + CACHE_TTL }, ...payload });
   } catch (e) {
     return Response.json({ ok: true, summary: null, items: [], error: e.message });
   }

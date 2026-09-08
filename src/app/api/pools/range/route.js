@@ -229,6 +229,7 @@ export async function GET(request) {
     const yPct = rankPct(yearBars, curPrice);
     return Response.json({
       ok: true,
+      meta: { cacheUntilMs: Date.now() + ttlForMarket(marketOfSecid(info.secid)) },
       result: {
         code: info.symbol,
         name: info.name || info.symbol,

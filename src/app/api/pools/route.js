@@ -371,8 +371,18 @@ export async function POST(request) {
       period: tempScore({ ret: intervalRet, indexRet, up: upInRange, down: downInRange, beatDays, cmpDays }),
     };
 
+    // 数据在服务端的有效截止时刻（收盘后=下一开盘；盘中=60s）：
+    // 前端据此做本地持久缓存，收盘后"拿过一次"就不再重复请求
+    const __now = Date.now();
+    let __minTtl = Infinity;
+    const __markets = new Set([marketOfSecid('1.000001')]);
+    for (const info of valid) __markets.add(marketOfSecid(info.secid));
+    for (const m of __markets) __minTtl = Math.min(__minTtl, ttlForMarket(m, new Date(__now)));
+    const cacheUntilMs = Number.isFinite(__minTtl) ? __now + __minTtl : __now;
+
     return Response.json({
       ok: true,
+      meta: { cacheUntilMs },
       result: {
         window: { days, start: okStocks[0]?.startDate || null, end: okStocks[0]?.endDate || null },
         stocks,
