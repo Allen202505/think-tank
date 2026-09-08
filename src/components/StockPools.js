@@ -71,25 +71,57 @@ function fmtRatingSummary(summary) {
   }
   return parts.join(' · ') || '—';
 }
-// 区间单元格：r 未返回=加载中；ok:false=无数据；展示 两位小数 + 悬浮日期
-function rangeValCell(r, key, dateKey) {
-  if (!r) return <span className="sp-rating-loading">…</span>;
-  if (r.ok === false) return <span className="sp-rating-na">—</span>;
-  const n = r && r[key];
-  if (!Number.isFinite(Number(n))) return <span className="sp-rating-na">—</span>;
-  const d = r && r[dateKey] ? `（日期 ${r[dateKey]}）` : '';
-  return <span className="mono" title={d || undefined}>{Number(n).toFixed(2)}</span>;
+function fmtNum2(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(2) : '—';
+}
+function curSym(market) {
+  return market === 'US' ? '$' : market === 'HK' ? 'HK$' : '¥';
 }
 
-// 历史分位：现价在历史/近一年收盘价分布中的位置（0-100%）
-function rangePctCell(r) {
+// 历史分位 / 近一年分位：可点击 chip（样式同机构评级），点击弹出区间明细
+function rangeChipCell(r, type, onOpen) {
+  const label = type === 'hist' ? '历史分位' : '近一年分位';
   if (!r) return <span className="sp-rating-loading">…</span>;
-  if (r.ok === false || r.histPct == null || !Number.isFinite(Number(r.histPct))) return <span className="sp-rating-na">—</span>;
-  const pct = Math.round(Number(r.histPct));
-  const tip = r.yPct != null && Number.isFinite(Number(r.yPct))
-    ? `历史分位 ${pct}%（现价高于历史 ${pct}% 交易日的收盘价） · 近一年分位 ${Math.round(Number(r.yPct))}%`
-    : `历史分位 ${pct}%`;
-  return <span className="mono" title={tip}>{pct}%</span>;
+  if (r.ok === false) return <span className="sp-rating-na">—</span>;
+  const pct = type === 'hist' ? r.histPct : r.yPct;
+  if (pct == null || !Number.isFinite(Number(pct))) return <span className="sp-rating-na">—</span>;
+  const n = Math.round(Number(pct));
+  return (
+    <button type="button" className="sp-rating-btn" onClick={onOpen} title={`${label} ${n}%（点击查看区间明细）`}>
+      {n}%
+    </button>
+  );
+}
+
+// 区间抽屉内容：历史分位→历史低/高；近一年分位→近一年低/高
+function rangeDetailBlock(r, type) {
+  const pct = type === 'hist' ? r.histPct : r.yPct;
+  const lowKey = type === 'hist' ? 'histLow' : 'yLow';
+  const highKey = type === 'hist' ? 'histHigh' : 'yHigh';
+  const lowDateKey = type === 'hist' ? 'histLowDate' : 'yLowDate';
+  const highDateKey = type === 'hist' ? 'histHighDate' : 'yHighDate';
+  const sym = curSym(r.market);
+  const pctN = Number(pct);
+  return (
+    <div className="sp-rating-summary">
+      <div className="sp-rating-chip sp-rating-chip--stat">
+        <span className="sp-rating-chip-label">{type === 'hist' ? '历史分位' : '近一年分位'}</span>
+        <span className="sp-rating-chip-price">{Number.isFinite(pctN) ? `${Math.round(pctN)}%` : '—'}</span>
+        <span className="sp-rating-chip-meta">{Number.isFinite(pctN) ? `现价高于 ${Math.round(pctN)}% 交易日收盘价` : ''}</span>
+      </div>
+      <div className="sp-rating-chip">
+        <span className="sp-rating-chip-label">{type === 'hist' ? '历史最低价' : '近一年最低价'}</span>
+        <span className="sp-rating-chip-price">{sym}{fmtNum2(r[lowKey])}</span>
+        <span className="sp-rating-chip-meta">{r[lowDateKey] ? `日期 ${r[lowDateKey]}` : ''}</span>
+      </div>
+      <div className="sp-rating-chip">
+        <span className="sp-rating-chip-label">{type === 'hist' ? '历史最高价' : '近一年最高价'}</span>
+        <span className="sp-rating-chip-price">{sym}{fmtNum2(r[highKey])}</span>
+        <span className="sp-rating-chip-meta">{r[highDateKey] ? `日期 ${r[highDateKey]}` : ''}</span>
+      </div>
+    </div>
+  );
 }
 
 // 温度档位：0-100 → 滚烫/温热/常温/偏凉/冰冷
@@ -154,10 +186,7 @@ const HEADER_COLS = [
   { key: 'price', label: '现价' },
   { key: 'ret', label: '区间涨幅' },
   { key: 'histPct', label: '历史分位' },
-  { key: 'histLow', label: '历史最低' },
-  { key: 'histHigh', label: '历史最高' },
-  { key: 'yLow', label: '近一年最低' },
-  { key: 'yHigh', label: '近一年最高' },
+  { key: 'yPct', label: '近一年分位' },
   { key: 'rating', label: '机构评级' },
   { key: 'upDays', label: '上涨天数' },
   { key: 'cost', label: '持仓价' },
@@ -196,6 +225,7 @@ export default function StockPools() {
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, isPreset }
   const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
   const [ratingDrawer, setRatingDrawer] = useState(null); // { code, name, r }
+  const [rangeDrawer, setRangeDrawer] = useState(null); // { code, name, r, type: 'hist' | 'year' }
   const fetchedRatingCodes = useRef(new Set()); // 已请求过的代码（避免重复拉取）
   const [ranges, setRanges] = useState({});        // code -> { histLow, histHigh, yLow, yHigh, ... }（历史/近一年区间）
   const fetchedRangeCodes = useRef(new Set());     // 已请求过区间数据的代码
@@ -552,10 +582,7 @@ export default function StockPools() {
       case 'price': return s.price;
       case 'ret': return s.ret;
       case 'histPct': { const r = ranges[s.code]; return r && r.histPct != null ? Number(r.histPct) : null; }
-      case 'histLow': { const r = ranges[s.code]; return r && r.histLow != null ? Number(r.histLow) : null; }
-      case 'histHigh': { const r = ranges[s.code]; return r && r.histHigh != null ? Number(r.histHigh) : null; }
-      case 'yLow': { const r = ranges[s.code]; return r && r.yLow != null ? Number(r.yLow) : null; }
-      case 'yHigh': { const r = ranges[s.code]; return r && r.yHigh != null ? Number(r.yHigh) : null; }
+      case 'yPct': { const r = ranges[s.code]; return r && r.yPct != null ? Number(r.yPct) : null; }
       case 'rating': {
         const rr = ratings[s.code];
         if (rr && rr.ok && rr.summary) {
@@ -859,11 +886,8 @@ export default function StockPools() {
                             <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
-                            <td data-label="历史分位">{rangePctCell(ranges[s.code])}</td>
-                            <td data-label="历史最低">{rangeValCell(ranges[s.code], 'histLow', 'histLowDate')}</td>
-                            <td data-label="历史最高">{rangeValCell(ranges[s.code], 'histHigh', 'histHighDate')}</td>
-                            <td data-label="近一年最低">{rangeValCell(ranges[s.code], 'yLow', 'yLowDate')}</td>
-                            <td data-label="近一年最高">{rangeValCell(ranges[s.code], 'yHigh', 'yHighDate')}</td>
+                            <td data-label="历史分位">{rangeChipCell(ranges[s.code], 'hist', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'hist' }))}</td>
+                            <td data-label="近一年分位">{rangeChipCell(ranges[s.code], 'year', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'year' }))}</td>
                             <td data-label="机构评级">
   {s.code && isACode(s.code) ? (
     ratings[s.code] === undefined ? (
@@ -965,6 +989,30 @@ export default function StockPools() {
             )}
           </div>
         </div>
+      )}
+      {rangeDrawer && (
+        <>
+          <div className="invite-drawer-backdrop" onClick={() => setRangeDrawer(null)} />
+          <div
+            className="invite-drawer sp-rating-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rangeDrawerTitle"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="invite-head invite-drawer-head">
+              <h3 className="invite-title" id="rangeDrawerTitle">{rangeDrawer.type === 'hist' ? '历史分位' : '近一年分位'} · {rangeDrawer.name}（{rangeDrawer.code}）</h3>
+              <button type="button" className="modal-close" onClick={() => setRangeDrawer(null)} aria-label="关闭">×</button>
+            </div>
+            <div className="invite-drawer-body">
+              {rangeDrawer.r && rangeDrawer.r.ok !== false ? (
+                rangeDetailBlock(rangeDrawer.r, rangeDrawer.type)
+              ) : (
+                <p className="sp-rating-empty">该股暂无历史区间数据。</p>
+              )}
+            </div>
+          </div>
+        </>
       )}
       {confirmDelete && (
         <div className="modal-overlay" onMouseDown={() => setConfirmDelete(null)}>
