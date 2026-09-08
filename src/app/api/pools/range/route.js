@@ -5,6 +5,7 @@
 //      使历史价与现价同一口径；近一年 = 最近 250 个交易日的低/高。
 import { resolveSymbols, getYahoo } from '../../chat/marketData.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
+import { marketOfSecid, ttlForMarket } from '../marketTime.js';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const RANGE_TTL = 24 * 3600000;      // 成功缓存 24h
@@ -215,7 +216,7 @@ export async function GET(request) {
     if (!info) return Response.json({ error: '未能识别该股票' }, { status: 404 });
 
     const key = `range:${info.secid}`;
-    const bars = await cached(key, RANGE_TTL, () => fetchLongBars(info).then((b) => {
+    const bars = await cached(key, ttlForMarket(marketOfSecid(info.secid)), () => fetchLongBars(info).then((b) => {
       if (!b || !b.length) throw new Error('无历史K线');
       return b;
     }));

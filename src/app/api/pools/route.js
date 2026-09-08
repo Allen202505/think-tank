@@ -2,9 +2,29 @@
 // POST { symbols: ['300750','600519',...], days: 60 } → 当日涨跌 + 区间统计（vs 沪深300）
 import { resolveSymbols, getYahoo } from '../chat/marketData.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { marketOfSecid, ttlForMarket } from './marketTime.js';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 let lastUSKlineErr = ''; // 诊断：最近一次美股/港股 K 线失败原因
+
+const cache = new Map();
+const ERROR_TTL = 60 * 1000;
+function cached(key, ttlMs, loader) {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < (hit.error ? ERROR_TTL : ttlMs)) return hit.value;
+  const p = Promise.resolve().then(loader);
+  p.then(
+    () => cache.set(key, { at: Date.now(), value: p }),
+    () => cache.set(key, { at: Date.now(), value: p, error: true }),
+  );
+  cache.set(key, { at: Date.now(), value: p });
+  return p;
+}
+
+// 按市场交易时段决定 K 线缓存有效期（收盘后长期缓存，盘中 60s）
+function cachedKline(secid, days) {
+  return cached(`kl:${secid}:${days}`, ttlForMarket(marketOfSecid(secid)), () => fetchKline(secid, days));
+}
 const TENCENT = (code, days) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${code},day,,,${days},qfq`;
 
 function tencentCode(secid) {
@@ -260,8 +280,8 @@ export async function POST(request) {
     if (!valid.length) return Response.json({ error: '未能识别这些股票，请使用 6 位代码，如 300750' }, { status: 404 });
 
     // 拉每只股票 + 沪深300 的日K
-    const data = await Promise.all(valid.map(async (info) => ({ info, bars: await fetchKline(info.secid, days + 1) })));
-    const indexBars = await fetchKline('1.000001', days + 1); // 上证指数
+    const data = await Promise.all(valid.map(async (info) => ({ info, bars: await cachedKline(info.secid, days + 1) })));
+    const indexBars = await cachedKline('1.000001', days + 1); // 上证指数
 
     // 短周期：今天 / 昨天 / 本周（等权，自动取最近交易日）
     const periods = { today: [], yesterday: [], week: [] };
