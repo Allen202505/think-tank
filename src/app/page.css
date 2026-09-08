@@ -1268,6 +1268,11 @@
 .sp-table { width: 100%; min-width: 1280px; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
 .sp-table th, .sp-table td { padding: 9px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
 .sp-name { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
+.sp-th-label { display: inline-block; vertical-align: middle; }
+.sp-sort { display: inline-flex; flex-direction: column; margin-left: 4px; gap: 1px; vertical-align: middle; line-height: 1; }
+.sp-sort-btn { border: 0; background: transparent; color: var(--text-muted); font-size: 9px; padding: 0 2px; cursor: pointer; line-height: 1; }
+.sp-sort-btn:hover { color: var(--accent); }
+.sp-sort-btn.active { color: var(--accent-strong); }
 .sp-table th { background: var(--bg-input); color: var(--text-muted); font-weight: 700; font-size: 12px; }
 .sp-table td.num, .sp-table th.num { text-align: left; font-family: var(--font-mono); }
 .sp-table tr:last-child td { border-bottom: 0; }

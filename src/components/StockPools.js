@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
 import StockPoolImportModal from './StockPoolImportModal';
 import { MasterAvatar } from './ui';
@@ -147,6 +147,23 @@ const DAY_OPTIONS = [
   { label: '三年', v: 750 },
 ];
 
+// 表头列（支持排序）；排序值由组件内 sortValue 按 key 取
+const HEADER_COLS = [
+  { key: 'code', label: '代码' },
+  { key: 'name', label: '名称' },
+  { key: 'price', label: '现价' },
+  { key: 'ret', label: '区间涨幅' },
+  { key: 'histPct', label: '历史分位' },
+  { key: 'histLow', label: '历史最低' },
+  { key: 'histHigh', label: '历史最高' },
+  { key: 'yLow', label: '近一年最低' },
+  { key: 'yHigh', label: '近一年最高' },
+  { key: 'rating', label: '机构评级' },
+  { key: 'upDays', label: '上涨天数' },
+  { key: 'cost', label: '持仓价' },
+  { key: 'pnl', label: '持仓盈亏' },
+];
+
 // 大师的选股池：预置大师池可切换 + AI 检索/手动粘贴添加 → 当日涨跌 + 区间统计（等权 vs 沪深300）
 export default function StockPools() {
   const { user, loading: authLoading } = useAuth();
@@ -182,6 +199,7 @@ export default function StockPools() {
   const fetchedRatingCodes = useRef(new Set()); // 已请求过的代码（避免重复拉取）
   const [ranges, setRanges] = useState({});        // code -> { histLow, histHigh, yLow, yHigh, ... }（历史/近一年区间）
   const fetchedRangeCodes = useRef(new Set());     // 已请求过区间数据的代码
+  const [sort, setSort] = useState({ key: null, dir: 'asc' }); // 表头排序（key 为 null 表示原始顺序）
   // 标记本地数据是否已加载完成：加载完成前禁止写 localStorage，避免用初始空数组覆盖已保存的数据
   const [hydrated, setHydrated] = useState(false);
 
@@ -521,6 +539,65 @@ export default function StockPools() {
     return items;
   })();
 
+  // 排序取数：每个表头 key 对应一个取值函数（含异步加载的区间/评级、持仓成本/盈亏）
+  const costFor = (s) => {
+    const c = costs[active.id] && costs[active.id][s.code];
+    const pc = active && active.costs && active.costs[s.code] != null ? active.costs[s.code] : null;
+    return c != null ? c : pc;
+  };
+  const sortValue = (key, s) => {
+    switch (key) {
+      case 'code': return s.code || '';
+      case 'name': return s.name || '';
+      case 'price': return s.price;
+      case 'ret': return s.ret;
+      case 'histPct': { const r = ranges[s.code]; return r && r.histPct != null ? Number(r.histPct) : null; }
+      case 'histLow': { const r = ranges[s.code]; return r && r.histLow != null ? Number(r.histLow) : null; }
+      case 'histHigh': { const r = ranges[s.code]; return r && r.histHigh != null ? Number(r.histHigh) : null; }
+      case 'yLow': { const r = ranges[s.code]; return r && r.yLow != null ? Number(r.yLow) : null; }
+      case 'yHigh': { const r = ranges[s.code]; return r && r.yHigh != null ? Number(r.yHigh) : null; }
+      case 'rating': {
+        const rr = ratings[s.code];
+        if (rr && rr.ok && rr.summary) {
+          const r = rr.summary.rating;
+          if (r && r.orgNum != null) return Number(r.orgNum);
+          if (rr.summary.short) return Number(rr.summary.short.price);
+          if (r && r.rating) return String(r.rating);
+        }
+        return null;
+      }
+      case 'upDays': return Number(s.upDays) || 0;
+      case 'cost': { const c = costFor(s); return c != null ? Number(c) : null; }
+      case 'pnl': {
+        const c = costFor(s);
+        return c != null && c > 0 && s.price != null ? ((s.price - c) / c) * 100 : null;
+      }
+      default: return null;
+    }
+  };
+  const sortedStocks = useMemo(() => {
+    const list = detail && detail.stocks ? [...detail.stocks] : [];
+    if (!sort.key || !list.length) return list;
+    const dir = sort.dir === 'desc' ? -1 : 1;
+    list.sort((a, b) => {
+      const va = sortValue(sort.key, a);
+      const vb = sortValue(sort.key, b);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      const na = Number(va);
+      const nb = Number(vb);
+      const aNum = va !== '' && Number.isFinite(na);
+      const bNum = vb !== '' && Number.isFinite(nb);
+      let c;
+      if (aNum && bNum) c = na - nb;
+      else c = String(va).localeCompare(String(vb), 'zh-Hans-CN');
+      return c * dir;
+    });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail, sort, ranges, costs, active, ratings]);
+
   return (
     <div className={`sp-workspace${active ? ' has-active' : ''}`}>
       <div className="mg-top">
@@ -748,11 +825,29 @@ export default function StockPools() {
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        <th>代码</th><th>名称</th><th>现价</th><th>区间涨幅</th><th>历史分位</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
+                        {HEADER_COLS.map((c) => (
+                          <th key={c.key}>
+                            <span className="sp-th-label">{c.label}</span>
+                            <span className="sp-sort">
+                              <button
+                                type="button"
+                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'asc' ? ' active' : ''}`}
+                                onClick={() => setSort(sort.key === c.key && sort.dir === 'asc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'asc' })}
+                                aria-label={`${c.label}升序`}
+                              >▲</button>
+                              <button
+                                type="button"
+                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'desc' ? ' active' : ''}`}
+                                onClick={() => setSort(sort.key === c.key && sort.dir === 'desc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'desc' })}
+                                aria-label={`${c.label}降序`}
+                              >▼</button>
+                            </span>
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {detail.stocks.map((s) => {
+                      {sortedStocks.map((s) => {
                         const cost = costs[active.id] && costs[active.id][s.code];
                         // 持仓价：优先用户已保存的成本；其次预置池已知的持仓价（如巴菲特公开报道的估算成本）；查不到则留空手动填
                         const poolCost = active.costs && active.costs[s.code] != null ? active.costs[s.code] : null;
