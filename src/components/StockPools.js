@@ -177,6 +177,7 @@ const DAY_OPTIONS = [
   { label: '一年', v: 250 },
   { label: '两年', v: 500 },
   { label: '三年', v: 750 },
+  { label: '五年', v: 1250 },
 ];
 
 // 表头列（支持排序）；排序值由组件内 sortValue 按 key 取

@@ -270,7 +270,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const symbols = Array.isArray(body.symbols) ? body.symbols.map((s) => String(s).trim()).filter(Boolean).slice(0, 100) : []; // 上限 100 只（寒武纪等预置池超 50 只）
-    const days = Math.min(800, Math.max(2, Number(body.days) || 60));
+    const days = Math.min(1300, Math.max(2, Number(body.days) || 60));
     const period = String(body.period || 'today'); // today | yesterday | week | 30/60/120/250/500/750
     if (!symbols.length) return Response.json({ error: '请先提供股票代码列表' }, { status: 400 });
 
