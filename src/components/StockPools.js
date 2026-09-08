@@ -748,7 +748,7 @@ export default function StockPools() {
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        <th>代码</th><th>名称</th><th>现价</th><th>今日</th><th>历史分位</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>区间涨幅</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
+                        <th>代码</th><th>名称</th><th>现价</th><th>区间涨幅</th><th>历史分位</th><th>历史最低</th><th>历史最高</th><th>近一年最低</th><th>近一年最高</th><th>机构评级</th><th>上涨天数</th><th>持仓价</th><th>持仓盈亏</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -763,7 +763,7 @@ export default function StockPools() {
                             <td className="mono" data-label="代码">{s.code}</td>
                             <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
-                            <td data-label="今日" className={s.changePct >= 0 ? 'up' : 'down'}>{s.changePct != null ? fmtPct(s.changePct) : '—'}</td>
+                            <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             <td data-label="历史分位">{rangePctCell(ranges[s.code])}</td>
                             <td data-label="历史最低">{rangeValCell(ranges[s.code], 'histLow', 'histLowDate')}</td>
                             <td data-label="历史最高">{rangeValCell(ranges[s.code], 'histHigh', 'histHighDate')}</td>
@@ -789,7 +789,6 @@ export default function StockPools() {
     <span className="sp-rating-na">—</span>
   )}
 </td>
-                            <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             <td data-label="上涨天数">{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
                             <td data-label="持仓价">
                               <input
