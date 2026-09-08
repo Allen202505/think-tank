@@ -620,7 +620,12 @@ export default function StockPools() {
   const rangeActive = RANGE_OPTIONS.find((o) => o.v === days);
   const isShort = typeof days !== 'number';
 
-  // 鱼池温度计条目：短周期同时给 今日/昨日/本周；区间模式给当前所选周期
+  // 🌡️ 温度计称呼跟随持有人：仅「寒武纪的鳄鱼」叫鱼池；我的持仓→我的持仓温度计；其他大师→「XX的温度计」
+  const isCambrian = !!active && active.id === 'pool_cambrian';
+  const thermoName = isUserPool ? '我的持仓温度计' : isCambrian ? '鱼池温度计' : (active ? `${active.name}的温度计` : '温度计');
+  const dayBase = isCambrian ? '鱼池' : ''; // 周期标签：鱼池池子保留「今日鱼池」，其余只显示「今日/昨日/本周」
+
+  // 温度计条目：短周期同时给 今日/昨日/本周；区间模式给当前所选周期
   const tempItems = (() => {
     const items = [];
     if (!detail || !stats || !detail.temperature) return items;
@@ -628,9 +633,9 @@ export default function StockPools() {
     if (isShort && short) {
       // 只展示当前选中周期的那一支（今天→今日鱼池，昨天→昨日鱼池，本周→本周鱼池）
       const pick = {
-        today: { label: '今日鱼池', d: short.today },
-        yesterday: { label: '昨日鱼池', d: short.yesterday },
-        week: { label: '本周鱼池', d: short.week },
+        today: { label: `今日${dayBase}`, d: short.today },
+        yesterday: { label: `昨日${dayBase}`, d: short.yesterday },
+        week: { label: `本周${dayBase}`, d: short.week },
       }[days];
       if (pick && pick.d && t[days] != null) {
         items.push({
@@ -874,7 +879,7 @@ export default function StockPools() {
                   {tempItems.length > 0 && (
                     <div className="sp-thermo-card">
                       <div className="sp-thermo-card-head">
-                        <span className="sp-thermo-title">🌡️ 鱼池温度计</span>
+                        <span className="sp-thermo-title">🌡️ {thermoName}</span>
                         <span className="sp-thermo-sub">0–100 综合分：收益跑赢大盘 + 赚钱效应 + 跑赢天数</span>
                       </div>
                       <div className="sp-thermos">
