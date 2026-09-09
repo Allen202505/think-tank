@@ -225,6 +225,18 @@ const HEADER_COLS = [
   { key: 'pnl', label: '持仓盈亏' },
 ];
 
+// 仅「寒武纪的鳄鱼」鱼池展示的四档价位列（放在【区间涨幅】右侧，从 Excel 整理录入）
+const LEVEL_COLS = [
+  { key: 'lvEntry', label: '入场价格' },
+  { key: 'lvHeavy', label: '重仓价格' },
+  { key: 'lvTp1', label: '第一次止盈价格' },
+  { key: 'lvTp2', label: '第二次止盈价格' },
+];
+function fmtLevel(v) {
+  if (v == null || !Number.isFinite(Number(v))) return '—';
+  return String(Math.round(Number(v) * 100) / 100);
+}
+
 // 大师的选股池：预置大师池可切换 + AI 检索/手动粘贴添加 → 当日涨跌 + 区间统计（等权 vs 沪深300）
 export default function StockPools() {
   const { user, loading: authLoading } = useAuth();
@@ -624,6 +636,10 @@ export default function StockPools() {
   const isCambrian = !!active && active.id === 'pool_cambrian';
   const thermoName = isUserPool ? '我的持仓温度计' : isCambrian ? '鱼池温度计' : (active ? `${active.name}的温度计` : '温度计');
   const dayBase = isCambrian ? '鱼池' : ''; // 周期标签：鱼池池子保留「今日鱼池」，其余只显示「今日/昨日/本周」
+  // 鱼池四档价位列仅寒武纪显示：插在【区间涨幅】之后
+  const headers = isCambrian
+    ? [...HEADER_COLS.slice(0, 4), ...LEVEL_COLS, ...HEADER_COLS.slice(4)]
+    : HEADER_COLS;
 
   // 温度计条目：短周期同时给 今日/昨日/本周；区间模式给当前所选周期
   const tempItems = (() => {
@@ -945,9 +961,10 @@ export default function StockPools() {
                   <table className="sp-table">
                     <thead>
                       <tr>
-                        {HEADER_COLS.map((c) => (
+                        {headers.map((c) => (
                           <th key={c.key}>
                             <span className="sp-th-label">{c.label}</span>
+                            {!String(c.key).startsWith('lv') && (
                             <span className="sp-sort">
                               <button
                                 type="button"
@@ -962,6 +979,7 @@ export default function StockPools() {
                                 aria-label={`${c.label}降序`}
                               >▼</button>
                             </span>
+                            )}
                           </th>
                         ))}
                       </tr>
@@ -979,6 +997,17 @@ export default function StockPools() {
                             <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
+                            {isCambrian && (() => {
+                              const lv = (active.levels && active.levels[s.code]) || {};
+                              return (
+                                <>
+                                  <td className="mono" data-label="入场价格">{fmtLevel(lv.entry)}</td>
+                                  <td className="mono" data-label="重仓价格">{fmtLevel(lv.heavy)}</td>
+                                  <td className="mono" data-label="第一次止盈价格">{fmtLevel(lv.tp1)}</td>
+                                  <td className="mono" data-label="第二次止盈价格">{fmtLevel(lv.tp2)}</td>
+                                </>
+                              );
+                            })()}
                             <td data-label="历史分位">{rangeChipCell(ranges[s.code], 'hist', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'hist' }))}</td>
                             <td data-label="近一年分位">{rangeChipCell(ranges[s.code], 'year', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'year' }))}</td>
                             <td data-label="机构评级">
