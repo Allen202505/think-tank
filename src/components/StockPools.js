@@ -1002,10 +1002,7 @@ export default function StockPools() {
                         return (
                           <tr key={s.code || s.name} className={mineHas ? 'sp-row-mine' : ''}>
                             <td className="mono" data-label="代码">{s.code}</td>
-                            <td data-label="名称">
-                              <span className="sp-name">{s.name || '—'}</span>
-                              {mineHas && <span className="sp-has" title="该股票也在我的持仓中">我的持仓</span>}
-                            </td>
+                            <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             {isCambrian && (() => {
