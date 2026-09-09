@@ -2338,3 +2338,18 @@ a.sp-flower-go { display: inline-flex; align-items: center; text-decoration: non
 .sp-del-modal-text p { margin: 0 0 8px; }
 .sp-del-modal-text p:last-child { margin-bottom: 0; }
 .sp-del-modal-text .sp-flower-italic { font-style: italic; color: var(--text-muted); margin-top: 8px; }
+
+/* 大师股票池 · 与我持仓重复的股票高亮 */
+.sp-row-mine { background: var(--accent-bg); }
+.sp-row-mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.sp-has {
+  margin-left: 6px;
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--accent-bg-strong);
+  border: 1px solid var(--accent-dim);
+  white-space: nowrap;
+}

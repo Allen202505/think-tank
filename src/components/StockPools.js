@@ -282,6 +282,13 @@ export default function StockPools() {
   const masterPools = PRESET_POOLS.filter((p) => !hiddenPresetIds.includes(p.id)); // 大师的股票池（可隐藏）
   const pools = poolTab === 'mine' ? userPools : masterPools; // 页签：我的股票池 / 大师的股票池
   const active = pools.find((p) => p.id === activeId) || null;
+
+  // 我的股票池里已持有的代码/名称集合：用于在「大师的股票池」表格中高亮重复持仓
+  const myHeld = useMemo(() => {
+    const set = new Set();
+    (userPools || []).forEach((p) => (p.symbols || []).forEach((sym) => set.add(String(sym).trim())));
+    return set;
+  }, [userPools]);
   const isUserPool = !!active && userPools.some((p) => p.id === active.id);
 
   const switchPoolTab = (t) => {
@@ -991,10 +998,14 @@ export default function StockPools() {
                         const poolCost = active.costs && active.costs[s.code] != null ? active.costs[s.code] : null;
                         const effCost = cost != null ? cost : poolCost;
                         const pnl = effCost != null && effCost > 0 && s.price != null ? ((s.price - effCost) / effCost) * 100 : null;
+                        const mineHas = poolTab === 'master' && (myHeld.has(s.code) || (s.name && myHeld.has(String(s.name).trim())));
                         return (
-                          <tr key={s.code || s.name}>
+                          <tr key={s.code || s.name} className={mineHas ? 'sp-row-mine' : ''}>
                             <td className="mono" data-label="代码">{s.code}</td>
-                            <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
+                            <td data-label="名称">
+                              <span className="sp-name">{s.name || '—'}</span>
+                              {mineHas && <span className="sp-has" title="该股票也在我的持仓中">我的持仓</span>}
+                            </td>
                             <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
                             <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             {isCambrian && (() => {
