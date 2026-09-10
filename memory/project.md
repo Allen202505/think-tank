@@ -30,3 +30,14 @@
 - GitHub: github.com/Allen202505/think-tank（main）
 - 部署：Vercel 已绑定该仓库，push 到 main 即自动触发部署、自动出线上链接，无需每次询问/手动部署；`DEEPSEEK_API_KEY`、Supabase 等必要环境变量已在 Vercel 配置好
 - 本地开发：npm run dev（默认 3000，本机常用 3210）
+
+## 迭代维护要求
+
+每次功能迭代或 Bug 修复，必须同步更新：
+
+1. `memory/log.md`：记录背景、改动、影响和验证。
+2. `memory/QA.md`：同步功能细节与回归测试用例。
+3. 相关项目文档：`project.md`、`architecture.md`、`PRD.md` 等。
+4. README / SEO / 部署文档：涉及用户说明或发布方式时必须更新。
+
+未完成文档同步和 P0 回归前，不视为可发布状态。

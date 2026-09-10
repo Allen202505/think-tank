@@ -57,10 +57,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 
 本项目免费，但站长不承担所有用户的模型调用成本：
 
-- 每位访客默认有 **2 次免费体验**（用站长的 Key）
+- 每位访客默认有 **10 次免费体验**（用站长的 Key）
 - 2 次用完后，点击页面的「🔑 AI 设置」，填入**你自己的 API Key**
 - 支持 DeepSeek / OpenAI / Kimi / 通义千问 / 任意 OpenAI 兼容服务（Base URL 与模型名都可自定义）
 - **你的 Key 只保存在你自己的浏览器本地（localStorage）**，请求时即用即弃，不会上传保存到服务器
+
+## 功能说明与回归测试
+
+- [功能说明与回归测试手册](./memory/QA.md)
 
 ## 部署
 
