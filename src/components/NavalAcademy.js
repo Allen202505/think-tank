@@ -8,12 +8,14 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { MasterAvatar } from './ui';
 import AskDrawer from './AskDrawer';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { markFeatureCompleted } from '../lib/shareInvite';
 import { NAVAL } from '../lib/navalPrompts';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
 import { loadTerms, saveTerms, upsertTerm, pushTermsCloud, notifyTermsChanged, addTermHighlight } from '../lib/navalTerms';
 import { renderInlineRich } from '../lib/renderInlineMd';
 import TermLibraryModal from './TermLibraryModal';
+import ModuleHero from './ModuleHero';
 
 const LS_KEY = 'thinktank_naval_issues';
 const ASK_HISTORY_KEY = 'thinktank_naval_ask_history';
@@ -226,6 +228,7 @@ export default function NavalAcademy() {
       };
       setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', ...answer }] : [...prev, { role: 'naval', ...answer }]));
       // 记录历史提问（问题+答案，去重）
+      markFeatureCompleted('纳瓦尔知识学堂');
       setAskHistory((prev) => {
         const next = [{ q: msg, at: Date.now(), content: answer.content, keyPoint: answer.keyPoint, formula: answer.formula }, ...prev.filter((h) => h.q !== msg)].slice(0, ASK_HISTORY_MAX);
         saveAskHistory(next);
@@ -360,6 +363,7 @@ export default function NavalAcademy() {
       });
       setActiveDate(issue.issue_date);
       setActiveIssue(issue);
+      markFeatureCompleted('纳瓦尔知识学堂');
     } catch (e) {
       const em = String((e && e.message) || e);
       setDailyError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '生成失败，请重试'));
@@ -399,7 +403,14 @@ export default function NavalAcademy() {
   const todayIssue = issues.find((i) => i.issue_date === TODAY);
 
   return (
-    <div className="nv-layout">
+    <div className="nv-workspace">
+      <ModuleHero
+        iconId="naval"
+        kicker="MENTAL MODELS · COMPOUNDING"
+        title="纳瓦尔知识学堂"
+        description="把财务与投资概念讲透：可以直接提问，也可以每天用 3 个知识点建立自己的底层投资框架。"
+      />
+      <div className="nv-layout">
       {/* ── 左栏：纳瓦尔 + 页签 + 列表 ── */}
       <aside className="nv-left">
         {/* 词条库 */}
@@ -655,6 +666,7 @@ export default function NavalAcademy() {
           ✏️ 划线
         </button>
       )}
+      </div>
     </div>
   );
 }

@@ -7,7 +7,9 @@ import { FRAMEWORK_STEPS } from '../lib/framework';
 import { MasterAvatar } from './ui';
 import StockPoolImportModal from './StockPoolImportModal';
 import AskDrawer from './AskDrawer';
+import ModuleHero from './ModuleHero';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { markFeatureCompleted } from '../lib/shareInvite';
 import { useAuth } from '../lib/authProvider';
 import { syncPoolsOnLogin } from '../lib/userPools';
 
@@ -125,6 +127,7 @@ export default function BreakfastRoundtable({ active = true }) {
     const mem = loadBreakfastMemory();
     mem[key] = entry;
     saveBreakfastMemory(mem);
+    markFeatureCompleted('巴菲特的早餐');
   }, []);
   // 已解读过的新闻哈希前缀集合（用于左侧列表打「已解读 ✓」标记）
   const interpretedHashes = useMemo(() => {
@@ -593,6 +596,12 @@ export default function BreakfastRoundtable({ active = true }) {
 
   return (
     <div className={`bk-workspace${mobileDetail ? ' bk-mobile-detail' : ''}`}>
+      <ModuleHero
+        iconId="breakfast"
+        kicker="BREAKFAST NEWSROOM"
+        title="巴菲特的早餐"
+        description="从左侧挑一条财经新闻，或自己贴一条，巴菲特与嘉宾会用「事件穿透投资框架」逐层解读，帮你捕捉值得关注的投资机会点。"
+      />
       <div className="bk-layout">
         <aside className="bk-news-col">
           <div className="bk-news-list-head">
@@ -744,7 +753,6 @@ export default function BreakfastRoundtable({ active = true }) {
             )}
           </div>
         </div>
-        <p className="bk-intro">从左侧挑一条财经新闻（或点「✎ 输入新闻源」自己贴一条），点「开始解读」——巴菲特与嘉宾会用「事件穿透投资框架」逐层解读，帮你捕捉值得关注的投资机会点。</p>
 
         {/* 座位：初始 3×3 块状；解读中/后一行放全部大师 */}
         {entry.status === 'idle' ? (

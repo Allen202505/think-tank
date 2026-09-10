@@ -3,7 +3,9 @@
 import { useState, useCallback } from 'react';
 import { MasterAvatar } from './ui';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { markFeatureCompleted } from '../lib/shareInvite';
 import AskDrawer from './AskDrawer';
+import ModuleHero from './ModuleHero';
 
 const ZEN_MASTER = {
   id: 'zen',
@@ -91,6 +93,7 @@ export default function ZenShortTerm() {
       const mem = loadZenMemory();
       mem[memKey] = { result: data.result, at: Date.now() };
       saveZenMemory(mem);
+      markFeatureCompleted('缠论短线');
     } catch (e) {
       setError(e.message || '分析失败，请重试');
     } finally {
@@ -137,10 +140,12 @@ export default function ZenShortTerm() {
 
   return (
     <div className="mg-workspace">
-      <div className="mg-top">
-        <div className="mg-title">缠中说禅 · 看短线</div>
-      </div>
-      <p className="mg-intro">输入股票名称或代码，缠中说禅会用缠论框架评估短线结构（中枢 / 背驰 / 买卖点）。分析基于实时行情与缠论逻辑推导，实操前请对照实时 K 线验证。</p>
+      <ModuleHero
+        iconId="zen"
+        kicker="CHAN THEORY · SHORT-TERM"
+        title="缠中说禅 · 看短线"
+        description="输入股票名称或代码，用缠论框架评估短线结构。分析基于实时行情与缠论逻辑推导，实操前请对照实时 K 线验证。"
+      />
 
       <div className="mg-card">
         <div className="mg-card-label">输入一只股票，缠中说禅用缠论帮你评估短线</div>

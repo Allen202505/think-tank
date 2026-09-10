@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { PRESET_POOLS } from '../data/masterPools';
 import StockPoolImportModal from './StockPoolImportModal';
 import { MasterAvatar } from './ui';
+import ModuleHero from './ModuleHero';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
@@ -272,6 +273,7 @@ export default function StockPools() {
   const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
   const [ratingDrawer, setRatingDrawer] = useState(null); // { code, name, r }
   const [rangeDrawer, setRangeDrawer] = useState(null); // { code, name, r, type: 'hist' | 'year' }
+  const [stockDetail, setStockDetail] = useState(null);  // 移动端：点击股票看全貌（存 stock 对象）
   const fetchedRatingCodes = useRef(new Set()); // 已请求过的代码（避免重复拉取）
   const [ranges, setRanges] = useState({});        // code -> { histLow, histHigh, yLow, yHigh, ... }（历史/近一年区间）
   const fetchedRangeCodes = useRef(new Set());     // 已请求过区间数据的代码
@@ -736,16 +738,21 @@ export default function StockPools() {
 
   return (
     <div className={`sp-workspace${active ? ' has-active' : ''}`}>
-      <div className="mg-top">
-        <button
-          type="button"
-          className={`sp-back${active ? '' : ' sp-back-hidden'}`}
-          onClick={() => { setActiveId(null); setDetail(null); }}
-          aria-label="返回列表"
-          title="返回列表"
-        >←</button>
-        <div className="mg-title">大师的选股池</div>
-      </div>
+      <ModuleHero
+        iconId="pools"
+        kicker="MASTER PICKS · PORTFOLIO"
+        title="大师的选股池"
+        description="查看大师股票池与我的自选池，跟踪组合结构、估值分位和区间表现，也可以让大师评价你的持仓。"
+        actions={(
+          <button
+            type="button"
+            className={`sp-back${active ? '' : ' sp-back-hidden'}`}
+            onClick={() => { setActiveId(null); setDetail(null); }}
+            aria-label="返回列表"
+            title="返回列表"
+          >←</button>
+        )}
+      />
 
       <div className="sp-layout">
         {/* 左侧：池子列表 */}
@@ -1057,6 +1064,33 @@ export default function StockPools() {
                     </tbody>
                   </table>
                   </div>
+
+                  {/* 移动端紧凑列表：每行只留 名称/代码 + 现价 + 涨幅，点击看全貌 */}
+                  <ul className="sp-mlist">
+                    {sortedStocks.map((s) => {
+                      const costM = costs[active.id] && costs[active.id][s.code];
+                      const poolCostM = active.costs && active.costs[s.code] != null ? active.costs[s.code] : null;
+                      const effCostM = costM != null ? costM : poolCostM;
+                      const pnlM = effCostM != null && effCostM > 0 && s.price != null ? ((s.price - effCostM) / effCostM) * 100 : null;
+                      const mineM = poolTab === 'master' && (myHeld.has(s.code) || (s.name && myHeld.has(String(s.name).trim())));
+                      return (
+                        <li key={s.code || s.name} className={`sp-mitem${mineM ? ' sp-mitem-mine' : ''}`}>
+                          <button type="button" className="sp-mitem-btn" onClick={() => setStockDetail(s)}>
+                            <span className="sp-mitem-left">
+                              <span className="sp-mitem-name">{s.name || '—'}</span>
+                              <span className="sp-mitem-code">{s.code || ''}</span>
+                            </span>
+                            <span className="sp-mitem-right">
+                              <span className="sp-mitem-price">{s.price != null ? s.price.toFixed(2) : '—'}</span>
+                              <span className={`sp-mitem-ret ${s.ret >= 0 ? 'up' : 'down'}`}>{s.ret != null ? fmtPct(s.ret) : '—'}</span>
+                            </span>
+                            {pnlM != null && <span className={`sp-mitem-pnl ${pnlM >= 0 ? 'up' : 'down'}`}>{fmtPct(pnlM)}</span>}
+                            <span className="sp-mitem-chevron" aria-hidden="true">›</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </>
               )}
             </div>
@@ -1120,6 +1154,86 @@ export default function StockPools() {
           </div>
         </div>
       )}
+      {stockDetail && (() => {
+        const sd = stockDetail;
+        const sdCost = costs[active.id] && costs[active.id][sd.code];
+        const sdPoolCost = active.costs && active.costs[sd.code] != null ? active.costs[sd.code] : null;
+        const sdEff = sdCost != null ? sdCost : sdPoolCost;
+        const sdPnl = sdEff != null && sdEff > 0 && sd.price != null ? ((sd.price - sdEff) / sdEff) * 100 : null;
+        const sdLv = (active.levels && active.levels[sd.code]) || {};
+        const sdRating = ratings[sd.code];
+        return (
+          <>
+            <div className="invite-drawer-backdrop" onClick={() => setStockDetail(null)} />
+            <div
+              className="invite-drawer sp-rating-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="stockDetailTitle"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="invite-head invite-drawer-head">
+                <h3 className="invite-title" id="stockDetailTitle">{sd.name || '—'}{sd.code ? `（${sd.code}）` : ''}</h3>
+                <button type="button" className="modal-close" onClick={() => setStockDetail(null)} aria-label="关闭">×</button>
+              </div>
+              <div className="invite-drawer-body">
+                <div className="sp-mdetail-hero">
+                  <span className="sp-mdetail-price">{sd.price != null ? sd.price.toFixed(2) : '—'}</span>
+                  <span className={`sp-mdetail-ret ${sd.ret >= 0 ? 'up' : 'down'}`}>{sd.ret != null ? fmtPct(sd.ret) : '—'}</span>
+                  <span className="sp-mdetail-hero-label">区间涨幅</span>
+                </div>
+                <dl className="sp-mdetail-grid">
+                  {isCambrian && (
+                    <>
+                      <div><dt>入场价格</dt><dd>{fmtLevel(sdLv.entry)}</dd></div>
+                      <div><dt>重仓价格</dt><dd>{fmtLevel(sdLv.heavy)}</dd></div>
+                      <div><dt>第一次止盈</dt><dd>{fmtLevel(sdLv.tp1)}</dd></div>
+                      <div><dt>第二次止盈</dt><dd>{fmtLevel(sdLv.tp2)}</dd></div>
+                    </>
+                  )}
+                  <div>
+                    <dt>历史分位</dt>
+                    <dd>{rangeChipCell(ranges[sd.code], 'hist', () => { setStockDetail(null); setRangeDrawer({ code: sd.code, name: sd.name, r: ranges[sd.code], type: 'hist' }); })}</dd>
+                  </div>
+                  <div>
+                    <dt>近一年分位</dt>
+                    <dd>{rangeChipCell(ranges[sd.code], 'year', () => { setStockDetail(null); setRangeDrawer({ code: sd.code, name: sd.name, r: ranges[sd.code], type: 'year' }); })}</dd>
+                  </div>
+                  <div>
+                    <dt>机构评级</dt>
+                    <dd>
+                      {sd.code && isACode(sd.code) ? (
+                        sdRating && sdRating.ok && sdRating.summary && hasRating(sdRating.summary) ? (
+                          <button type="button" className="sp-rating-btn" onClick={() => { setStockDetail(null); setRatingDrawer({ code: sd.code, name: sd.name, r: sdRating }); }}>
+                            {fmtRatingCompact(sdRating.summary)}
+                          </button>
+                        ) : (<span className="sp-rating-na">—</span>)
+                      ) : (<span className="sp-rating-na">—</span>)}
+                    </dd>
+                  </div>
+                  <div><dt>上涨天数</dt><dd>{sd.totalDays ? `${sd.upDays} / ${sd.totalDays}（${((sd.upDays / sd.totalDays) * 100).toFixed(0)}%）` : '—'}</dd></div>
+                  <div>
+                    <dt>持仓价</dt>
+                    <dd>
+                      <input
+                        className="sp-cost-input"
+                        type="number"
+                        step="0.01"
+                        placeholder="—"
+                        value={sdEff != null ? sdEff : ''}
+                        onChange={(e) => setCost(active.id, sd.code, e.target.value)}
+                        title="填入你的持仓成本价"
+                      />
+                    </dd>
+                  </div>
+                  <div><dt>持仓盈亏</dt><dd className={sdPnl != null ? (sdPnl >= 0 ? 'up' : 'down') : ''}>{sdPnl != null ? fmtPct(sdPnl) : '—'}</dd></div>
+                </dl>
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
       {rangeDrawer && (
         <>
           <div className="invite-drawer-backdrop" onClick={() => setRangeDrawer(null)} />

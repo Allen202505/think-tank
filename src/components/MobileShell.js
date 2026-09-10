@@ -7,13 +7,15 @@ import NavIcon from './Icons';
 export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, onOpenHistory, onToggleQr, onOpenHall, onOpenAiSettings, onOpenAuth }) {
   const items = [
     { id: 'ask', label: t('tabAskShort') },
+    { id: 'pools', label: t('tabPoolsShort') },
     { id: 'breakfast', label: t('tabBreakfastShort') },
     { id: 'munger', label: t('tabMungerShort') },
     { id: 'zen', label: t('tabZenShort') },
-    { id: 'pools', label: t('tabPoolsShort') },
     // 跟踪大师动态：暂时隐藏
     // { id: 'radar', label: t('tabRadarShort') },
     { id: 'naval', label: t('tabNavalShort') },
+    { id: 'fundamental', label: t('tabFundamentalShort') },
+    { id: 'industry-cycle', label: t('tabIndustryCycleShort') },
   ];
 
   return (

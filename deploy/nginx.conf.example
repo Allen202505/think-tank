@@ -2,6 +2,7 @@
 server {
     listen 80;
     server_name your-domain.com;
+    charset utf-8;
     # 上线 HTTPS 后，把 80 重定向到 443（见下方注释的 443 块）
 
     location / {

@@ -21,8 +21,8 @@ export function MasterAvatar({ master, size = 44, className = '' }) {
   const useImg = master.avatar && !imgErr;
   const isDeceased = master.status === 'deceased';
   const wrapperStyle = { filter: isDeceased ? 'grayscale(1)' : 'none', opacity: isDeceased ? 0.85 : 1 };
-  // 本地头像加 ?v=2 避免浏览器强缓存导致不更新
-  const src = master.avatar && master.avatar.startsWith('/') ? `${master.avatar}?v=2` : master.avatar;
+  // 本地头像加版本号避免浏览器强缓存导致不更新
+  const src = master.avatar && master.avatar.startsWith('/') ? `${master.avatar}?v=10` : master.avatar;
   const style = { width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 };
   if (useImg) {
     return (

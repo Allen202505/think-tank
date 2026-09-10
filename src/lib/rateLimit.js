@@ -29,7 +29,8 @@ export function rateLimit(key, { limit = 30, windowMs = 60000 } = {}) {
 // 前端 localStorage/cookie 配额在无痕/隐私模式下可被清空绕过，这里按 IP 给
 // 「未配置用户 Key 的请求」一个每日总量上限作为兜底。
 // 说明：Vercel 多实例为尽力而为（每实例独立计数），自建单实例下精确。
-const dailyFree = new Map(); // ip -> { date, count }
+const globalRateLimitStore = globalThis;
+const dailyFree = globalRateLimitStore.__thinkTankDailyFree ||= new Map(); // ip -> { date, count }
 
 // aiConfig 为空（未带用户 Key）→ 免费调用，计入每日配额；带 Key 不占用。
 export function guardFreeDaily(request, aiConfig, { limit = 40 } = {}) {

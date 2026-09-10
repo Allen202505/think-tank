@@ -78,7 +78,7 @@ export const PRESET_MASTERS_MAP = {
   },
   // ─── 知乎 / 自媒体大V ───
   '寒武纪的鳄鱼': {
-    name: '寒武纪的鳄鱼', nameEn: 'Hanwuji de Eyu', emoji: '🐊', color: '#27ae60', title: '周期股老炮', titleEn: 'Cycle-stock veteran',
+    name: '寒武纪的鳄鱼', nameEn: 'Hanwuji de Eyu', emoji: '🐊', color: '#4a4a55', title: '周期股老炮', titleEn: 'Cycle-stock veteran',
     style: '周期股，供给侧，行业景气拐点', styleEn: 'Cyclicals, supply-side, turning points',
     personality: '直言不讳，风格强硬，深耕周期行业研究，对供需和价格拐点有独立判断，曾以公开点位文章走红后退乎。',
     quote: '周期股的暴利，来自供给侧的变化。',

@@ -73,7 +73,7 @@ export function getFreeRemaining() {
   return Math.max(0, FREE_LIMIT - getFreeUsed());
 }
 
-export function consumeFree() {
+export function consumeFree(feature = '') {
   if (hasUserKey()) return true; // 用户自带 Key，不占免费次数
   const used = getFreeUsed();
   const next = used + 1;

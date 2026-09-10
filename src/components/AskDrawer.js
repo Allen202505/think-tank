@@ -59,7 +59,7 @@ function renderRich(text) {
   return out;
 }
 
-export default function AskDrawer({ master, context, onClose, onAsk, placeholder }) {
+export default function AskDrawer({ master, context, onClose, onAsk, placeholder, seedQuestion = '' }) {
   const { style, handleProps } = useDrawerResize();
   const key = convKey(master, context);
   const [messages, setMessagesState] = useState(() => convStore.get(key) || []);
@@ -69,6 +69,7 @@ export default function AskDrawer({ master, context, onClose, onAsk, placeholder
   const [idx, setIdx] = useState(0);
   const bodyRef = useRef(null);
   const keyRef = useRef(key);
+  const seedRef = useRef(null);
 
   // 更新会话并同步到持久化 Map
   const setMessages = (updater) => setMessagesState((prev) => {
@@ -103,8 +104,8 @@ export default function AskDrawer({ master, context, onClose, onAsk, placeholder
     setIdx(0);
   }, [pending, idx]);
 
-  const send = async () => {
-    const msg = input.trim();
+  const sendText = async (rawText) => {
+    const msg = String(rawText || '').trim();
     if (!msg || loading || !onAsk) return;
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', text: msg }]);
@@ -115,11 +116,21 @@ export default function AskDrawer({ master, context, onClose, onAsk, placeholder
       if (!text) throw new Error('回复为空，请重试');
       setPending({ text });
     } catch (e) {
-      const msg = String((e && e.message) || e || '');
-      setMessages((prev) => [...prev, { role: 'master', text: `⚠️ ${/failed to fetch|network|load|timed? ?out|econn|reset/i.test(msg) ? '网络异常或连接超时，请重试' : (msg || '回复失败，请重试')}` }]);
+      const errMsg = String((e && e.message) || e || '');
+      setMessages((prev) => [...prev, { role: 'master', text: `⚠️ ${/failed to fetch|network|load|timed? ?out|econn|reset/i.test(errMsg) ? '网络异常或连接超时，请重试' : (errMsg || '回复失败，请重试')}` }]);
     }
     setLoading(false);
   };
+  const send = () => sendText(input);
+
+  // 打开抽屉时若携带了 seedQuestion（如点击「想深挖」的问题），自动发送一次
+  useEffect(() => {
+    const q = String(seedQuestion || '').trim();
+    if (!q || seedRef.current === q) return;
+    seedRef.current = q;
+    sendText(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedQuestion]);
 
   return (
     <div className="drawer-overlay" onClick={onClose}>

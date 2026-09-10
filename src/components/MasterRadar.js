@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { RADAR_ACCOUNTS, findRadarAccount, DEFAULT_RADAR_ACCOUNT_ID, PLATFORM_LABEL } from '../data/radarAccounts';
 import { PRESET_MASTERS } from '../data/masters';
 import { MasterAvatar } from './ui';
+import ModuleHero from './ModuleHero';
 
 const SEL_KEY = 'thinktank_radar_master';
 const CUSTOM_KEY = 'thinktank_radar_custom';
@@ -204,30 +205,24 @@ export default function MasterRadar({ active = false }) {
 
   return (
     <div className="rd-workspace">
-      <div className="mg-top rd-top">
-        <div className="rd-top-left">
-          <div className="mg-title">📡 跟踪大师动态</div>
-          <p className="rd-intro">跟踪大师在雪球 / 知乎的真实最新发言；抓不到原文时给原始链接。可用「＋ 添加跟踪来源」粘贴任意主页链接。</p>
-          {headerAccount && (
-            <div className="rd-stamp">
-              {headerAccount.name}
-              {selectedBuiltin && selectedBuiltin.sources.length > 1 ? ` · ${selectedBuiltin.sources.length} 个平台源` : ''}
-              {!busy && timeline.length > 0 ? ` · 最近 ${timeline.length} 条` : ''}
-              {!busy && isEmpty ? ' · 暂无动态' : ''}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          className="rd-refresh"
-          onClick={() => loadAll(true)}
-          disabled={busy}
-          title="强制重新抓取（绕过缓存）"
-        >
-          <span className={`rd-refresh-ico${busy ? ' spin' : ''}`} aria-hidden="true">⟳</span>
-          {busyText}
-        </button>
-      </div>
+      <ModuleHero
+        iconId="radar"
+        kicker="MASTER TRACKER · LIVE SIGNALS"
+        title="跟踪大师动态"
+        description="跟踪大师在雪球、知乎的真实最新发言；抓不到原文时直接给出原始链接，也可以粘贴主页链接添加自己的跟踪来源。"
+        actions={(
+          <button
+            type="button"
+            className="rd-refresh"
+            onClick={() => loadAll(true)}
+            disabled={busy}
+            title="强制重新抓取（绕过缓存）"
+          >
+            <span className={`rd-refresh-ico${busy ? ' spin' : ''}`} aria-hidden="true">⟳</span>
+            {busyText}
+          </button>
+        )}
+      />
 
       <div className="rd-layout">
         {/* ── 左侧：大师列表（纵向导航，按大师切换，不提供跨大师合并流） ── */}

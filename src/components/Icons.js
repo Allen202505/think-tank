@@ -4,22 +4,26 @@
 // id 与各模块 tab 对齐：ask / breakfast / munger / zen / pools / radar / naval
 import {
   Swords,         // 大师PK：对战/辩论
-  Newspaper,      // 巴菲特的早餐：新闻
+  Croissant,      // 巴菲特的早餐：面包
   FileText,       // 芒格财报：财报解读
   TrendingUp,     // 缠论：走势/短线
   Target,         // 大师的选股池：靶心
   Radar,          // 跟踪大师动态：雷达
   BookOpen,       // 纳瓦尔学堂：书
+  Fish,           // 鱼大基础面研究：鱼
+  Gauge,          // 行业周期分析：周期仪表盘
 } from 'lucide-react';
 
 const MAP = {
   ask: Swords,
-  breakfast: Newspaper,
+  breakfast: Croissant,
   munger: FileText,
   zen: TrendingUp,
   pools: Target,
   radar: Radar,
   naval: BookOpen,
+  fundamental: Fish,
+  'industry-cycle': Gauge,
 };
 
 export default function NavIcon({ id, size = 18, className = '' }) {

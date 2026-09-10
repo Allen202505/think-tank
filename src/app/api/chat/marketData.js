@@ -517,7 +517,7 @@ export async function resolveSymbols(query) {
 
 // ─── 实时行情（东方财富） ────────────────────────────────
 async function fetchQuoteEM(secid) {
-  const fields = 'f43,f57,f58,f59,f60,f116,f162,f167,f170,f127';
+  const fields = 'f43,f57,f58,f59,f60,f116,f117,f162,f167,f168,f170,f127';
   const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}`;
   const json = await fetchJson(url);
   const d = json?.data;
@@ -532,6 +532,8 @@ async function fetchQuoteEM(secid) {
     pe: d.f162 && d.f162 > 0 ? d.f162 / 100 : null, // PE 固定两位小数
     pb: d.f167 && d.f167 > 0 ? d.f167 / 100 : null, // PB 固定两位小数
     marketCap: d.f116 || null,
+    floatMarketCap: d.f117 || null, // 流通市值（元）→ 用于估算换手率
+    turnoverRate: d.f168 != null ? d.f168 / 100 : null, // 当日换手率（%）
     currency: null,
     industry: d.f127 || null, // 东财行业板块名（如 白酒Ⅱ/通信设备）
   };

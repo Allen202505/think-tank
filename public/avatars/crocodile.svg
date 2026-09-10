@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
   <defs>
-    <radialGradient id="bg" cx="35%" cy="30%" r="90%">
-      <stop offset="0%" stop-color="#2f8f68"/>
-      <stop offset="100%" stop-color="#10382a"/>
-    </radialGradient>
+    <filter id="mono" x="-12%" y="-12%" width="124%" height="124%">
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
   </defs>
-  <circle cx="100" cy="100" r="97" fill="url(#bg)"/>
-  <circle cx="100" cy="100" r="89" fill="none" stroke="#c9a84c" stroke-width="2.5" opacity="0.9"/>
-  <text x="100" y="118" font-size="86" text-anchor="middle" dominant-baseline="middle">🐊</text>
+  <circle cx="100" cy="100" r="93"
+          fill="#80808c" fill-opacity="0.18"
+          stroke="#a6a6b0" stroke-opacity="0.9" stroke-width="3.5"/>
+  <text x="100" y="108" font-size="150" text-anchor="middle" dominant-baseline="central" filter="url(#mono)">🐊</text>
 </svg>

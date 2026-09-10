@@ -14,6 +14,7 @@ import AiSettingsModal from '../components/AiSettingsModal';
 import AuthModal from '../components/AuthModal';
 import { AuthProvider } from '../lib/authProvider';
 import { ensureAiReady, consumeFree, getAiConfig, setOnNeedConfig } from '../lib/aiGate';
+import { markFeatureCompleted } from '../lib/shareInvite';
 import {
   TYPING_INDICATOR_MS,
   TYPEWRITER_DELAY_MS,
@@ -37,6 +38,9 @@ import MungerFinance from '../components/MungerFinance';
 import ZenShortTerm from '../components/ZenShortTerm';
 import StockPools from '../components/StockPools';
 import NavalAcademy from '../components/NavalAcademy';
+import CrocodileFundamental from '../components/CrocodileFundamental';
+import IndustryCycleAnalysis from '../components/IndustryCycleAnalysis';
+import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
 
@@ -206,6 +210,8 @@ export default function Home() {
   const [theme, setTheme] = useState('white'); // 默认纯白；SSR 与首帧一致，挂载后 effect 再读 localStorage
   const [qrOpen, setQrOpen] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
+  const [groupQrOpen, setGroupQrOpen] = useState(false);
+  const [groupQrImgError, setGroupQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
   // 默认 5 位（SSR 固定，避免水合不一致；挂载后再随机/恢复）
@@ -259,6 +265,7 @@ export default function Home() {
   // 非流式（rounds）模式的逐条展示进度；流式结束后也会用它来保留历史记录
   const [revealStepLegacy, setRevealStepLegacy] = useState(0);
   const fetchInProgressRef = useRef(false);
+  const masterFeatureRoundsRef = useRef(0);
   const goTimeoutRef = useRef(null);
   const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
   // 小白解释：点击某条大师发言 → 浮层用大白话解释术语与思路
@@ -350,6 +357,14 @@ export default function Home() {
     return out;
   }, [rounds]);
 
+  useEffect(() => {
+    const completed = (rounds || []).filter((round) => round?.type === 'round' && Array.isArray(round.discussion) && round.discussion.length > 0).length;
+    if (completed > masterFeatureRoundsRef.current) {
+      masterFeatureRoundsRef.current = completed;
+      markFeatureCompleted('大师PK');
+    }
+  }, [rounds]);
+
   const useStreamingMode = sequence.length > 0;
   // 已完成列表（逐条模式用 completedBlocks；rounds 模式用 blocksFromRounds）
   const blocks = useStreamingMode ? completedBlocks : blocksFromRounds;
@@ -397,6 +412,10 @@ export default function Home() {
         setTab('pools');
       } else if (t === 'naval') {
         setTab('naval');
+      } else if (t === 'fundamental') {
+        setTab('fundamental');
+      } else if (t === 'industry-cycle') {
+        setTab('industry-cycle');
       }
     } catch (e) { /* ignore */ }
   }, []);
@@ -417,7 +436,7 @@ export default function Home() {
     if (next === 'breakfast') setShowBreakfast(true);
     try {
       const url = new URL(window.location.href);
-      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'naval') url.searchParams.set('tab', next);
+      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'naval' || next === 'fundamental' || next === 'industry-cycle') url.searchParams.set('tab', next);
       else url.searchParams.delete('tab');
       window.history.replaceState({}, '', url.toString());
     } catch (e) { /* ignore */ }
@@ -737,15 +756,16 @@ export default function Home() {
 
 
   const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
+  const groupQrSrc = process.env.NEXT_PUBLIC_GROUP_QR_URL || '/group-qr.png';
 
   useEffect(() => {
-    if (!qrOpen) return undefined;
+    if (!qrOpen && !groupQrOpen) return undefined;
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') setQrOpen(false);
+      if (e.key === 'Escape') { setQrOpen(false); setGroupQrOpen(false); }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [qrOpen]);
+  }, [qrOpen, groupQrOpen]);
 
   const dict = messages[locale] || messages.zh;
   const t = (key, ...args) => {
@@ -1337,13 +1357,14 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="page-root">
+        <ShareInvite />
 
 
 
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : tab === 'naval' ? '/bg-naval.jpg' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : tab === 'naval' ? '/bg-naval.jpg' : tab === 'fundamental' ? '/bg-munger.jpg' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
@@ -1354,7 +1375,7 @@ export default function Home() {
         theme={theme}
         onToggleTheme={() => setTheme((th) => (th === 'dark' ? 'light' : th === 'light' ? 'white' : 'dark'))}
         onOpenHistory={() => setHistoryOpen(true)}
-        onToggleQr={() => { setQrImgError(false); setQrOpen((v) => !v); }}
+        onToggleQr={() => { setQrImgError(false); setGroupQrOpen(false); setQrOpen((v) => !v); }}
         onOpenHall={() => setHallOpen(true)}
         onOpenAiSettings={() => setAiSettingsOpen(true)}
         onOpenAuth={() => setAuthOpen(true)}
@@ -1373,6 +1394,20 @@ export default function Home() {
           </div>
           <SidebarNav tab={tab} onSwitch={switchTab} t={t} />
           <div className="app-sidebar-foot">
+        <ShareSidebarEntry />
+        <button
+          type="button"
+          className="sb-group-entry"
+          onClick={() => { setGroupQrImgError(false); setGroupQrOpen(true); setQrOpen(false); }}
+          title="扫码加入「大师吵股」用户交流群"
+        >
+          <span className="sb-group-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+          </span>
+          <span className="sb-group-title">入群聊一聊</span>
+        </button>
         <div className="sb-foot-row">
           <button
             type="button"
@@ -1426,7 +1461,7 @@ export default function Home() {
           <button
             type="button"
             className="icon-btn qr-toggle"
-            onClick={() => { setQrImgError(false); setQrOpen(v => !v); }}
+            onClick={() => { setQrImgError(false); setGroupQrOpen(false); setQrOpen(v => !v); }}
             title="微信二维码"
             aria-label="打开微信二维码"
             aria-expanded={qrOpen ? 'true' : 'false'}
@@ -1840,10 +1875,47 @@ export default function Home() {
         <NavalAcademy />
       </div>
 
+      <div className={`mg-workspace-wrap${tab === 'fundamental' ? '' : ' ws-hidden'}`}>
+        <CrocodileFundamental />
+      </div>
+
+      <div className={`mg-workspace-wrap${tab === 'industry-cycle' ? '' : ' ws-hidden'}`}>
+        <IndustryCycleAnalysis />
+      </div>
+
 
       <footer className="page-disclaimer">{t('disclaimer')}</footer>
         </div>
       </div>
+
+      {groupQrOpen && (
+        <>
+          <div className="qr-backdrop" onClick={() => setGroupQrOpen(false)} />
+          <div
+            className="qr-popover qr-popover-group"
+            role="dialog"
+            aria-label="用户交流群二维码"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="qr-title">大师吵股 · 用户交流群</div>
+            {!groupQrImgError ? (
+              <img
+                className="qr-img"
+                src={groupQrSrc}
+                alt="大师吵股用户交流群二维码"
+                onError={() => setGroupQrImgError(true)}
+              />
+            ) : (
+              <div className="qr-fallback">
+                <div>未找到群二维码图片。</div>
+                <div className="qr-fallback-hint">把二维码放到 `public/group-qr.png`，或设置 `NEXT_PUBLIC_GROUP_QR_URL`。</div>
+              </div>
+            )}
+            <div className="qr-group-hint">微信扫码加入「大师吵股」用户交流群</div>
+            <a className="qr-open" href={groupQrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
+          </div>
+        </>
+      )}
 
       {qrOpen && (
         <>

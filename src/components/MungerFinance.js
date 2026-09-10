@@ -5,6 +5,8 @@ import { MasterAvatar } from './ui';
 import { findMasterById } from '../lib/breakfast';
 import { useDrawerResize } from '../lib/drawerResize';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { markFeatureCompleted } from '../lib/shareInvite';
+import ModuleHero from './ModuleHero';
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -194,6 +196,7 @@ export default function MungerFinance() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
       setResult(data.result);
+      markFeatureCompleted('财报解读');
     } catch (e) {
       setError(e.message || '生成失败，请重试');
     } finally {
@@ -203,10 +206,12 @@ export default function MungerFinance() {
 
   return (
     <div className="mg-workspace">
-      <div className="mg-top">
-        <div className="mg-title">芒格教你读财报</div>
-      </div>
-      <p className="mg-intro">把财报链接或附件丢给芒格，他会像讲课一样深入浅出地拆给你听，看完还能「✋ 举手提问」继续追问。</p>
+      <ModuleHero
+        iconId="munger"
+        kicker="REPORT · FINANCIAL FORENSICS"
+        title="芒格教你读财报"
+        description="把财报链接或附件丢给芒格，他会像讲课一样深入浅出地拆给你听，看完还能「✋ 举手提问」继续追问。"
+      />
 
         <div className="mg-card">
           <div className="mg-card-label">把一份财报丢给芒格，他会深入浅出地讲给你听</div>
