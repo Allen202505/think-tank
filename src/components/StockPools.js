@@ -6,7 +6,7 @@ import StockPoolImportModal from './StockPoolImportModal';
 import { MasterAvatar } from './ui';
 import ModuleHero from './ModuleHero';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
-import { compareStockSortValues, nextSortState } from '../lib/tableSort.mjs';
+import { compareStockSortValues } from '../lib/tableSort.mjs';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
 import { useAuth } from '../lib/authProvider';
@@ -963,18 +963,22 @@ export default function StockPools() {
                       <tr>
                         {headers.map((c) => (
                           <th key={c.key}>
-                            {String(c.key).startsWith('lv') ? (
-                              <span className="sp-th-label">{c.label}</span>
-                            ) : (
+                            <span className="sp-th-label">{c.label}</span>
+                            {!String(c.key).startsWith('lv') && (
+                            <span className="sp-sort">
                               <button
                                 type="button"
-                                className={`sp-sort-head${sort.key === c.key ? ' active' : ''}`}
-                                onClick={() => setSort((current) => nextSortState(current, c.key))}
-                                aria-label={`${c.label}${sort.key === c.key && sort.dir === 'desc' ? '当前降序，点击切换升序' : sort.key === c.key ? '当前升序，点击恢复默认' : `点击排序，默认${c.key === 'code' || c.key === 'name' ? '升序' : '降序'}`}`}
-                              >
-                                <span>{c.label}</span>
-                                <span className="sp-sort-arrow">{sort.key === c.key ? (sort.dir === 'desc' ? '▼' : '▲') : '↕'}</span>
-                              </button>
+                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'asc' ? ' active' : ''}`}
+                                onClick={() => setSort(sort.key === c.key && sort.dir === 'asc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'asc' })}
+                                aria-label={`${c.label}升序`}
+                              >▲</button>
+                              <button
+                                type="button"
+                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'desc' ? ' active' : ''}`}
+                                onClick={() => setSort(sort.key === c.key && sort.dir === 'desc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'desc' })}
+                                aria-label={`${c.label}降序`}
+                              >▼</button>
+                            </span>
                             )}
                           </th>
                         ))}
