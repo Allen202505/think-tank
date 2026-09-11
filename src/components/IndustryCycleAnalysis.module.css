@@ -232,10 +232,11 @@
 .gauge_medium { stroke: #c7a24c; }
 .gauge_weak { stroke: #cf6854; }
 .gauge_unknown { stroke: var(--text-muted); opacity: .4; }
-.gaugeText { position: absolute; inset: 0 0 20px; display: flex; align-items: center; justify-content: center; }
+.gaugeText { position: absolute; inset: 14%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.gaugeScore { display: flex; align-items: center; justify-content: center; line-height: 1; }
 .gaugeText strong { font-family: var(--font-mono); font-size: 27px; color: var(--text); }
-.gaugeText span { align-self: center; margin-top: 6px; color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
-.gaugeStage { position: absolute; right: 0; bottom: 5px; left: 0; text-align: center; color: var(--accent-strong); font-size: 12px; font-weight: 800; }
+.gaugeText .gaugeScore span { margin-top: 4px; color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
+.gaugeStage { max-width: 100%; margin-top: 3px; overflow: hidden; color: var(--accent-strong); font-size: 11px; font-weight: 800; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 
 .oneLine { position: relative; padding: 20px 22px 18px 48px; border: 1px solid var(--accent-dim); border-radius: 16px; background: var(--bg-card); }
 .quoteMark { position: absolute; top: 12px; left: 17px; color: var(--accent); font-family: Georgia, serif; font-size: 38px; line-height: 1; opacity: .6; }

@@ -56,10 +56,12 @@ function ScoreGauge({ value, stage }) {
         />
       </svg>
       <div className={styles.gaugeText}>
-        <strong>{value == null ? '—' : value}</strong>
-        <span>/100</span>
+        <div className={styles.gaugeScore}>
+          <strong>{value == null ? '—' : value}</strong>
+          <span>/100</span>
+        </div>
+        <div className={styles.gaugeStage}>{stage || '数据不足'}</div>
       </div>
-      <div className={styles.gaugeStage}>{stage || '数据不足'}</div>
     </div>
   );
 }
@@ -603,8 +605,8 @@ export default function IndustryCycleAnalysis() {
             <SectionTitle icon={Activity} eyebrow="STEP 04" title="周期拐点识别" desc="至少三个领先指标同时转向，才比单一价格信号更可信。" />
             <div className={styles.signalGrid}>
               <SignalGroup icon={CheckCircle2} title="已反转" items={analysis.inflection?.reversed} empty="暂无已确认反转信号" tone="signalGood" defaultOpen />
-              <SignalGroup icon={CircleDot} title="尚未确认" items={analysis.inflection?.notYet} empty="暂无数据" />
-              <SignalGroup icon={ScanSearch} title="等待观察" items={analysis.inflection?.awaiting} empty="暂无数据" />
+              <SignalGroup icon={CircleDot} title="尚未确认" items={analysis.inflection?.notYet} empty="暂无数据" defaultOpen />
+              <SignalGroup icon={ScanSearch} title="等待观察" items={analysis.inflection?.awaiting} empty="暂无数据" defaultOpen />
             </div>
             <div className={styles.keySignal}><Target size={16} /><span>最关键领先指标：</span><strong>{analysis.inflection?.keyIndicator || '待确认'}</strong></div>
           </section>
@@ -691,7 +693,7 @@ export default function IndustryCycleAnalysis() {
                 {(analysis.watchlist || []).length ? <ol>{analysis.watchlist.map((x, i) => <li key={i}>{x}</li>)}</ol> : <p className={styles.muted}>未生成观察指标。</p>}
               </div>
             </details>
-            <details className={styles.listCard}>
+            <details className={styles.listCard} open>
               <summary className={styles.listHead}>
                 <ShieldAlert size={17} />
                 <strong>证伪条件</strong>
