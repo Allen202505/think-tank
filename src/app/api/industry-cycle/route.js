@@ -153,7 +153,8 @@ function buildDataSection({ info, quote, fin, deep, board }) {
   const lines = [];
 
   lines.push(`【标的与行业】${quote?.name || info.name || info.symbol}（${info.symbol}）；A股；申万/东财行业口径：${industryName}；CSRC：${deep?.industry?.csrcIndustry || '未获取'}。`);
-  lines.push(`【行情快照｜本次拉取 ${todayCN()}】现价 ${fmtNum(quote?.price)} 元；当日 ${fmtPct(quote?.changePct, 2)}；PE ${fmtNum(quote?.pe)}；PB ${fmtNum(quote?.pb)}；总市值 ${fmtYi(quote?.marketCap)}；流通市值 ${fmtYi(quote?.floatMarketCap)}。`);
+  const priceLabel = quote?.isPreviousClose ? '上一交易日收盘' : '现价';
+  lines.push(`【行情快照｜本次拉取 ${todayCN()}】${priceLabel} ${fmtNum(quote?.price)} 元；当日 ${fmtPct(quote?.changePct, 2)}；PE ${fmtNum(quote?.pe)}；PB ${fmtNum(quote?.pb)}；总市值 ${fmtYi(quote?.marketCap)}；流通市值 ${fmtYi(quote?.floatMarketCap)}。`);
   lines.push(`【股价周期】近20日 ${fmtPct(sReturns.d20, 2)}；近60日 ${fmtPct(sReturns.d60, 2)}；近120日 ${fmtPct(sReturns.d120, 2)}；近250日 ${fmtPct(sReturns.d250, 2)}；量能 ${volume ? `${volume.state}（最新/前20日均量 ${volume.ratio}倍）` : '未获取'}。`);
   if (pv) lines.push(`【历史位置】10年分位 ${pv.pos10y ?? '—'}%；5年分位 ${pv.pos5y ?? '—'}%；3年分位 ${pv.pos3y ?? '—'}%；10年区间 ${pv.low10y ?? '—'}—${pv.high10y ?? '—'} 元；近3年箱体宽度 ${pv.box3yWidthPct ?? '—'}%；低位区停留 ${pv.monthsInLowerThird ?? '—'} 个月。`);
   if (val) lines.push(`【估值分位】PE ${fmtNum(quote?.pe)}，历史分位 ${val.pePercentile ?? '—'}%；PB ${fmtNum(quote?.pb)}，历史分位 ${val.pbPercentile ?? '—'}%；${val.peBand || ''}${val.peBand && val.pbBand ? '；' : ''}${val.pbBand || ''}`);

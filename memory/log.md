@@ -32,6 +32,23 @@
 - [ ] 第二批优化（移动端/大师页/海报/持久化/拆分）已本地完成并构建验证，待部署后线上复核（含用户浏览器确认持久化）
 
 
+## 2026-09-11 · 修复盘前“中钢国际”行业周期分析报非 JSON 错误
+
+**背景**：用户输入“中钢国际”启动行业周期分析时，前端报 `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`。线上复现为行业周期接口在盘前返回 502，经 Cloudflare 后可能变成 HTML 错误页；前端固定调用 `res.json()`，因此把网关页当成接口 JSON 解析。
+
+**根因**：东方财富盘前/休市时行情字段 `f43`（现价）会返回 `0`，但 `f60`（昨收）仍有有效值。统一行情层只读 `f43`，把 `0` 当无效行情；行业周期路由又要求 `quote.price` 为真，导致所有 A 股在盘前都可能被误判为“没有最新行情”并返回 502。
+
+**改动**：
+- `src/app/api/chat/marketData.js`：`f43 <= 0` 且 `f60 > 0` 时降级使用昨收，并增加 `isPreviousClose` 标记；避免把 `0` 当真实股价。
+- `src/app/api/industry-cycle/route.js`：快照价格按实际情况标注“现价”或“上一交易日收盘”。
+- `src/components/IndustryCycleAnalysis.js`：新增非 JSON 响应保护，5xx 网关页或 HTML 不再把浏览器原始 JSON 解析异常透传给用户，而是显示可重试的友好错误。
+
+**验证**：
+- 本地 `POST /api/industry-cycle` 输入 `000928`：HTTP 200，价格 `5.66`（昨收），行业“专业工程”，约 23.8s。
+- 本地同接口输入用户原值“中钢国际”：HTTP 200，正确解析为 `000928`，返回结构化周期分析，约 20.5s。
+- 新增 `src/lib/apiResponse.mjs` 与 `scripts/read-api-response.test.mjs`，`npm test` 4/4 通过，覆盖合法 JSON、HTML 502、文本 502 和 JSON 错误体。
+- `npm run build` 通过；生产构建页面 HTTP 200，输入“中钢国际”接口 HTTP 200。修复后不再出现 `Unexpected token '<'`，完整数据与 AI 分析链路均可达。
+
 ## 2026-09-08
 
 ### 新增「📡 大师动态雷达」模块（P0 · 雪球单源 · ⚠️ 本轮改动未提交/未部署）

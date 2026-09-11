@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
+import { readApiResponse } from '../lib/apiResponse.mjs';
 import ModuleHero from './ModuleHero';
 import { CYCLE_STAGES, stageIndex } from '../lib/industryCycleMeta';
 import styles from './IndustryCycleAnalysis.module.css';
@@ -354,14 +355,14 @@ export default function IndustryCycleAnalysis() {
     try {
       const res = await fetch('/api/industry-cycle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           symbol: symbol.trim(),
           industryData: industryData.trim(),
           aiConfig: getAiConfig(),
         }),
       });
-      const data = await res.json();
+      const data = await readApiResponse(res);
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');
       setResult(data.result);
       markFeatureCompleted('行业周期分析');

@@ -523,12 +523,18 @@ async function fetchQuoteEM(secid) {
   const d = json?.data;
   if (!d || d.f57 == null) throw new Error('无行情数据');
   const scale = 10 ** (d.f59 ?? 2); // f59 为小数位数
+  const latest = Number.isFinite(Number(d.f43)) ? Number(d.f43) : null;
+  const prevClose = Number.isFinite(Number(d.f60)) ? Number(d.f60) : null;
+  // 盘前/休市时 f43 可能为 0，此时用昨收保证行情链路可用；不能把 0 当真实股价。
+  const isPreviousClose = !(latest > 0) && prevClose > 0;
+  const price = latest > 0 ? latest / scale : (isPreviousClose ? prevClose / scale : null);
   return {
     symbol: String(d.f57),
     name: d.f58 || null,
-    price: d.f43 != null ? d.f43 / scale : null,
-    prevClose: d.f60 != null ? d.f60 / scale : null,
-    changePct: d.f170 != null ? d.f170 / 100 : null,
+    price,
+    prevClose: prevClose != null ? prevClose / scale : null,
+    isPreviousClose,
+    changePct: !isPreviousClose && d.f170 != null ? d.f170 / 100 : null,
     pe: d.f162 && d.f162 > 0 ? d.f162 / 100 : null, // PE 固定两位小数
     pb: d.f167 && d.f167 > 0 ? d.f167 / 100 : null, // PB 固定两位小数
     marketCap: d.f116 || null,

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "prebuild": "node scripts/sync-avatars.mjs",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
