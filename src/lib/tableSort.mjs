@@ -10,16 +10,3 @@ export function compareSortValues(a, b, dir = 'asc') {
   const result = aNum && bNum ? na - nb : String(a).localeCompare(String(b), 'zh-Hans-CN');
   return result * (dir === 'desc' ? -1 : 1);
 }
-
-export function compareStockSortValues(key, a, b, dir = 'asc') {
-  if (key === 'ret' && a != null && b != null) {
-    const na = Number(a);
-    const nb = Number(b);
-    if (Number.isFinite(na) && Number.isFinite(nb)) {
-      // ▼ / ▲ 按变动幅度排序，两个方向严格互反。
-      const delta = Math.abs(na) - Math.abs(nb);
-      if (delta !== 0) return delta * (dir === 'desc' ? -1 : 1);
-    }
-  }
-  return compareSortValues(a, b, dir);
-}

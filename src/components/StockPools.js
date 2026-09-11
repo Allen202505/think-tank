@@ -6,7 +6,7 @@ import StockPoolImportModal from './StockPoolImportModal';
 import { MasterAvatar } from './ui';
 import ModuleHero from './ModuleHero';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
-import { compareStockSortValues } from '../lib/tableSort.mjs';
+import { compareSortValues } from '../lib/tableSort.mjs';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
 import { useAuth } from '../lib/authProvider';
@@ -721,7 +721,7 @@ export default function StockPools() {
   const sortedStocks = useMemo(() => {
     const list = detail && detail.stocks ? [...detail.stocks] : [];
     if (!sort.key || !list.length) return list;
-    list.sort((a, b) => compareStockSortValues(sort.key, sortValue(sort.key, a), sortValue(sort.key, b), sort.dir));
+    list.sort((a, b) => compareSortValues(sortValue(sort.key, a), sortValue(sort.key, b), sort.dir));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail, sort, ranges, costs, active, ratings]);
