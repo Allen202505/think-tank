@@ -6,6 +6,7 @@ import StockPoolImportModal from './StockPoolImportModal';
 import { MasterAvatar } from './ui';
 import ModuleHero from './ModuleHero';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
+import { compareStockSortValues, nextSortState } from '../lib/tableSort.mjs';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
 import { useAuth } from '../lib/authProvider';
@@ -716,22 +717,7 @@ export default function StockPools() {
   const sortedStocks = useMemo(() => {
     const list = detail && detail.stocks ? [...detail.stocks] : [];
     if (!sort.key || !list.length) return list;
-    const dir = sort.dir === 'desc' ? -1 : 1;
-    list.sort((a, b) => {
-      const va = sortValue(sort.key, a);
-      const vb = sortValue(sort.key, b);
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      const na = Number(va);
-      const nb = Number(vb);
-      const aNum = va !== '' && Number.isFinite(na);
-      const bNum = vb !== '' && Number.isFinite(nb);
-      let c;
-      if (aNum && bNum) c = na - nb;
-      else c = String(va).localeCompare(String(vb), 'zh-Hans-CN');
-      return c * dir;
-    });
+    list.sort((a, b) => compareStockSortValues(sort.key, sortValue(sort.key, a), sortValue(sort.key, b), sort.dir));
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail, sort, ranges, costs, active, ratings]);
@@ -977,22 +963,18 @@ export default function StockPools() {
                       <tr>
                         {headers.map((c) => (
                           <th key={c.key}>
-                            <span className="sp-th-label">{c.label}</span>
-                            {!String(c.key).startsWith('lv') && (
-                            <span className="sp-sort">
+                            {String(c.key).startsWith('lv') ? (
+                              <span className="sp-th-label">{c.label}</span>
+                            ) : (
                               <button
                                 type="button"
-                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'asc' ? ' active' : ''}`}
-                                onClick={() => setSort(sort.key === c.key && sort.dir === 'asc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'asc' })}
-                                aria-label={`${c.label}升序`}
-                              >▲</button>
-                              <button
-                                type="button"
-                                className={`sp-sort-btn${sort.key === c.key && sort.dir === 'desc' ? ' active' : ''}`}
-                                onClick={() => setSort(sort.key === c.key && sort.dir === 'desc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'desc' })}
-                                aria-label={`${c.label}降序`}
-                              >▼</button>
-                            </span>
+                                className={`sp-sort-head${sort.key === c.key ? ' active' : ''}`}
+                                onClick={() => setSort((current) => nextSortState(current, c.key))}
+                                aria-label={`${c.label}${sort.key === c.key && sort.dir === 'desc' ? '当前降序，点击切换升序' : sort.key === c.key ? '当前升序，点击恢复默认' : `点击排序，默认${c.key === 'code' || c.key === 'name' ? '升序' : '降序'}`}`}
+                              >
+                                <span>{c.label}</span>
+                                <span className="sp-sort-arrow">{sort.key === c.key ? (sort.dir === 'desc' ? '▼' : '▲') : '↕'}</span>
+                              </button>
                             )}
                           </th>
                         ))}
