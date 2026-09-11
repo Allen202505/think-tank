@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+const AVATAR_CACHE_VERSION = '11';
+
 // 基础 UI 组件（从 page.js 拆出）
 
 export function Card({ title, accent, children }) {
@@ -22,7 +24,7 @@ export function MasterAvatar({ master, size = 44, className = '' }) {
   const isDeceased = master.status === 'deceased';
   const wrapperStyle = { filter: isDeceased ? 'grayscale(1)' : 'none', opacity: isDeceased ? 0.85 : 1 };
   // 本地头像加版本号避免浏览器强缓存导致不更新
-  const src = master.avatar && master.avatar.startsWith('/') ? `${master.avatar}?v=10` : master.avatar;
+  const src = master.avatar && master.avatar.startsWith('/') ? `${master.avatar}?v=${AVATAR_CACHE_VERSION}` : master.avatar;
   const style = { width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 };
   if (useImg) {
     return (
@@ -83,4 +85,3 @@ export function MiniBtn({ children, onClick, disabled, active, subtle }) {
     </button>
   );
 }
-
