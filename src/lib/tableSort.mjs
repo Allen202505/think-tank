@@ -16,8 +16,9 @@ export function compareStockSortValues(key, a, b, dir = 'asc') {
     const na = Number(a);
     const nb = Number(b);
     if (Number.isFinite(na) && Number.isFinite(nb)) {
-      const delta = Math.abs(na) - Math.abs(nb);
-      if (delta !== 0) return delta * (dir === 'desc' ? -1 : 1);
+      // ▼ 保留变动幅度降序：跌幅最大优先；▲ 使用严格数值升序：最负值优先。
+      const delta = dir === 'desc' ? Math.abs(nb) - Math.abs(na) : na - nb;
+      if (delta !== 0) return delta;
     }
   }
   return compareSortValues(a, b, dir);

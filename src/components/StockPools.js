@@ -693,6 +693,10 @@ export default function StockPools() {
       case 'name': return s.name || '';
       case 'price': return s.price;
       case 'ret': return s.ret;
+      case 'lvEntry': return active?.levels?.[s.code]?.entry ?? null;
+      case 'lvHeavy': return active?.levels?.[s.code]?.heavy ?? null;
+      case 'lvTp1': return active?.levels?.[s.code]?.tp1 ?? null;
+      case 'lvTp2': return active?.levels?.[s.code]?.tp2 ?? null;
       case 'histPct': { const r = ranges[s.code]; return r && r.histPct != null ? Number(r.histPct) : null; }
       case 'yPct': { const r = ranges[s.code]; return r && r.yPct != null ? Number(r.yPct) : null; }
       case 'rating': {
@@ -964,7 +968,6 @@ export default function StockPools() {
                         {headers.map((c) => (
                           <th key={c.key}>
                             <span className="sp-th-label">{c.label}</span>
-                            {!String(c.key).startsWith('lv') && (
                             <span className="sp-sort">
                               <button
                                 type="button"
@@ -979,7 +982,6 @@ export default function StockPools() {
                                 aria-label={`${c.label}降序`}
                               >▼</button>
                             </span>
-                            )}
                           </th>
                         ))}
                       </tr>
