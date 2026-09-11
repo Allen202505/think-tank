@@ -48,6 +48,7 @@
 - 本地同接口输入用户原值“中钢国际”：HTTP 200，正确解析为 `000928`，返回结构化周期分析，约 20.5s。
 - 新增 `src/lib/apiResponse.mjs` 与 `scripts/read-api-response.test.mjs`，`npm test` 4/4 通过，覆盖合法 JSON、HTML 502、文本 502 和 JSON 错误体。
 - `npm run build` 通过；生产构建页面 HTTP 200，输入“中钢国际”接口 HTTP 200。修复后不再出现 `Unexpected token '<'`，完整数据与 AI 分析链路均可达。
+- 提交 `41e96df` 推送 `origin/main` 并由 Vercel 自动部署后，线上 `POST https://yieldglide.com/api/industry-cycle` 输入“中钢国际”返回 HTTP 200，识别 `000928`、价格 `5.61`、周期结论“筑底”。
 
 ## 2026-09-08
 
