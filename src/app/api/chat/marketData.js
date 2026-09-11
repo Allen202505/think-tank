@@ -16,6 +16,7 @@
  */
 
 import { resolveLlmUrl, buildProviderHeaders, buildProviderBody } from '../../../lib/llm.js';
+import { isAShareQuotationRow } from '../../../lib/stockSearch.mjs';
 
 // ─── 常量 ────────────────────────────────────────────────
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
@@ -143,7 +144,8 @@ const TICKER_STOPWORDS = new Set([
 const cache = new Map();
 const ERROR_TTL_MS = 60000; // 失败后 1 分钟内不再重试同一个 key
 
-function cached(key, ttlMs, loader) {
+function cached(key, ttlMs, loader, options = {}) {
+  const cacheErrors = options.cacheErrors !== false;
   const hit = cache.get(key);
   if (hit) {
     const ttl = hit.error ? ERROR_TTL_MS : ttlMs;
@@ -153,7 +155,13 @@ function cached(key, ttlMs, loader) {
   const p = Promise.resolve().then(loader);
   p.then(
     () => cache.set(key, { at: Date.now(), value: p }),
-    () => cache.set(key, { at: Date.now(), value: p, error: true }),
+    () => {
+      if (cacheErrors) {
+        cache.set(key, { at: Date.now(), value: p, error: true });
+      } else if (cache.get(key)?.value === p) {
+        cache.delete(key);
+      }
+    },
   );
   cache.set(key, { at: Date.now(), value: p });
   return p;
@@ -189,14 +197,23 @@ async function searchEastMoney(keyword) {
   const json = await fetchJson(url);
   const rows = json?.QuotationCodeTable?.Data || [];
   return rows
-    .filter((r) => MARKET_BY_CLASS[r.Classify] && r.QuoteID && r.Code)
+    .filter((r) => (isAShareQuotationRow(r) || MARKET_BY_CLASS[r.Classify]) && r.QuoteID && r.Code)
     .map((r) => ({
       symbol: String(r.Code),
-      market: MARKET_BY_CLASS[r.Classify],
+      market: isAShareQuotationRow(r) ? 'CN' : MARKET_BY_CLASS[r.Classify],
       secid: String(r.QuoteID),
       name: r.Name || null,
       exchange: r.SecurityTypeName || null,
     }));
+}
+
+export async function searchStockSuggestions(keyword, limit = 8) {
+  const q = String(keyword || '').trim().slice(0, 30);
+  if (!q) return [];
+  return cached(`suggest:${q}`, 5 * 60000, async () => {
+    const list = await searchEastMoney(q);
+    return list.filter((x) => x.market === 'CN').slice(0, limit);
+  }).catch(() => []);
 }
 
 function looksLikeAStockCode(t) {
@@ -519,7 +536,13 @@ export async function resolveSymbols(query) {
 async function fetchQuoteEM(secid) {
   const fields = 'f43,f57,f58,f59,f60,f116,f117,f162,f167,f168,f170,f127';
   const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}`;
-  const json = await fetchJson(url);
+  let json;
+  try {
+    json = await fetchJson(url);
+  } catch (e) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    json = await fetchJson(url);
+  }
   const d = json?.data;
   if (!d || d.f57 == null) throw new Error('无行情数据');
   const scale = 10 ** (d.f59 ?? 2); // f59 为小数位数
@@ -894,7 +917,8 @@ export async function getMarketOverview() {
 export async function getQuote(info) {
   let em = null;
   try {
-    em = await cached(`quote:${info.secid}`, 180000, () => fetchQuoteEM(info.secid));
+    // 行情访问偶发抖动时不写 60 秒负缓存，否则用户连续重试都会命中同一个失败 Promise。
+    em = await cached(`quote:${info.secid}`, 180000, () => fetchQuoteEM(info.secid), { cacheErrors: false });
   } catch (e) {
     // 东财失败则继续尝试 Yahoo
   }

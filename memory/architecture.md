@@ -43,6 +43,7 @@ think-tank/
 
 ### 数据层（实时行情/财务）
 - `src/app/api/chat/marketData.js`: 统一市场数据层（东方财富 + Yahoo 双源、TTL 缓存、失败降级）
+- `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`。
 - 行情容错：东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`；客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
 - `src/app/api/chat/route.js`: DeepSeek 代理，调用 quoteContext 注入最新数据

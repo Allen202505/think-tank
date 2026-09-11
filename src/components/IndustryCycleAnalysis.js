@@ -313,6 +313,9 @@ export default function IndustryCycleAnalysis() {
   const [loadStep, setLoadStep] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
   const hydratedRef = useRef(false);
 
   useEffect(() => {
@@ -344,6 +347,34 @@ export default function IndustryCycleAnalysis() {
     const timer = setInterval(() => setLoadStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1)), 7000);
     return () => clearInterval(timer);
   }, [loading]);
+
+  useEffect(() => {
+    const q = symbol.trim();
+    if (!suggestOpen || q.length < 2 || /^\d{6}$/.test(q)) {
+      setSuggestions([]);
+      setSuggestLoading(false);
+      return undefined;
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(async () => {
+      setSuggestLoading(true);
+      try {
+        const res = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
+        const data = await res.json();
+        if (!ctrl.signal.aborted) setSuggestions(res.ok && Array.isArray(data.results) ? data.results : []);
+      } catch (e) {
+        if (!ctrl.signal.aborted) setSuggestions([]);
+      } finally {
+        if (!ctrl.signal.aborted) setSuggestLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [symbol, suggestOpen]);
 
   const run = useCallback(async () => {
     if (loading || !symbol.trim()) return;
@@ -415,11 +446,34 @@ export default function IndustryCycleAnalysis() {
               <input
                 id="industry-cycle-symbol"
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run(); } }}
+                onChange={(e) => { setSymbol(e.target.value); setSuggestOpen(true); }}
+                onFocus={() => setSuggestOpen(true)}
+                onBlur={() => setTimeout(() => setSuggestOpen(false), 120)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); setSuggestOpen(false); run(); }
+                  if (e.key === 'Escape') setSuggestOpen(false);
+                }}
                 placeholder="例如：中盐化工 / 600328 / 中国神华"
                 autoComplete="off"
               />
+              {suggestOpen && (suggestLoading || suggestions.length > 0) ? (
+                <div className={styles.suggestPanel} role="listbox" aria-label="股票搜索建议">
+                  {suggestLoading && suggestions.length === 0 ? <div className={styles.suggestEmpty}>正在搜索…</div> : null}
+                  {suggestions.map((item) => (
+                    <button
+                      key={`${item.symbol}-${item.secid}`}
+                      type="button"
+                      className={styles.suggestItem}
+                      role="option"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setSymbol(item.name || item.symbol); setSuggestOpen(false); }}
+                    >
+                      <span>{item.name || item.symbol}</span>
+                      <small>{item.symbol}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <button type="button" className={styles.runBtn} onClick={run} disabled={loading || !symbol.trim()}>
               {loading ? <RefreshCw size={17} className={styles.spin} /> : <BarChart3 size={17} />}

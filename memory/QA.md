@@ -72,7 +72,7 @@ npm start
 npm test
 ```
 
-当前覆盖：API 响应解析的合法 JSON、HTML 502、文本 502、JSON 错误体四个用例。
+当前覆盖：API 响应解析的合法 JSON/HTML 502/文本 502/JSON 错误体，以及东财 `Classify=23`、旧 `AStock`、非 A 股过滤，共 7 个用例。
 
 ### 2.2 建议环境变量
 
@@ -426,6 +426,8 @@ npm test
 - 支持补充产品价格、库存、开工率等行业数据。
 - 盘前或休市时若东财现价字段为 `0`，自动使用昨收价并明确标注“上一交易日收盘”，不误报无行情。
 - 网关返回 HTML/非 JSON 错误页时，前端显示“分析服务暂时不可用”，不透传 JSON 解析异常。
+- 中文输入支持 250ms 防抖模糊搜索；输入“宇树”候选应显示“宇树科技-W / 688836”。
+- 东财行情失败自动重试一次；行情失败不写入 60 秒负缓存，避免连续重试被同一失败结果阻塞。
 - 输出：
   - 一句话结论
   - 周期属性
@@ -466,6 +468,9 @@ npm test
 - [x] IC-16 盘前 `f43=0` 时，`000928` 行业周期接口返回 200，并使用昨收价和“上一交易日收盘”口径。
 - [x] IC-17 输入“中钢国际”可解析为 `000928`，返回结构化行业周期分析。
 - [x] IC-18 上游返回 HTML 或 5xx 非 JSON 时，页面显示友好错误，不显示 `Unexpected token '<'`。
+- [x] IC-19 `GET /api/stock-search?q=宇树` 返回 `宇树科技-W / 688836`。
+- [x] IC-20 `POST /api/industry-cycle` 输入“宇树”返回 HTTP 200，并解析为 `688836`。
+- [ ] IC-21 浏览器输入“宇树”时下拉候选正常展示，点击候选后输入框写入股票名称。
 
 ### 接口冒烟命令
 
@@ -475,9 +480,11 @@ npm test
 curl -sS -X POST http://127.0.0.1:3000/api/industry-cycle \
   -H 'Content-Type: application/json' \
   -d '{"symbol":"中钢国际","industryData":""}'
+
+curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 ```
 
-覆盖：名称解析、盘前昨收降级、行情/财报/行业指数抓取、AI 结构化输出。
+覆盖：中文模糊搜索、名称解析、盘前昨收降级、行情/财报/行业指数抓取、AI 结构化输出。
 
 ---
 
@@ -542,6 +549,7 @@ curl -sS -X POST http://127.0.0.1:3000/api/industry-cycle \
 - [ ] `POST /api/zen`
 - [ ] `POST /api/fundamental`
 - [ ] `POST /api/industry-cycle`
+- [ ] `GET /api/stock-search`
 - [ ] `POST /api/naval/ask`
 - [ ] `POST /api/naval/daily`
 - [ ] `POST /api/pools/extract`
