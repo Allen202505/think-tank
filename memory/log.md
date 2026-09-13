@@ -2,6 +2,33 @@
 
 ## 🧭 项目执行规则（长期有效）
 
+## 2026-09-13 · 大师实盘联赛全功能上线（推送 main + 线上验证）
+
+**背景**：用户确认后，把这几轮的全部改动提交并推送，触发 Vercel 生产部署。
+
+**提交**（5 个语义化 commit，`ff0be25..3227496`）
+
+1. `feat: 新增大师实盘公开赛模块与功能箱导航`
+2. `feat: 邀请大师公共持久化与管理员下架`
+3. `feat: 大师智能体感知层、工具层与单大师试跑`
+4. `feat: AI 现场生成大师互评并落库，加收盘定时任务`
+5. `docs: 同步联赛、智能体与互评的功能说明与回归手册`
+
+**推送前校验**：`npm test` 40 个通过；`npm run build` 通过；确认无密钥进入版本库（`.env.local` 被 gitignore，`.env.example` 里只有占位符）。
+
+**线上验证（yieldglide.com）**
+
+- Vercel 自动部署成功（生产环境）。
+- `GET /api/master-league/commentary?master=loeb` → `source = database`，返回 3 条 AI 互评 ✅（数据来自此前写入的底表）
+- `GET /api/master-league` → ok，六位大师，数据源 腾讯证券 / 东方财富 ✅
+- Cron 已在 Vercel 注册：`/api/cron/master-league-commentary`，`35 7 * * 1-5`（UTC）= 北京时间 15:35 周一至周五；Cron Jobs 处于 Enabled。
+- 定时任务接口鉴权验证：不带 `Authorization` → 401；带 `CRON_SECRET` → `{"ok":true,"skipped":true,"reason":"周末不开市"}`（今天周日，跳过逻辑生效）✅
+
+**注意**：Vercel Hobby 套餐 cron 有 1 小时弹性窗口（设定 15:35，实际在 15:35~16:35 之间触发）。
+
+**至此闭环**：每交易日自动生成六位大师互评 → 落库 → 页面读库展示（访客刷新不产生费用），重启/多实例都不丢。
+
+
 ## 2026-09-13 · AI 互评落库持久化 + 收盘定时任务
 
 **背景**：用户追问「服务端进程内存」的含义后，决定把互评做成重启不丢、自动生成。

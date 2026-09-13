@@ -765,7 +765,9 @@ curl -sS 'http://127.0.0.1:3000/api/master-league'
 - [x] MS-23 读库超时保护：数据库抖动时 5 秒回退到内存缓存/预置点评，页面不干等。
 - [x] MS-24 写库与「重启不丢」已验证：生成六位全部 `persistence.enabled=true`、底表 6 行；重启 dev server 后 `GET ?master=loeb` 返回 `source: database` 且 3 条点评完整。
 - [x] MS-25 Vercel 环境变量已配置：`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET`（均为 Secret / Production）。
-- [ ] MS-26 提交并推送代码后，线上部署生效：验证 `vercel.json` cron 生效、线上 `GET /api/master-league/commentary` 返回 `source: database`。
+- [x] MS-26 线上部署验证（2026-09-13 推送 main，`3227496`）：`https://yieldglide.com/api/master-league/commentary?master=loeb` 返回 `source: database`；`/api/master-league` 返回六位大师。
+- [x] MS-27 线上 Cron 已注册并启用：`/api/cron/master-league-commentary`，`35 7 * * 1-5`；带 `CRON_SECRET` 调用返回「周末不开市」跳过，不带则 401。
+- [ ] MS-28 下一个交易日观察：cron 自动生成当日互评（Vercel Hobby 有 1 小时弹性窗口）。
 - [x] MS-17 AI 互评现场生成：`POST /api/master-league/commentary {"all":true}` 六位各生成 3 条，实测单大师 ¥0.0018~0.0023、整天 ¥0.008~0.012。
 - [x] MS-18 页面优先展示 AI 互评并渲染本人回怼；`GET /api/master-league/commentary?master=` 只读缓存，访客刷新不产生费用。
 - [x] MS-19 互评输出校验与降级：点评人非法/自己点评自己/字数不合格会被拦下并重试，仍不合格回退预置文案。
