@@ -12,6 +12,8 @@ import {
   BookOpen,       // 纳瓦尔学堂：书
   Fish,           // 鱼大基础面研究：鱼
   Gauge,          // 行业周期分析：周期仪表盘
+  Trophy,         // 大师实盘联赛：冠军榜
+  BriefcaseBusiness, // 功能箱：多能力集合
 } from 'lucide-react';
 
 const MAP = {
@@ -24,6 +26,8 @@ const MAP = {
   naval: BookOpen,
   fundamental: Fish,
   'industry-cycle': Gauge,
+  'master-league': Trophy,
+  toolbox: BriefcaseBusiness,
 };
 
 export default function NavIcon({ id, size = 18, className = '' }) {

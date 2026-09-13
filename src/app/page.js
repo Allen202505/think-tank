@@ -40,6 +40,8 @@ import StockPools from '../components/StockPools';
 import NavalAcademy from '../components/NavalAcademy';
 import CrocodileFundamental from '../components/CrocodileFundamental';
 import IndustryCycleAnalysis from '../components/IndustryCycleAnalysis';
+import MasterLeague from '../components/MasterLeague';
+import ToolboxTabs, { isToolboxTab } from '../components/ToolboxTabs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
@@ -219,6 +221,7 @@ export default function Home() {
   // 顶部 Tab：提问智囊团 / 早餐圆桌（同页切换，圆桌首次激活后常驻挂载以保留状态）
   const [tab, setTab] = useState('ask');
   const [showBreakfast, setShowBreakfast] = useState(false);
+  const [toolboxTab, setToolboxTab] = useState('munger');
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -400,22 +403,24 @@ export default function Home() {
   // Tab：从 URL ?tab=breakfast 恢复；切换时同步 URL（不跳转）
   useEffect(() => {
     try {
-      const t = new URLSearchParams(window.location.search).get('tab');
-      if (t === 'breakfast') {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tab');
+      const tool = params.get('tool');
+      let savedTool = '';
+      try { savedTool = localStorage.getItem('thinktank_toolbox_tab') || ''; } catch (e) { /* ignore */ }
+      if (t === 'toolbox' || isToolboxTab(t)) {
+        const nextTool = isToolboxTab(tool) ? tool : isToolboxTab(t) ? t : isToolboxTab(savedTool) ? savedTool : 'munger';
+        setToolboxTab(nextTool);
+        setTab('toolbox');
+      } else if (t === 'breakfast') {
         setTab('breakfast');
         setShowBreakfast(true);
-      } else if (t === 'munger') {
-        setTab('munger');
-      } else if (t === 'zen') {
-        setTab('zen');
       } else if (t === 'pools') {
         setTab('pools');
-      } else if (t === 'naval') {
-        setTab('naval');
-      } else if (t === 'fundamental') {
-        setTab('fundamental');
       } else if (t === 'industry-cycle') {
         setTab('industry-cycle');
+      } else if (t === 'master-league') {
+        setTab('master-league');
       }
     } catch (e) { /* ignore */ }
   }, []);
@@ -431,13 +436,39 @@ export default function Home() {
     return () => window.removeEventListener('open-auth', onOpenAuth);
   }, []);
 
-  const switchTab = (next) => {
-    setTab(next);
-    if (next === 'breakfast') setShowBreakfast(true);
+  const switchToolboxTab = (nextTool) => {
+    if (!isToolboxTab(nextTool)) return;
+    setToolboxTab(nextTool);
+    setTab('toolbox');
+    try { localStorage.setItem('thinktank_toolbox_tab', nextTool); } catch (e) { /* ignore */ }
     try {
       const url = new URL(window.location.href);
-      if (next === 'breakfast' || next === 'munger' || next === 'zen' || next === 'pools' || next === 'naval' || next === 'fundamental' || next === 'industry-cycle') url.searchParams.set('tab', next);
-      else url.searchParams.delete('tab');
+      url.searchParams.set('tab', 'toolbox');
+      url.searchParams.set('tool', nextTool);
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) { /* ignore */ }
+  };
+
+  const switchTab = (next) => {
+    const legacyToolboxTab = isToolboxTab(next) ? next : '';
+    const resolvedNext = legacyToolboxTab ? 'toolbox' : next;
+    const nextToolboxTab = legacyToolboxTab || toolboxTab;
+    if (legacyToolboxTab) setToolboxTab(legacyToolboxTab);
+    setTab(resolvedNext);
+    if (resolvedNext === 'breakfast') setShowBreakfast(true);
+    try {
+      const url = new URL(window.location.href);
+      if (resolvedNext === 'toolbox') {
+        url.searchParams.set('tab', 'toolbox');
+        url.searchParams.set('tool', nextToolboxTab);
+        try { localStorage.setItem('thinktank_toolbox_tab', nextToolboxTab); } catch (e) { /* ignore */ }
+      } else if (resolvedNext === 'breakfast' || resolvedNext === 'pools' || resolvedNext === 'industry-cycle' || resolvedNext === 'master-league') {
+        url.searchParams.set('tab', resolvedNext);
+        url.searchParams.delete('tool');
+      } else {
+        url.searchParams.delete('tab');
+        url.searchParams.delete('tool');
+      }
       window.history.replaceState({}, '', url.toString());
     } catch (e) { /* ignore */ }
   };
@@ -616,6 +647,16 @@ export default function Home() {
     setSelected((prev) => new Set([...prev, inviteMaster.id]));
     setInvitePhase('added');
   }, [inviteMaster, customMasters, persistCustoms]);
+
+  // 公开赛邀请的角色同步到大师 PK：同一份 customMasters 数据源，避免两套人物库。
+  const registerCustomMaster = useCallback((master) => {
+    if (!master?.id) return;
+    setCustomMasters((previous) => {
+      const next = [master, ...previous.filter((item) => item.id !== master.id)];
+      persistCustoms(next);
+      return next;
+    });
+  }, [persistCustoms]);
 
   const openInvite = useCallback(() => {
     setInvitePhase('form');
@@ -1364,7 +1405,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'munger' ? '/bg-munger.jpg' : tab === 'pools' ? '/bg-debate.png' : tab === 'naval' ? '/bg-naval.jpg' : tab === 'fundamental' ? '/bg-munger.jpg' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
@@ -1858,29 +1899,32 @@ export default function Home() {
         </div>
       )}
 
-      <div className={`mg-workspace-wrap${tab === 'munger' ? '' : ' ws-hidden'}`}>
-        <MungerFinance />
-      </div>
-
-      <div className={`mg-workspace-wrap${tab === 'zen' ? '' : ' ws-hidden'}`}>
-        <ZenShortTerm />
-      </div>
-
       <div className={`mg-workspace-wrap${tab === 'pools' ? '' : ' ws-hidden'}`}>
         <StockPools />
       </div>
 
-
-      <div className={`mg-workspace-wrap${tab === 'naval' ? '' : ' ws-hidden'}`}>
-        <NavalAcademy />
-      </div>
-
-      <div className={`mg-workspace-wrap${tab === 'fundamental' ? '' : ' ws-hidden'}`}>
-        <CrocodileFundamental />
+      <div className={`mg-workspace-wrap${tab === 'toolbox' ? '' : ' ws-hidden'}`}>
+        <ToolboxTabs active={toolboxTab} onChange={switchToolboxTab} t={t} />
+        <div id="toolbox-panel-munger" role="tabpanel" aria-labelledby="toolbox-tab-munger" className={toolboxTab === 'munger' ? '' : 'ws-hidden'}>
+          <MungerFinance />
+        </div>
+        <div id="toolbox-panel-zen" role="tabpanel" aria-labelledby="toolbox-tab-zen" className={toolboxTab === 'zen' ? '' : 'ws-hidden'}>
+          <ZenShortTerm />
+        </div>
+        <div id="toolbox-panel-naval" role="tabpanel" aria-labelledby="toolbox-tab-naval" className={toolboxTab === 'naval' ? '' : 'ws-hidden'}>
+          <NavalAcademy />
+        </div>
+        <div id="toolbox-panel-fundamental" role="tabpanel" aria-labelledby="toolbox-tab-fundamental" className={toolboxTab === 'fundamental' ? '' : 'ws-hidden'}>
+          <CrocodileFundamental />
+        </div>
       </div>
 
       <div className={`mg-workspace-wrap${tab === 'industry-cycle' ? '' : ' ws-hidden'}`}>
         <IndustryCycleAnalysis />
+      </div>
+
+      <div className={`mg-workspace-wrap${tab === 'master-league' ? '' : ' ws-hidden'}`}>
+        <MasterLeague customMasters={customMasters} onAddCustomMaster={registerCustomMaster} />
       </div>
 
 

@@ -12,9 +12,9 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: '大师吵股 - AI投资大师智囊团：大师PK、巴菲特早餐新闻解读、财报解读、缠论短线、大师选股池、纳瓦尔知识学堂、鱼大基础面研究',
-  description: '大师吵股汇聚巴菲特、芒格、寒武纪的鳄鱼、段永平等投资大师，AI 模拟大师辩论（大师PK）、新闻事件穿透解读（巴菲特的早餐）、财报深入浅出解读（芒格教你读财报）、缠论短线分析（缠中说禅）、大师选股池与区间统计、纳瓦尔知识学堂（财务投资知识点讲解+每日知识点）、鱼大基础面研究（央企+周期底部基础面研究+选股10条评分），为投资决策提供多角度参考。',
-  keywords: '大师吵股,大师PK,巴菲特早餐,新闻解读,事件穿透,芒格读财报,财报解读,缠论,短线分析,大师选股池,纳瓦尔,知识学堂,财务知识点,投资知识点,每日知识点,投资大师,巴菲特,芒格,段永平,寒武纪的鳄鱼,鱼大基础面研究,基础面研究,选股10条,央企,周期底部,投资决策,AI投资顾问',
+  title: '大师吵股 - AI投资大师智囊团：大师实盘联赛、大师PK、巴菲特早餐、财报解读、缠论短线、大师选股池、纳瓦尔知识学堂',
+  description: '大师吵股汇聚巴菲特、利弗莫尔、威科夫、达瓦斯等投资大师。大师实盘联赛公开赛邀请六位已故历史投机大师，按真实 A 股行情模拟 10 万元投资比赛；另有大师PK、巴菲特的早餐、芒格财报解读、缠论短线、大师选股池、纳瓦尔知识学堂等功能。',
+  keywords: '大师吵股,大师实盘联赛,利弗莫尔,威科夫,达瓦斯,杰拉尔德勒布,科斯托拉尼,伯纳德巴鲁克,真实行情,模拟交易,大师PK,巴菲特早餐,新闻解读,事件穿透,芒格读财报,财报解读,缠论,短线分析,大师选股池,纳瓦尔,知识学堂,投资大师,投资决策,AI投资顾问',
   authors: [{ name: '大师吵股团队' }],
   creator: '大师吵股',
   publisher: '大师吵股',
@@ -32,7 +32,7 @@ export const metadata = {
   },
   openGraph: {
     title: '大师吵股 - 世界投资大师智囊团',
-    description: 'AI 模拟巴菲特等投资大师辩论与解读：大师PK、新闻事件穿透解读、财报解读、缠论短线、大师选股池、纳瓦尔知识学堂、鱼大基础面研究',
+    description: 'AI 模拟利弗莫尔、威科夫、达瓦斯等历史投机大师：大师实盘联赛、大师PK、新闻解读、财报解读、缠论短线、大师选股池与纳瓦尔知识学堂',
     url: '/',
     siteName: '大师吵股',
     locale: 'zh_CN',
@@ -49,7 +49,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '大师吵股 - 世界投资大师智囊团',
-    description: '大师PK、巴菲特早餐新闻解读、财报解读、缠论短线、大师选股池、纳瓦尔知识学堂，AI 模拟大师智慧助力决策',
+    description: '大师实盘联赛、大师PK、巴菲特早餐、财报解读、缠论短线、大师选股池与纳瓦尔知识学堂，用真实行情与 AI 模拟大师智慧',
     images: ['/og-image.png'],
   },
   robots: {
@@ -94,7 +94,7 @@ export default function RootLayout({ children }) {
               "alternateName": "Master Debate AI",
               "url": siteUrl,
               "inLanguage": "zh-CN",
-              "description": "AI 投资大师智囊团：大师PK、巴菲特早餐新闻解读、芒格财报解读、缠论短线、大师选股池"
+              "description": "AI 投资大师智囊团：大师实盘联赛、大师PK、巴菲特早餐新闻解读、芒格财报解读、缠论短线、大师选股池"
             },
             {
               "@type": "WebApplication",
@@ -114,7 +114,8 @@ export default function RootLayout({ children }) {
                 { "@type": "ListItem", "position": 3, "name": "芒格教你读财报", "description": "财报链接/附件上传，深入浅出解读" },
                 { "@type": "ListItem", "position": 4, "name": "缠中说禅看短线", "description": "缠论方法做短线分析评估" },
                 { "@type": "ListItem", "position": 5, "name": "大师的选股池", "description": "预置大师选股池，区间统计与持仓追踪" },
-                { "@type": "ListItem", "position": 6, "name": "纳瓦尔知识学堂", "description": "财务与投资知识点深入浅出讲解，每日投资知识点" }
+                { "@type": "ListItem", "position": 6, "name": "纳瓦尔知识学堂", "description": "财务与投资知识点深入浅出讲解，每日投资知识点" },
+                { "@type": "ListItem", "position": 7, "name": "大师实盘联赛", "description": "六位已故历史投机大师用 10 万元虚拟账户按真实 A 股行情交易比赛" }
               ]
             }
           ]

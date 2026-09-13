@@ -8,15 +8,13 @@ export default function FeatureHall({ open, onClose, onSwitch, t }) {
 
   const cards = [
     { id: 'ask', name: t('tabsAsk'), desc: t('hallAskDesc') },
+    { id: 'master-league', name: t('tabsLeague'), desc: t('hallLeagueDesc') },
     { id: 'pools', name: t('tabsPools'), desc: t('hallPoolsDesc') },
     { id: 'breakfast', name: t('tabsBreakfast'), desc: t('hallBreakfastDesc') },
-    { id: 'munger', name: t('tabsMunger'), desc: t('hallMungerDesc') },
-    { id: 'zen', name: t('tabsZen'), desc: t('hallZenDesc') },
     // 跟踪大师动态：暂时隐藏
     // { id: 'radar', name: t('tabsRadar'), desc: t('hallRadarDesc') },
-    { id: 'naval', name: t('tabsNaval'), desc: t('hallNavalDesc') },
-    { id: 'fundamental', name: t('tabsFundamental'), desc: t('hallFundamentalDesc') },
     { id: 'industry-cycle', name: t('tabsIndustryCycle'), desc: t('hallIndustryCycleDesc') },
+    { id: 'toolbox', name: t('tabsToolbox'), desc: t('hallToolboxDesc') },
   ];
 
   return (

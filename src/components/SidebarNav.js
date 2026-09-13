@@ -6,15 +6,13 @@ import NavIcon from './Icons';
 export default function SidebarNav({ tab, onSwitch, t }) {
   const items = [
     { id: 'ask', label: t('tabsAsk') },
+    { id: 'master-league', label: t('tabsLeague') },
     { id: 'pools', label: t('tabsPools') },
     { id: 'breakfast', label: t('tabsBreakfast') },
-    { id: 'munger', label: t('tabsMunger') },
-    { id: 'zen', label: t('tabsZen') },
     // 跟踪大师动态：能力未就绪（RSSHub/知乎 Cookie/VPS），暂时隐藏，就绪后放开
     // { id: 'radar', label: t('tabsRadar') },
-    { id: 'naval', label: t('tabsNaval') },
-    { id: 'fundamental', label: t('tabsFundamental') },
     { id: 'industry-cycle', label: t('tabsIndustryCycle') },
+    { id: 'toolbox', label: t('tabsToolbox') },
   ];
   return (
     <nav className="vt-nav" aria-label="主导航">

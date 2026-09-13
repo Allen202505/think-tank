@@ -1,0 +1,126 @@
+.toolbox {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.heading h2 {
+  margin: 0;
+  /* 模块主标题统一黑色，与「行业周期分析」一致 */
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.heading p {
+  max-width: 780px;
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.75;
+}
+
+.heading > span {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tab {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.tab:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--accent-bg);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.active {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: currentColor;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.active .label { color: var(--accent-strong); }
+
+@media (max-width: 900px) {
+  .tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .heading { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .heading > span { display: none; }
+}

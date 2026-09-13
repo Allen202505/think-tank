@@ -18,11 +18,13 @@ export function Card({ title, accent, children }) {
 }
 
 
-export function MasterAvatar({ master, size = 44, className = '' }) {
+export function MasterAvatar({ master, size = 44, className = '', keepColor = false }) {
   const [imgErr, setImgErr] = useState(false);
   const useImg = master.avatar && !imgErr;
-  const isDeceased = master.status === 'deceased';
-  const wrapperStyle = { filter: isDeceased ? 'grayscale(1)' : 'none', opacity: isDeceased ? 0.85 : 1 };
+  // 已故大师默认置灰（大师PK 用「灰度」表达已故）；
+  // 大师实盘联赛要求展示真实彩色头像，传 keepColor 即可跳过置灰。
+  const dimDeceased = master.status === 'deceased' && !keepColor;
+  const wrapperStyle = { filter: dimDeceased ? 'grayscale(1)' : 'none', opacity: dimDeceased ? 0.85 : 1 };
   // 本地头像加版本号避免浏览器强缓存导致不更新
   const src = master.avatar && master.avatar.startsWith('/') ? `${master.avatar}?v=${AVATAR_CACHE_VERSION}` : master.avatar;
   const style = { width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 };
