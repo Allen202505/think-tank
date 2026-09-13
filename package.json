@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--dns-result-order=ipv4first next dev",
     "prebuild": "node scripts/sync-avatars.mjs",
     "build": "next build",
     "start": "next start",
