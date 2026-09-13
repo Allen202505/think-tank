@@ -9,11 +9,10 @@
 | 模块 | 说明 |
 |---|---|
 | ⚔️ 大师PK | 向多位"投资大师"提问，AI 模拟大师公开辩论并给出裁决 |
+| 🏆 大师实盘联赛 | 公开赛邀请六位已故历史投机大师，也支持用户邀请指定大师参赛，统一获得 10 万元虚拟额度并按照累计收益率排名 |
 | 📰 巴菲特的早餐 | 新闻事件穿透解读 + 你的股票池新闻 |
-| 📖 芒格教你读财报 | 财报丢给芒格：系统数据核验，拆穿数字里的水分 |
-| 🧘 缠中说禅看短线 | 缠论视角的短线走势评估 |
+| 🧰 功能箱 | 财报解读、缠论短线、知识学堂、基础面研究四个能力按 Tab 切换 |
 | 🎯 大师的选股池 | 大师选股池 + 我的股票池，行情统计与自选新闻 |
-| 🐊 鱼大基础面研究 | 寒武纪的鳄鱼：央企+周期底部基础面研究 + 选股10条评分与买卖点 |
 
 ## 技术栈
 
@@ -65,6 +64,61 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 ## 功能说明与回归测试
 
 - [功能说明与回归测试手册](./memory/QA.md)
+
+## 大师实盘联赛公共底表
+
+公开赛账户、用户邀请大师、持仓、决策和评论使用 Supabase 公共底表。执行以下步骤启用：
+
+1. 在 Supabase SQL Editor 运行 [`supabase/master_league.sql`](./supabase/master_league.sql)。
+2. 在 Vercel / `.env.local` 添加服务端专用 `SUPABASE_SERVICE_ROLE_KEY`（不要提交到 Git 或暴露给浏览器）。
+3. 用户邀请大师需要先登录，写入后会立即对所有访客可见并持久保存。
+4. 站长账号设为管理员后，可在任意邀请大师详情中查看邀请人、提示词与 Skill，并「下架并删除」广告内容（被下架的大师 id 会进入黑名单，对方无法重新发布）：
+
+```sql
+update public.profiles set is_admin = true where email = '你的管理员邮箱';
+```
+
+未配置 service role 时，平台官方账户仍使用实时测试数据；用户邀请的持久化能力需要 Supabase 登录和底表。
+底表尚未初始化时联赛页不报错，只是暂时看不到其他用户邀请的大师。
+
+## 大师智能体感知层（可选调试）
+
+大师实盘联赛的「感知层」给每位大师准备了 5 个可调用工具（全市场概览、条件选股、单股快照、日线、自己的持仓）。
+全市场数据只在服务端流转并按需查询，**只有查询结果才会进模型上下文**，所以 5000+ 只股票不产生 token 成本。
+
+本地调试（零 LLM 调用）：
+
+```bash
+curl -sS 'http://127.0.0.1:3000/api/master-league/tools'                          # 列出工具与参数
+curl -sS 'http://127.0.0.1:3000/api/master-league/tools?tool=get_market_overview'  # 今天大盘/行业/涨停池
+curl -sS 'http://127.0.0.1:3000/api/master-league/tools?tool=screen_stocks&industry=医药&minAmountYi=5&sortBy=changePct'
+curl -sS 'http://127.0.0.1:3000/api/master-league/tools?tool=get_stock_quote&code=600276'
+```
+
+### 单大师试跑（会真实调用模型）
+
+```bash
+curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/agent' \
+  -H 'Content-Type: application/json' -d '{"masterId":"livermore"}'
+```
+
+返回内容包含：工具调用轨迹、最终决策、真实 token 用量与成本、以及当日累计台账。
+成本闸门默认「4 轮 / 8 次工具调用 / 单次 30k token / 当日 200k token」，可用 `MASTER_LEAGUE_AGENT_*` 环境变量收紧（见 `.env.example`）。
+生产环境需配置 `MASTER_LEAGUE_AGENT_TOKEN` 并在请求头带 `x-agent-token`，否则该接口只在非生产环境可用。
+
+### 大师互评（AI 现场生成）
+
+```bash
+# 生成当天六位大师的互评（真实调用模型，整天约 ¥0.01）
+curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/commentary' \
+  -H 'Content-Type: application/json' -d '{"all":true}'
+
+# 只读缓存（页面用的就是它，不花钱）
+curl -sS 'http://127.0.0.1:3000/api/master-league/commentary?master=loeb'
+```
+
+互评由 AI 依据「对方今天的真实操作 + 最新持仓 + 排名 + 当天大盘」生成，每条都带本人回怼，并强制只能引用给定数据（不许编造股数/价格/收益）。
+结果按天缓存，**访客刷新页面不产生费用**；生成需授权（生产环境配置 `MASTER_LEAGUE_AGENT_TOKEN`）。
 
 ## 部署
 
