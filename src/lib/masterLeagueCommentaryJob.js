@@ -80,8 +80,13 @@ export async function runCommentaryJob({ origin, date = todayShanghai(), masterI
     buildMarketLine(),
   ]);
 
+  const concurrency = Math.max(1, Math.min(6, Number(process.env.MASTER_LEAGUE_JOB_CONCURRENCY) || 6));
+  const chunks = [];
+  for (let i = 0; i < targets.length; i += concurrency) chunks.push(targets.slice(i, i + concurrency));
+
   const results = [];
-  for (const target of targets) {
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(chunk.map(async (target) => {
     const account = accounts.find((item) => item.id === target.id);
     try {
       const payload = await generateMasterCommentary({
@@ -101,10 +106,12 @@ export async function runCommentaryJob({ origin, date = todayShanghai(), masterI
         const saved = await saveCommentaryToDb({ date, masterId: target.id, payload, model: aiConfig.model, cost: payload.usage?.cost || 0 });
         payload.persistence = saved;
       }
-      results.push({ masterId: target.id, ok: true, cached: Boolean(payload.cached), comments: payload.comments, usage: payload.usage, errors: payload.errors, persistence: payload.persistence });
+      return { masterId: target.id, ok: true, cached: Boolean(payload.cached), comments: payload.comments, usage: payload.usage, errors: payload.errors, persistence: payload.persistence };
     } catch (error) {
-      results.push({ masterId: target.id, ok: false, error: error?.message || '生成失败' });
+      return { masterId: target.id, ok: false, error: error?.message || '生成失败' };
     }
+    }));
+    results.push(...chunkResults);
   }
 
   const spent = results.reduce((sum, item) => sum + (item.usage?.cost || 0), 0);

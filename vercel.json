@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/master-league-commentary",
+      "path": "/api/cron/master-league-daily",
       "schedule": "35 7 * * 1-5"
     }
   ]

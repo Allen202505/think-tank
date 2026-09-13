@@ -17,7 +17,7 @@ export const PRICING = {
 };
 
 export const AGENT_LIMITS = {
-  maxRounds: Number(process.env.MASTER_LEAGUE_AGENT_MAX_ROUNDS || 4),
+  maxRounds: Number(process.env.MASTER_LEAGUE_AGENT_MAX_ROUNDS || 3),
   maxTokensPerCall: Number(process.env.MASTER_LEAGUE_AGENT_MAX_TOKENS || 1200),
   maxRunTokens: Number(process.env.MASTER_LEAGUE_AGENT_MAX_RUN_TOKENS || 30000),
   callTimeoutMs: Number(process.env.MASTER_LEAGUE_AGENT_TIMEOUT_MS || 90000),
@@ -84,6 +84,8 @@ export function stringifyToolResult(result) {
 
 // ── 决策校验（纯函数，便于单测） ────────────────────────────
 export const DECISION_ACTIONS = ['买入', '加仓', '减仓', '卖出', '持有'];
+// 一天最多几个动作：一次调用生成，多了只会增加执行噪音，不增加成本
+export const MAX_ACTIONS_PER_DAY = Number(process.env.MASTER_LEAGUE_MAX_ACTIONS || 3);
 
 export function validateAgentDecision(raw, { maxTargetPct = 100 } = {}) {
   const errors = [];
@@ -114,19 +116,55 @@ export function validateAgentDecision(raw, { maxTargetPct = 100 } = {}) {
 }
 
 // 模型可能把 JSON 包在 ```json 代码块里，或前后带解释文字
+// 解析模型输出：优先数组（一次多个动作），兼容旧的单对象格式
 export function parseDecisionPayload(content) {
   const text = String(content || '').trim();
   if (!text) return { ok: false, error: '模型返回为空' };
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1].trim() : text;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start < 0 || end <= start) return { ok: false, error: '没有找到 JSON 对象' };
+
+  const arrayStart = candidate.indexOf('[');
+  const arrayEnd = candidate.lastIndexOf(']');
+  const objectStart = candidate.indexOf('{');
+  const objectEnd = candidate.lastIndexOf('}');
+  const useArray = arrayStart >= 0 && arrayEnd > arrayStart && (objectStart < 0 || arrayStart < objectStart);
+
+  const start = useArray ? arrayStart : objectStart;
+  const end = useArray ? arrayEnd : objectEnd;
+  if (start < 0 || end <= start) return { ok: false, error: '没有找到 JSON 内容' };
   try {
-    return { ok: true, value: JSON.parse(candidate.slice(start, end + 1)) };
+    const value = JSON.parse(candidate.slice(start, end + 1));
+    return { ok: true, value, multiple: useArray };
   } catch (error) {
     return { ok: false, error: `JSON 解析失败：${error.message}` };
   }
+}
+
+// 校验一组动作：逐条校验、同一只股票只能出现一次、最多 maxActions 条
+export function validateAgentDecisions(rawList, { maxActions = MAX_ACTIONS_PER_DAY } = {}) {
+  const list = Array.isArray(rawList) ? rawList : [rawList];
+  const decisions = [];
+  const errors = [];
+  const seen = new Set();
+  for (const item of list) {
+    const result = validateAgentDecision(item);
+    if (!result.ok) { errors.push(...result.errors); continue; }
+    const key = result.decision.symbol || 'CASH';
+    if (seen.has(key)) { errors.push(`同一只股票重复出现：${key}`); continue; }
+    seen.add(key);
+    decisions.push(result.decision);
+    if (decisions.length >= maxActions) break;
+  }
+  if (decisions.length > 1) {
+    // 多条动作里只允许一条「持有」，否则等于没动作
+    const holds = decisions.filter((item) => item.action === '持有');
+    if (holds.length > 1) {
+      for (let i = decisions.length - 1; i >= 0 && decisions.filter((d) => d.action === '持有').length > 1; i -= 1) {
+        if (decisions[i].action === '持有') { decisions.splice(i, 1); errors.push('多余的「持有」已移除'); }
+      }
+    }
+  }
+  return { ok: decisions.length > 0, errors, decisions, decision: decisions[0] || null };
 }
 
 // ── Prompt 组装 ────────────────────────────────────────────
@@ -146,8 +184,9 @@ export function buildSystemPrompt(master) {
     '决策要求：',
     '- 只做你有依据的操作。没有值得做的机会时，明确选择「持有」，不要为了交易而交易。',
     '- 每次操作都要说明依据（引用你查到的具体数据）和判断失效的条件。',
-    '- 最终必须只输出一个 JSON 对象，不要输出任何解释文字，格式：',
-    '{"action":"买入|加仓|减仓|卖出|持有","symbol":"6位代码或null","targetPct":目标仓位百分比数字,"reason":"依据","risk":"什么情况说明你判断错了"}',
+    '- 最终必须只输出一个 JSON 数组（1~3 个动作），不要输出任何解释文字，格式：',
+    '[{"action":"买入|加仓|减仓|卖出|持有","symbol":"6位代码或null","targetPct":目标仓位百分比数字,"reason":"依据","risk":"什么情况说明你判断错了"}]',
+    '- 一天最多 3 个动作，且同一只股票只能出现一次；没有值得做的操作就输出单个「持有」。',
     '- targetPct 是执行后该股票占账户总资产的目标比例（0~100）。卖出填 0，持有填 0 并把 symbol 设为 null。',
     `- 你最多有 ${AGENT_LIMITS.maxRounds} 轮、共 ${AGENT_LIMITS.maxToolCalls} 次工具调用额度。请在第 ${AGENT_LIMITS.maxRounds} 轮内给出最终 JSON 结论；额度用完后系统会强制你直接作答。`,
       '- 每次工具调用都要花成本，请一次问准：不要重复查询同一个数据，也不要为了『多看一点』反复拉取。',
@@ -292,7 +331,9 @@ export async function runMasterAgent({
   ledger.runs += 1;
 
   const parsed = parseDecisionPayload(finalContent);
-  const validation = parsed.ok ? validateAgentDecision(parsed.value) : { ok: false, errors: [parsed.error], decision: null };
+  const validation = parsed.ok
+    ? validateAgentDecisions(parsed.value)
+    : { ok: false, errors: [parsed.error], decisions: [], decision: null };
 
   return {
     masterId: master.id,
@@ -306,6 +347,7 @@ export async function runMasterAgent({
     trace,
     rawFinal: finalContent.slice(0, 2000),
     decision: validation.ok ? validation.decision : null,
+    decisions: validation.ok ? validation.decisions : [],
     validation,
     usage: usageSummary,
     ledger: getAgentLedger(),

@@ -56,7 +56,30 @@ export async function loadCommentaryFromDb(date, masterId = '') {
   }
 }
 
-export async function saveCommentaryToDb({ date, masterId, payload, model = '', cost = 0 }) {
+async function withRetry(fn, attempts = 3, delayMs = 1000) {
+  let last;
+  for (let i = 0; i < attempts; i += 1) {
+    try { return await fn(); } catch (error) {
+      last = error;
+      if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+// 同计划落库：写库排队，避免并发把连接挤爆
+let writeQueue = Promise.resolve();
+function enqueue(task) {
+  const run = writeQueue.then(task, task);
+  writeQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+export function saveCommentaryToDb(args) {
+  return enqueue(() => saveCommentaryToDbNow(args));
+}
+
+async function saveCommentaryToDbNow({ date, masterId, payload, model = '', cost = 0 }) {
   const db = getCommentaryWriteClient();
   if (!db) return { enabled: false, reason: 'missing_service_role' };
   const row = {
@@ -69,7 +92,11 @@ export async function saveCommentaryToDb({ date, masterId, payload, model = '', 
     cost: Number(cost) || 0,
     updated_at: new Date().toISOString(),
   };
-  const { error } = await db.from('master_league_commentary').upsert(row, { onConflict: 'id' });
-  if (error) return { enabled: false, reason: error.message };
-  return { enabled: true, source: 'database' };
+  try {
+    const { error } = await withRetry(() => db.from('master_league_commentary').upsert(row, { onConflict: 'id' }));
+    if (error) return { enabled: false, reason: error.message };
+    return { enabled: true, source: 'database' };
+  } catch (error) {
+    return { enabled: false, reason: error?.message || 'upsert failed' };
+  }
 }

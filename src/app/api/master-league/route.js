@@ -10,6 +10,7 @@ import {
 } from '../../../data/masterLeague.js';
 import { buildPendingLeague, settleMasterLeague } from '../../../lib/masterLeagueEngine.mjs';
 import { loadPublicLeagueSnapshot, savePublicLeagueSnapshot } from '../../../lib/masterLeagueDb.js';
+import { loadPlansFromDb } from '../../../lib/masterLeaguePlansDb.js';
 import { getClientIp, limitResponse, rateLimit } from '../../../lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -135,6 +136,64 @@ async function fetchBars(secid, limit = 40) {
   return value;
 }
 
+function secidOf(code) {
+  return `${/^(6|9)/.test(String(code)) ? '1' : '0'}.${String(code)}`;
+}
+
+// AI 计划一天只变一次：进程内缓存 60 秒，避免每次请求都打一次数据库；
+// 同时加超时保护——数据库抖动时回退到预置剧本，页面不能干等。
+const PLAN_CACHE_TTL_MS = 60 * 1000;
+let planCache = { at: 0, value: null };
+
+async function loadPlansSafely() {
+  if (planCache.value && Date.now() - planCache.at < PLAN_CACHE_TTL_MS) return planCache.value;
+  try {
+    const result = await Promise.race([
+      loadPlansFromDb(),
+      new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]);
+    if (Array.isArray(result)) {
+      planCache = { at: Date.now(), value: result };
+      return result;
+    }
+    // 超时：先用上一次的结果（如果有），否则空数组
+    return planCache.value || [];
+  } catch {
+    return planCache.value || [];
+  }
+}
+
+/**
+ * 把「AI 生成的计划（按真实日期）」翻译成结算引擎认识的 offset 计划。
+ * 引擎里 offset = 距最后一个交易日的天数：0 表示下一交易日待执行，1 表示最后一个交易日执行。
+ */
+export function toEnginePlans(aiPlans, dateList) {
+  const indexOf = new Map((dateList || []).map((date, index) => [date, index]));
+  const total = (dateList || []).length;
+  return (aiPlans || []).map((plan, index) => {
+    // 生成时「下一交易日」可能还没发生（execute_date 为空），
+    // 这里按真实交易日历补：计划日之后的第一个交易日就是执行日（自动跳过周末与节假日）
+    const resolvedExecuteDate = plan.executeDate || (dateList || []).find((date) => date > plan.planDate) || '';
+    const executedIndex = resolvedExecuteDate ? indexOf.get(resolvedExecuteDate) : undefined;
+    // 找不到执行日（还没到那个交易日）就是待执行计划
+    const offset = executedIndex == null ? 0 : total - executedIndex;
+    return {
+      id: plan.id || `${plan.masterId}-${index}`,
+      offset: Math.max(0, offset),
+      action: plan.action,
+      symbol: plan.symbol,
+      targetPct: plan.targetPct,
+      reason: plan.reason,
+      risk: plan.risk,
+      changed: false,
+      changeNote: '',
+      comments: [],
+      source: 'ai',
+      executeDate: resolvedExecuteDate,
+    };
+  });
+}
+
 function jsonResponse(payload, status = 200) {
   return Response.json(payload, {
     status,
@@ -148,16 +207,27 @@ export async function GET(request) {
   const limited = rateLimit(`master-league:${getClientIp(request)}`, { limit: 30, windowMs: 60000 });
   if (!limited.ok) return limitResponse(limited.retryAfter);
 
-  const symbols = Object.entries(LEAGUE_SYMBOLS);
+  // AI 生成的每日计划（读不到就全部走预置剧本，页面不受影响）
+  const aiPlans = await loadPlansSafely();
+  const aiSymbols = [...new Set(aiPlans.map((plan) => plan.symbol).filter((code) => /^\d{6}$/.test(String(code || ''))))]
+    .filter((code) => !LEAGUE_SYMBOLS[code]);
+  const symbolMeta = {
+    ...LEAGUE_SYMBOLS,
+    ...Object.fromEntries(aiPlans.filter((plan) => plan.symbol && plan.stockName).map((plan) => [plan.symbol, { name: plan.stockName, secid: secidOf(plan.symbol) }])),
+  };
+
+  const baseSymbols = Object.entries(LEAGUE_SYMBOLS);
   const requests = [
-    ...symbols.map(([code, meta]) => fetchBars(meta.secid).then((result) => ({ code, ...result }))),
+    ...baseSymbols.map(([code, meta]) => fetchBars(meta.secid).then((result) => ({ code, ...result }))),
+    ...aiSymbols.map((code) => fetchBars(secidOf(code)).then((result) => ({ code, ...result }))),
     fetchBars(LEAGUE_BENCHMARK.secid).then((result) => ({ code: LEAGUE_BENCHMARK.code, benchmark: true, ...result })),
   ];
   const settled = await Promise.all(requests);
   const successful = settled.filter((item) => item.bars.length >= 5);
   const tradeResults = settled.filter((item) => !item.benchmark && item.bars.length >= 5);
   const benchmark = settled.find((item) => item.benchmark && item.bars.length >= 5);
-  const canSettle = tradeResults.length >= 6 && Boolean(benchmark);
+  // 只要预置的 9 只里拿到 6 只以上就能结算（AI 选的票缺行情只影响那一笔，不拖垮整场比赛）
+  const canSettle = tradeResults.filter((item) => LEAGUE_SYMBOLS[item.code]).length >= 6 && Boolean(benchmark);
 
   if (!canSettle) {
     const stored = await loadPublicLeagueSnapshot(PUBLIC_LEAGUE.id);
@@ -196,17 +266,31 @@ export async function GET(request) {
 
   const barsBySymbol = Object.fromEntries(tradeResults.map((item) => [item.code, item.bars]));
   const latestDate = benchmark.bars[benchmark.bars.length - 1].date;
+  const dateList = benchmark.bars.map((bar) => bar.date);
+
+  // 有 AI 计划的大师走 AI 计划，其余大师继续用预置剧本兜底
+  const aiByMaster = new Map();
+  for (const plan of aiPlans) {
+    if (!aiByMaster.has(plan.masterId)) aiByMaster.set(plan.masterId, []);
+    aiByMaster.get(plan.masterId).push(plan);
+  }
+  const plansByMaster = Object.fromEntries(LEAGUE_MASTERS.map((master) => {
+    const own = aiByMaster.get(master.id) || [];
+    return [master.id, own.length ? toEnginePlans(own, dateList) : (LEAGUE_PLANS[master.id] || [])];
+  }));
+
   const league = settleMasterLeague({
     masters: LEAGUE_MASTERS,
-    plansByMaster: LEAGUE_PLANS,
+    plansByMaster,
     barsBySymbol,
-    symbolMeta: LEAGUE_SYMBOLS,
+    symbolMeta,
     latestDate,
-    dateList: benchmark.bars.map((bar) => bar.date),
+    dateList,
     initialCapital: LEAGUE_INITIAL_CAPITAL,
   });
   const sources = [...new Set(tradeResults.map((item) => item.source).filter(Boolean))];
-  const missingSymbols = symbols
+  const allSymbols = [...baseSymbols.map(([code, meta]) => [code, meta]), ...aiSymbols.map((code) => [code, symbolMeta[code] || { name: code, secid: secidOf(code) }])];
+  const missingSymbols = allSymbols
     .map(([code, meta]) => ({ code, ...meta }))
     .filter((item) => !barsBySymbol[item.code]);
   const dataQuality = missingSymbols.length ? 'partial' : 'live';
@@ -226,6 +310,8 @@ export async function GET(request) {
       dataSource: sources,
       missingSymbols,
       note: missingSymbols.length ? '部分标的缺少行情，相关交易计划已标记为未执行。' : '账户按真实日线开盘价执行、收盘价结算。',
+      aiPlanCount: aiPlans.length,
+      aiMasters: [...aiByMaster.keys()],
       persistence,
     },
   });

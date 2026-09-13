@@ -106,6 +106,20 @@ curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/agent' \
 成本闸门默认「4 轮 / 8 次工具调用 / 单次 30k token / 当日 200k token」，可用 `MASTER_LEAGUE_AGENT_*` 环境变量收紧（见 `.env.example`）。
 生产环境需配置 `MASTER_LEAGUE_AGENT_TOKEN` 并在请求头带 `x-agent-token`，否则该接口只在非生产环境可用。
 
+### 大师每日决策（AI 自主决策）
+
+每个交易日收盘后，六位大师各自调用工具看行情、看自己的持仓，然后给出下一交易日的操作计划（1~3 个动作），
+计划落库后由结算引擎按真实开盘价执行、收盘价结算。**模型只出意图，成交价与收益永远由引擎计算。**
+
+```bash
+# 手动跑一次（决策 + 互评），?master=livermore 可只跑一位，?skipCommentary=1 只跑决策
+curl -sS 'http://127.0.0.1:3000/api/cron/master-league-daily' -H "Authorization: Bearer $CRON_SECRET"
+```
+
+- 定时：`vercel.json` 里 `35 7 * * 1-5`（UTC）= 北京时间 15:35 周一至周五；周末与节假日自动跳过。
+- 成本：六位决策约 ¥0.13~0.20/天，互评约 ¥0.01/天，合计 **约 ¥4/月**。
+- 兜底：某位大师当天没有 AI 计划时，自动回退到 `src/data/masterLeague.js` 的预置剧本，比赛不会中断。
+
 ### 大师互评（AI 现场生成）
 
 ```bash

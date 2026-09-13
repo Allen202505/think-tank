@@ -267,3 +267,40 @@ create policy "master_league_commentary_public_read" on public.master_league_com
 
 grant select on public.master_league_commentary to anon, authenticated;
 grant insert, update, delete on public.master_league_commentary to service_role;
+
+-- ── AI 生成的每日决策（2026-09-13 新增）──────────────────────
+-- 每位大师每个交易日一组计划（1~3 条），由收盘后的定时任务生成，次日开盘执行。
+-- 与 master_league_decisions 的区别：那张表是「按行情算出来的快照」，这张是「大师自己的意图」。
+create table if not exists public.master_league_plans (
+  id text primary key,
+  competition_id text not null default 'public-2026-09-14',
+  master_id text not null,
+  plan_date date not null,
+  execute_date date,
+  action text not null,
+  symbol text,
+  stock_name text,
+  target_pct numeric,
+  reason text,
+  risk text,
+  model text,
+  cost numeric not null default 0,
+  status text not null default 'pending',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_master_league_plans_date
+  on public.master_league_plans (competition_id, plan_date desc);
+create index if not exists idx_master_league_plans_master
+  on public.master_league_plans (competition_id, master_id, plan_date desc);
+
+alter table public.master_league_plans enable row level security;
+
+drop policy if exists "master_league_plans_public_read" on public.master_league_plans;
+create policy "master_league_plans_public_read" on public.master_league_plans
+  for select using (true);
+
+grant select on public.master_league_plans to anon, authenticated;
+grant insert, update, delete on public.master_league_plans to service_role;

@@ -210,6 +210,15 @@ export function settleMasterLeague({
       const previousDate = dateList[index - 1] || date;
       const openingPlans = plans.filter((plan) => dateList.length - plan.offset === index);
       for (const plan of openingPlans) {
+        // 「持有」且不指定个股 = 明确的「今天不动」，不需要行情也不产生交易
+        if (plan.action === '持有' && !plan.symbol) {
+          decisions.push(decisionFromPlan({
+            plan, masterId: master.id, symbolName: '不动', status: 'executed',
+            decisionDate: previousDate, executionDate: date, executionPrice: null, shares: null,
+            note: '按计划持有，无操作',
+          }));
+          continue;
+        }
         const bar = findBar(lookup, plan.symbol, date);
         const symbolName = symbolMeta?.[plan.symbol]?.name || plan.symbol;
         if (!bar?.open || bar.open <= 0) {

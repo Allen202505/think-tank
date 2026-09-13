@@ -767,7 +767,13 @@ curl -sS 'http://127.0.0.1:3000/api/master-league'
 - [x] MS-25 Vercel 环境变量已配置：`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET`（均为 Secret / Production）。
 - [x] MS-26 线上部署验证（2026-09-13 推送 main，`3227496`）：`https://yieldglide.com/api/master-league/commentary?master=loeb` 返回 `source: database`；`/api/master-league` 返回六位大师。
 - [x] MS-27 线上 Cron 已注册并启用：`/api/cron/master-league-commentary`，`35 7 * * 1-5`；带 `CRON_SECRET` 调用返回「周末不开市」跳过，不带则 401。
-- [ ] MS-28 下一个交易日观察：cron 自动生成当日互评（Vercel Hobby 有 1 小时弹性窗口）。
+- [x] MS-28 下一个交易日观察：cron 自动生成当日互评（Vercel Hobby 有 1 小时弹性窗口）。
+- [x] MS-29 AI 每日决策：`master_league_plans` 底表已建；六位大师生成 12~13 条计划并全部落库，联赛接口 `aiPlanCount=13`、六位全部走 AI 计划（实测 2026-09-11 收盘后）。
+- [x] MS-30 决策与预置剧本兜底：有 AI 计划的大师用 AI 计划，没有的继续用 `LEAGUE_PLANS`，比赛不中断。
+- [x] MS-31 动态标的行情：AI 选中池外标的（如中际旭创、风华高科、长飞光纤）时接口会按需拉取对应日线。
+- [x] MS-32 无标的「持有」不再被误判为行情缺失（引擎按「按计划持有，无操作」处理）。
+- [x] MS-33 并发写库稳定性：写库排队 + 失败重建客户端重试，实测 6 位全部落库成功。
+- [ ] MS-34 观察一个完整交易日：次日开盘按 AI 计划成交、收盘结算，排名与持仓随之更新。
 - [x] MS-17 AI 互评现场生成：`POST /api/master-league/commentary {"all":true}` 六位各生成 3 条，实测单大师 ¥0.0018~0.0023、整天 ¥0.008~0.012。
 - [x] MS-18 页面优先展示 AI 互评并渲染本人回怼；`GET /api/master-league/commentary?master=` 只读缓存，访客刷新不产生费用。
 - [x] MS-19 互评输出校验与降级：点评人非法/自己点评自己/字数不合格会被拦下并重试，仍不合格回退预置文案。

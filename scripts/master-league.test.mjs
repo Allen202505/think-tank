@@ -188,3 +188,26 @@ test('互评配对正确：每条点评都点评对了人，且不是自己点�
   }
   assert.ok(total >= 60, `互评总量偏少：${total}`);
 });
+
+test('无标的的「持有」不该被当成行情缺失', () => {
+  const bars = [
+    { date: '2026-09-01', open: 10, close: 10 },
+    { date: '2026-09-02', open: 10, close: 10 },
+    { date: '2026-09-03', open: 10, close: 10 },
+  ];
+  const result = settleMasterLeague({
+    masters: [masters[0]],
+    plansByMaster: {
+      a: [
+        { id: 'hold-no-symbol', offset: 1, action: '持有', symbol: null, targetPct: 0, reason: '没有值得做的机会，按兵不动等信号', risk: '错过机会', comments: [] },
+      ],
+    },
+    barsBySymbol: { '600000': bars },
+    symbolMeta: {},
+    latestDate: '2026-09-03',
+  });
+  const decision = result.accounts[0].decisions.find((item) => item.id === 'hold-no-symbol');
+  assert.equal(decision.status, 'executed');
+  assert.equal(decision.note, '按计划持有，无操作');
+  assert.equal(result.accounts[0].trades.length, 0);
+});
