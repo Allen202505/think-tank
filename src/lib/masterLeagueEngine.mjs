@@ -62,6 +62,12 @@ function serializePositions(positions, lookup, latestDate) {
   return rows;
 }
 
+function holdingNames(positions) {
+  return [...positions.values()]
+    .map((position) => position.name || position.symbol)
+    .filter(Boolean);
+}
+
 function applyTrade({ cash, positions, plan, price, symbolName, date, masterId, equityBeforeOpen }) {
   const current = positions.get(plan.symbol) || {
     symbol: plan.symbol,
@@ -136,7 +142,7 @@ function applyTrade({ cash, positions, plan, price, symbolName, date, masterId, 
   };
 }
 
-function decisionFromPlan({ plan, masterId, symbolName, status, decisionDate, executionDate, executionPrice, shares, note, rankAtDecision }) {
+function decisionFromPlan({ plan, masterId, symbolName, status, decisionDate, executionDate, executionPrice, shares, note, rankAtDecision, currentHoldingNames = [] }) {
   return {
     id: plan.id,
     masterId,
@@ -149,6 +155,7 @@ function decisionFromPlan({ plan, masterId, symbolName, status, decisionDate, ex
     changed: Boolean(plan.changed),
     changeNote: plan.changeNote || '',
     comments: plan.comments || [],
+    holdingNames: currentHoldingNames,
     decisionDate,
     executionDate,
     executionPrice: executionPrice == null ? null : roundMoney(executionPrice),
@@ -208,6 +215,7 @@ export function settleMasterLeague({
     for (let index = 0; index < dateList.length; index += 1) {
       const date = dateList[index];
       const previousDate = dateList[index - 1] || date;
+      const openingHoldingNames = holdingNames(positions);
       const openingPlans = plans.filter((plan) => dateList.length - plan.offset === index);
       for (const plan of openingPlans) {
         // 「持有」且不指定个股 = 明确的「今天不动」，不需要行情也不产生交易
@@ -215,7 +223,7 @@ export function settleMasterLeague({
           decisions.push(decisionFromPlan({
             plan, masterId: master.id, symbolName: '不动', status: 'executed',
             decisionDate: previousDate, executionDate: date, executionPrice: null, shares: null,
-            note: '按计划持有，无操作',
+            note: '按计划持有，无操作', currentHoldingNames: openingHoldingNames,
           }));
           continue;
         }
@@ -268,6 +276,7 @@ export function settleMasterLeague({
     }
 
     for (const plan of plans.filter((item) => item.offset === 0)) {
+      const isGenericHold = plan.action === '持有' && !plan.symbol;
       decisions.push(decisionFromPlan({
         plan,
         masterId: master.id,
@@ -278,6 +287,7 @@ export function settleMasterLeague({
         executionPrice: null,
         shares: null,
         note: '等待下一交易日开盘执行',
+        currentHoldingNames: isGenericHold ? holdingNames(positions) : [],
       }));
     }
 

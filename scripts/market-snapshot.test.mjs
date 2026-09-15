@@ -319,6 +319,18 @@ test('互评 prompt 带上真实持仓与数字，并要求只能引用给定数
   assert.match(user, /wyckoff/);
 });
 
+test('无标的持有的互评上下文不把 0% 误写成目标仓位', () => {
+  const { user } = buildCommentaryPrompt({
+    target: { id: 'baruch', shortName: '巴鲁克', styleDetail: '事件驱动' },
+    commenters: [{ id: 'loeb', shortName: '勒布', styleDetail: '机动成长' }],
+    decisions: [{ action: '持有', symbol: '', stockName: '不动', targetPct: 0, reason: '没有值得出手的机会' }],
+    positions: [{ name: '长江电力', quantity: 1000, averagePrice: 28, marketPrice: 29, profitRate: 0.0357 }],
+  });
+  assert.match(user, /持有；不调整当前持仓/);
+  assert.doesNotMatch(user, /持有 不动/);
+  assert.doesNotMatch(user, /目标仓位 0%/);
+});
+
 test('定时任务的交易日判断：周末跳过，工作日放行', () => {
   // 2026-09-12 周六、09-13 周日、09-14 周一
   assert.equal(isWeekendDate('2026-09-12'), true);

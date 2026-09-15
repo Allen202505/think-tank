@@ -211,3 +211,28 @@ test('无标的的「持有」不该被当成行情缺失', () => {
   assert.equal(decision.note, '按计划持有，无操作');
   assert.equal(result.accounts[0].trades.length, 0);
 });
+
+test('无标的的「持有」展示执行日前实际持仓，待执行计划展示最新持仓', () => {
+  const bars = [
+    { date: '2026-09-01', open: 10, close: 10 },
+    { date: '2026-09-02', open: 10, close: 10 },
+    { date: '2026-09-03', open: 10, close: 10 },
+  ];
+  const result = settleMasterLeague({
+    masters: [masters[0]],
+    plansByMaster: {
+      a: [
+        { id: 'buy-before-hold', offset: 2, action: '买入', symbol: '600000', targetPct: 50, reason: '建立底仓', risk: '跌破', comments: [] },
+        { id: 'hold-existing', offset: 1, action: '持有', symbol: '', targetPct: 0, reason: '继续观察', risk: '等待', comments: [] },
+        { id: 'hold-next-day', offset: 0, action: '持有', symbol: '', targetPct: 0, reason: '明日继续观察', risk: '等待', comments: [] },
+      ],
+    },
+    barsBySymbol: { '600000': bars },
+    symbolMeta: { '600000': { name: '测试股份' } },
+    latestDate: '2026-09-03',
+  });
+  const executed = result.accounts[0].decisions.find((item) => item.id === 'hold-existing');
+  const pending = result.accounts[0].decisions.find((item) => item.id === 'hold-next-day');
+  assert.deepEqual(executed.holdingNames, ['测试股份']);
+  assert.deepEqual(pending.holdingNames, ['测试股份']);
+});

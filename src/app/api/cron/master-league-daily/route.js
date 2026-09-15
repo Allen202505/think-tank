@@ -35,8 +35,15 @@ export async function GET(request) {
 
   // 1) 先生成决策（失败不阻断互评：互评还会用当天已有操作或预置文案兜底）
   const decisions = await runDecisionJob({ origin, date, masterIds, force });
+  const decisionsByMaster = Object.fromEntries(
+    (decisions.results || [])
+      .filter((item) => item.ok && item.decisions?.length)
+      .map((item) => [item.masterId, item.decisions]),
+  );
   // 2) 再生成互评
-  const commentary = skipCommentary ? { ok: true, skipped: true, spent: 0, results: [] } : await runCommentaryJob({ origin, date, force, masterIds });
+  const commentary = skipCommentary
+    ? { ok: true, skipped: true, spent: 0, results: [] }
+    : await runCommentaryJob({ origin, date, force, masterIds, decisionsByMaster });
 
   return jsonResponse({
     ok: Boolean(decisions.ok || commentary.ok),

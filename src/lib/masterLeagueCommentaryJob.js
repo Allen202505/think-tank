@@ -67,7 +67,7 @@ async function loadLeague(origin) {
  * 生成并持久化互评。
  * masterIds 为空时生成全部六位；force=false 时优先复用内存缓存与数据库里已有的当天结果。
  */
-export async function runCommentaryJob({ origin, date = todayShanghai(), masterIds = [], force = false } = {}) {
+export async function runCommentaryJob({ origin, date = todayShanghai(), masterIds = [], force = false, decisionsByMaster = {} } = {}) {
   const aiConfig = resolveAiConfig(null);
   if (!aiConfig.apiKey) return { ok: false, error: '服务端未配置 DEEPSEEK_API_KEY' };
 
@@ -92,7 +92,8 @@ export async function runCommentaryJob({ origin, date = todayShanghai(), masterI
       const payload = await generateMasterCommentary({
         target,
         allMasters: LEAGUE_MASTERS,
-        decisions: todayDecisions(account),
+        // 同一次收盘任务里刚生成的决策优先，避免联赛接口的计划缓存滞后时把新操作误写成「无操作」。
+        decisions: decisionsByMaster[target.id] || todayDecisions(account),
         positions: account?.positions || [],
         performance: performanceLine(account, ranking),
         market,

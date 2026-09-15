@@ -52,6 +52,32 @@ function formatSignedMoney(value) {
   return `${number > 0 ? '+' : ''}${formatMoney(number)}`;
 }
 
+function holdingLabel(decision, account) {
+  const names = Array.isArray(decision?.holdingNames) && decision.holdingNames.length
+    ? decision.holdingNames
+    : (account?.positions || []).map((position) => position.name || position.symbol).filter(Boolean);
+  if (!names.length) return '当前空仓';
+  if (names.length <= 2) return names.join('、');
+  return `${names.slice(0, 2).join('、')}等 ${names.length} 只`;
+}
+
+function decisionInstrument(decision, account) {
+  if (decision?.action === '持有' && !decision.symbol) return holdingLabel(decision, account);
+  return decision?.stockName || decision?.symbol || '未命名标的';
+}
+
+function decisionPlanText(decision, account) {
+  if (decision?.action === '持有') {
+    if (!decision.symbol) {
+      const hasHolding = (decision.holdingNames?.length || account?.positions?.length);
+      return hasHolding ? '保持现有仓位' : '保持空仓，等待信号';
+    }
+    return `${decision.symbol} · 保持现有仓位`;
+  }
+  const symbol = decision?.symbol ? `${decision.symbol} · ` : '';
+  return `${symbol}目标仓位 ${Number(decision?.targetPct) || 0}%`;
+}
+
 function formatPublishedAt(value) {
   if (!value) return '未知时间';
   const date = new Date(value);
@@ -251,7 +277,7 @@ function StrategyBoard({ group }) {
             {decisions.map((decision) => (
               <div className={styles.strategyItem} key={decision.id}>
                 <span className={`${styles.actionBadge} ${toneForAction(decision.action)}`}>{decision.action}</span>
-                <span className={styles.strategyStock}><strong>{decision.stockName}</strong><small>{decision.symbol} · 目标仓位 {decision.targetPct}%</small></span>
+                <span className={styles.strategyStock}><strong>{decisionInstrument(decision, account)}</strong><small>{decisionPlanText(decision, account)}</small></span>
                 <span className={styles.strategyReason}>{decision.reason}</span>
               </div>
             ))}
@@ -262,7 +288,7 @@ function StrategyBoard({ group }) {
 }
 
 function RandomCommentFeed({ comments, likes, onToggleLike }) {
-  if (!comments.length) return <div className={styles.emptyLine}>今天还没有大师点评。</div>;
+  if (!comments.length) return <div className={styles.emptyLine}>这期策略还没有大师点评。</div>;
   return (
     <div className={styles.randomComments}>
       {comments.map((item) => {
@@ -492,6 +518,7 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   const randomComments = useMemo(() => shuffle(selectedMasterComments, commentSeed).slice(0, 10), [selectedMasterComments, commentSeed]);
   const selectedMaster = accounts.find((account) => account.id === selectedMasterId) || accounts[0];
   const selectedStrategyGroup = strategyGroups.find((group) => group.account.id === selectedStrategyAccount?.id) || strategyGroups[0];
+  const selectedStrategyDate = selectedStrategyGroup?.decisions?.[0]?.decisionDate || activeLeague?.latestDate || '';
   // AI 现场生成的互评优先展示；没有就回退到预置点评，页面永远有内容
   const aiFeed = useMemo(
     () => buildAiCommentFeed(aiComments[selectedStrategyAccount?.id], selectedStrategyGroup, masterMap),
@@ -506,17 +533,37 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   // 只读当日已生成的 AI 互评（服务端缓存），没有就继续用预置点评
   useEffect(() => {
     const masterId = selectedStrategyAccount?.id;
-    if (!masterId) return undefined;
+    if (!masterId || !selectedStrategyDate) return undefined;
     let cancelled = false;
-    fetch('/api/master-league/commentary?master=' + encodeURIComponent(masterId), { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((payload) => {
-        if (cancelled || !payload?.ok || !payload.comments?.length) return;
-        setAiComments((current) => ({ ...current, [masterId]: payload.comments }));
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [selectedStrategyAccount?.id]);
+    let retryTimer;
+
+    setAiComments((current) => {
+      if (!current[masterId]) return current;
+      return { ...current, [masterId]: [] };
+    });
+
+    const load = async (attempt = 0) => {
+      try {
+        const query = new URLSearchParams({ master: masterId, date: selectedStrategyDate });
+        const response = await fetch(`/api/master-league/commentary?${query}`, { cache: 'no-store' });
+        const payload = await response.json();
+        if (cancelled) return;
+        if (payload?.ok && payload.comments?.length) {
+          setAiComments((current) => ({ ...current, [masterId]: payload.comments }));
+          return;
+        }
+      } catch { /* retry below */ }
+      if (!cancelled && attempt < 2) {
+        retryTimer = setTimeout(() => load(attempt + 1), attempt === 0 ? 5000 : 15000);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+  }, [selectedStrategyAccount?.id, selectedStrategyDate]);
 
   useEffect(() => {
     if (!accounts.length) {
@@ -726,7 +773,7 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
                 <div className={styles.historyItem} key={decision.id}>
                   <span className={styles.historyDate}>{decision.status === 'pending' ? '下一交易日' : decision.decisionDate}</span>
                   <span className={`${styles.actionBadge} ${toneForAction(decision.action)}`}>{decision.action}</span>
-                  <span className={styles.historyTrade}><strong>{decision.stockName}</strong><small>目标仓位 {decision.targetPct}%</small></span>
+                  <span className={styles.historyTrade}><strong>{decisionInstrument(decision, selectedMaster)}</strong><small>{decisionPlanText(decision, selectedMaster)}</small></span>
                   <span className={styles.historyReason}>{decision.reason}</span>
                 </div>
               ))}

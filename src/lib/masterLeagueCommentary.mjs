@@ -35,9 +35,14 @@ export function pickCommenters(masters, targetId, count = COMMENT_LIMITS.perMast
 
 export function buildCommentaryPrompt({ target, commenters, decisions, positions = [], performance, market }) {
   const decisionLines = (decisions || []).map((decision) => {
+    const isHold = decision.action === '持有';
+    const isGenericHold = isHold && !decision.symbol;
+    const actionLabel = isGenericHold
+      ? '持有'
+      : `${decision.action} ${decision.stockName || decision.symbol || ''}`.trim();
     const bits = [
-      `${decision.action} ${decision.stockName || decision.symbol || ''}`.trim(),
-      decision.targetPct != null ? `目标仓位 ${decision.targetPct}%` : '',
+      actionLabel,
+      isHold ? (isGenericHold ? '不调整当前持仓' : '不调整仓位') : decision.targetPct != null ? `目标仓位 ${decision.targetPct}%` : '',
       decision.reason ? `理由：${decision.reason}` : '',
       decision.risk ? `自认风险：${decision.risk}` : '',
     ].filter(Boolean);
