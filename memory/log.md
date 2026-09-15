@@ -24,6 +24,7 @@
 
 - `npm test`：44 项全部通过。
 - 直接调用 DeepSeek API：HTTP 200，返回 `model=deepseek-flash`、`content=OK`、`reasoning_content=""`，确认模型 ID 与关闭思考参数有效。
+- 提交 `f61699f` 已更新到 GitHub `main`；Vercel 部署后生产 bundle 已检测到 `deepseek-flash`，线上默认配置切换完成。
 
 
 ## 2026-09-15 · 修复“持有”语义与收盘互评日期错位

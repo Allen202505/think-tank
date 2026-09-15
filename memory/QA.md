@@ -787,7 +787,7 @@ curl -sS 'http://127.0.0.1:3000/api/master-league'
 - [x] MS-36 无标的持有的持仓快照：线上接口实测利弗莫尔 `holdingNames=["超声电子"]`、勒布 `["金安国纪"]`、巴鲁克 `["紫金矿业","江西铜业"]`。
 - [x] MS-37 互评日期对齐：线上 `GET /api/master-league/commentary?date=2026-09-14&master=livermore` 返回 3 条数据库评论；修复前页面默认查询 9/15 导致空态。
 - [x] MS-39 生产部署 `b6a2ea9` 已生效，并回填六位大师 9/14 评论；新点评已指向真实买入/持有计划。
-- [x] MS-40 默认模型切换为 `deepseek-flash`（DeepSeek-V4.1-Flash）：真实 API 返回 200、`model=deepseek-flash`、`reasoning_content=""`；单测确认请求体包含 `thinking={type:"disabled"}`。
+- [x] MS-40 默认模型切换为 `deepseek-flash`（DeepSeek-V4.1-Flash）：真实 API 返回 200、`model=deepseek-flash`、`reasoning_content=""`；单测确认请求体包含 `thinking={type:"disabled"}`；生产 bundle 已上线该默认值。
 - [ ] MS-38 收盘任务上下文：线上下一次 15:35 任务需确认评论 `about` 指向本轮新计划，而不是“今天没有操作”。
 - [x] MS-17 AI 互评现场生成：`POST /api/master-league/commentary {"all":true}` 六位各生成 3 条，实测单大师 ¥0.0018~0.0023、整天 ¥0.008~0.012。
 - [x] MS-18 页面优先展示 AI 互评并渲染本人回怼；`GET /api/master-league/commentary?master=` 只读缓存，访客刷新不产生费用。
