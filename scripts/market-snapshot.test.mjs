@@ -16,6 +16,7 @@ import {
   parseCommentaryPayload,
   pickCommenters,
 } from '../src/lib/masterLeagueCommentary.mjs';
+import { buildProviderBody } from '../src/lib/llm.js';
 import {
   AGENT_LIMITS,
   MAX_TOOL_RESULT_CHARS,
@@ -149,8 +150,19 @@ test('智能体成本估算按缓存命中/未命中分别计价', () => {
   assert.equal(usage.cachedTokens, 8000);
   assert.equal(usage.missTokens, 2000);
   assert.equal(usage.totalTokens, 10500);
-  // 8000×0.2 + 2000×2 + 500×3 = 1600 + 4000 + 1500 = 7100（元/百万）→ 0.0071 元
-  assert.equal(usage.cost, 0.0071);
+  // 8000×0.0432 + 2000×2.16 + 500×8.64 = 8985.6（元/百万）→ 0.008986 元
+  assert.equal(usage.cost, 0.008986);
+});
+
+test('DeepSeek-V4.1-Flash 使用 deepseek-flash 并关闭默认思考模式', () => {
+  const body = buildProviderBody({
+    apiKey: 'test',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-flash',
+  }, [{ role: 'user', content: '只输出 OK' }], 100, { temperature: 0 });
+  assert.equal(body.model, 'deepseek-flash');
+  assert.equal(body.max_tokens, 100);
+  assert.deepEqual(body.thinking, { type: 'disabled' });
 });
 
 test('决策校验：拦住非法动作、缺代码、超仓位与过短理由', () => {
@@ -208,7 +220,7 @@ test('智能体循环：调工具 → 校验 → 产出决策，且不越过 tok
     master,
     account: { cash: 100000, totalAsset: 100000, profitRate: 0, positions: [] },
     date: '2026-09-14',
-    aiConfig: { apiKey: 'test', baseUrl: 'https://example.com/v1', model: 'deepseek-chat' },
+    aiConfig: { apiKey: 'test', baseUrl: 'https://example.com/v1', model: 'deepseek-flash' },
     deps,
   });
 
@@ -249,7 +261,7 @@ test('智能体循环：轮次用尽时强制收口，不会烧着钱没有决�
     master,
     account: { cash: 100000, totalAsset: 100000, positions: [] },
     date: '2026-09-14',
-    aiConfig: { apiKey: 'test', baseUrl: 'https://example.com/v1', model: 'deepseek-chat' },
+    aiConfig: { apiKey: 'test', baseUrl: 'https://example.com/v1', model: 'deepseek-flash' },
     deps,
     limits: { ...AGENT_LIMITS, maxRounds: 2, maxCallsPerRun: 5 },
   });

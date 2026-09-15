@@ -10,6 +10,11 @@ export function isMiMoProvider(baseUrl) {
   return /xiaomimimo/i.test(String(baseUrl || ''));
 }
 
+export function isDeepSeekThinkingModel(cfg) {
+  return /api\.deepseek\.com/i.test(String(cfg?.baseUrl || ''))
+    && /^deepseek-(?:flash|v4-)/.test(String(cfg?.model || ''));
+}
+
 // 构造请求头：Authorization Bearer（OpenAI/DeepSeek 等）+ api-key（MiMo 等）双保险
 export function buildProviderHeaders(cfg, extra = {}) {
   const headers = { 'Content-Type': 'application/json', ...extra };
@@ -18,7 +23,7 @@ export function buildProviderHeaders(cfg, extra = {}) {
   return headers;
 }
 
-// 构造请求体：MiMo 用 max_completion_tokens 并显式关闭思维链（省钱更稳）
+// 构造请求体：MiMo / DeepSeek V4 系列显式关闭思维链（省钱、兼容多轮工具调用）
 export function buildProviderBody(cfg, messages, maxTokens, extra = {}) {
   const body = { model: cfg.model, messages, ...extra };
   if (isMiMoProvider(cfg.baseUrl)) {
@@ -26,6 +31,7 @@ export function buildProviderBody(cfg, messages, maxTokens, extra = {}) {
     body.thinking = { type: 'disabled' };
   } else {
     body.max_tokens = maxTokens;
+    if (isDeepSeekThinkingModel(cfg)) body.thinking = { type: 'disabled' };
   }
   return body;
 }
@@ -47,7 +53,7 @@ export function normalizeAiConfig(raw) {
   return {
     apiKey,
     baseUrl: baseUrl || 'https://api.deepseek.com/v1',
-    model: model || 'deepseek-chat',
+    model: model || 'deepseek-flash',
   };
 }
 
@@ -58,7 +64,7 @@ export function resolveAiConfig(userConfig) {
   return {
     apiKey: process.env.DEEPSEEK_API_KEY || '',
     baseUrl: (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),
-    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-flash',
   };
 }
 

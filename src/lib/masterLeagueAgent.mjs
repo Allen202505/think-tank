@@ -9,11 +9,12 @@
 import { buildProviderBody, buildProviderHeaders, resolveLlmUrl } from './llm.js';
 import { executeMasterLeagueTool, listMasterLeagueToolSchemas } from './masterLeagueTools.mjs';
 
-// ── 价格表（元 / 百万 token）。默认按 deepseek-chat 档位，可用环境变量覆盖 ──
+// ── 价格表（元 / 百万 token）。默认按 DeepSeek-V4.1-Flash 峰值价折算 ──
+// 官方峰值 USD：0.30 / 0.006 / 1.20，按 USD/CNY=7.2 折算；可用环境变量覆盖。
 export const PRICING = {
-  inputCacheMiss: Number(process.env.MASTER_LEAGUE_PRICE_INPUT_MISS || 2),
-  inputCacheHit: Number(process.env.MASTER_LEAGUE_PRICE_INPUT_HIT || 0.2),
-  output: Number(process.env.MASTER_LEAGUE_PRICE_OUTPUT || 3),
+  inputCacheMiss: Number(process.env.MASTER_LEAGUE_PRICE_INPUT_MISS || 2.16),
+  inputCacheHit: Number(process.env.MASTER_LEAGUE_PRICE_INPUT_HIT || 0.0432),
+  output: Number(process.env.MASTER_LEAGUE_PRICE_OUTPUT || 8.64),
 };
 
 export const AGENT_LIMITS = {

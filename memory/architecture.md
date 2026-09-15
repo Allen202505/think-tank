@@ -54,6 +54,7 @@ think-tank/
 - `src/lib/masterLeagueAgent.mjs`: 单大师决策循环（人设 prompt + 工具调用 + 结构化校验 + 强制收口 + 成本台账）。所有成本闸门集中在 `AGENT_LIMITS` / `PRICING`，可用环境变量覆盖。
 - `src/app/api/master-league/agent/route.js`: 单大师试跑入口 `POST /api/master-league/agent {masterId}`；生产需 `MASTER_LEAGUE_AGENT_TOKEN`。
 - LLM 只输出意图（action/symbol/targetPct/reason/risk），成交价、持仓、收益仍由 `masterLeagueEngine.mjs` 按真实行情计算——模型永远不能自己编造成交价或收益。
+- 服务端默认模型为 DeepSeek-V4.1-Flash（API ID `deepseek-flash`）；`src/lib/llm.js` 对 DeepSeek Flash/V4 系列显式发送 `thinking: { type: "disabled" }`，保持多轮工具调用上下文兼容并控制成本。
 - `src/lib/masterLeagueDb.js`: 公开赛公共底表读写；服务端 service role 独占写入，匿名/登录用户可读取公开快照。
 - 公开赛人物：利弗莫尔、威科夫、达瓦斯、勒布、科斯托拉尼、巴鲁克；每人包含时代、原始方法、A股映射和一句话简介。
 - `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`。

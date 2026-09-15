@@ -77,11 +77,13 @@ npm start
 npm test
 ```
 
-当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序，共 11 个用例。
+当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序，共 44 个用例。
 
 ### 2.2 建议环境变量
 
 - `DEEPSEEK_API_KEY`：站长免费体验模型 Key。
+- `DEEPSEEK_MODEL`：站长默认模型；当前为 `deepseek-flash`（DeepSeek-V4.1-Flash），不配置时同样回退到该模型。
+- `DEEPSEEK_BASE_URL`：默认 `https://api.deepseek.com/v1`。
 - `NEXT_PUBLIC_SITE_URL`：线上站点地址。
 - `NEXT_PUBLIC_QR_CODE_URL`：个人二维码地址，可选。
 - `NEXT_PUBLIC_GROUP_QR_URL`：交流群二维码地址，可选。
@@ -155,6 +157,7 @@ npm test
 ### 3.2 AI 调用与免费额度
 
 - 无用户 Key：默认 10 次免费体验，使用站长服务端 Key。
+- 站长默认模型为 `deepseek-flash`（DeepSeek-V4.1-Flash）；请求显式关闭思考模式，避免多轮工具调用额外计费与 `reasoning_content` 回传问题。
 - 第 10 次可用；第 11 次触发 `ensureAiReady()`，弹出 AI 设置。
 - 有用户 Key：不消耗免费次数，直接使用用户配置。
 - 免费次数同时写入：
@@ -691,7 +694,7 @@ npm test
 
 ### 回归用例
 
-- [x] ML-01 `npm test` 通过；联赛相关用例覆盖持有快照、资金约束、排名和邀请降级（全量 43 个）。
+- [x] ML-01 `npm test` 通过；联赛相关用例覆盖持有快照、资金约束、排名和邀请降级（全量 44 个）。
 - [x] ML-02 `GET /api/master-league` 返回 200、公开赛元数据、六位大师账户、策略、持仓、排名和净值曲线。
 - [x] ML-03 实时行情可用时，成交价来自真实日线开盘价；账户按真实收盘价结算。
 - [x] ML-04 10 万元不足以买入 100 股高价标的时，系统不会伪造不足一手的交易。
@@ -784,6 +787,7 @@ curl -sS 'http://127.0.0.1:3000/api/master-league'
 - [x] MS-36 无标的持有的持仓快照：线上接口实测利弗莫尔 `holdingNames=["超声电子"]`、勒布 `["金安国纪"]`、巴鲁克 `["紫金矿业","江西铜业"]`。
 - [x] MS-37 互评日期对齐：线上 `GET /api/master-league/commentary?date=2026-09-14&master=livermore` 返回 3 条数据库评论；修复前页面默认查询 9/15 导致空态。
 - [x] MS-39 生产部署 `b6a2ea9` 已生效，并回填六位大师 9/14 评论；新点评已指向真实买入/持有计划。
+- [x] MS-40 默认模型切换为 `deepseek-flash`（DeepSeek-V4.1-Flash）：真实 API 返回 200、`model=deepseek-flash`、`reasoning_content=""`；单测确认请求体包含 `thinking={type:"disabled"}`。
 - [ ] MS-38 收盘任务上下文：线上下一次 15:35 任务需确认评论 `about` 指向本轮新计划，而不是“今天没有操作”。
 - [x] MS-17 AI 互评现场生成：`POST /api/master-league/commentary {"all":true}` 六位各生成 3 条，实测单大师 ¥0.0018~0.0023、整天 ¥0.008~0.012。
 - [x] MS-18 页面优先展示 AI 互评并渲染本人回怼；`GET /api/master-league/commentary?master=` 只读缓存，访客刷新不产生费用。

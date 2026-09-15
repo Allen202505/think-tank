@@ -19,7 +19,7 @@ export async function POST(request) {
   const cfg = {
     apiKey: process.env.DEEPSEEK_API_KEY || '',
     baseUrl: (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, ''),
-    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-flash',
   };
   if (!cfg.apiKey || !question) return Response.json({ ids: [], fallback: true });
 

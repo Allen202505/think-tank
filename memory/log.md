@@ -2,6 +2,30 @@
 
 ## 🧭 项目执行规则（长期有效）
 
+## 2026-09-15 · 默认模型切换为 DeepSeek-V4.1-Flash
+
+**背景**：用户要求网站默认改用 `DeepSeek-V4.1-Flash`，原因是成本低于 DeepSeek-V4 系列。
+
+**确认**
+
+- DeepSeek 官方文档确认模型版本 `DeepSeek-V4.1-Flash` 对应的 API ID 是 `deepseek-flash`。
+- 官方模型列表返回 `deepseek-flash`、`deepseek-v4-pro`；旧 `deepseek-v4-flash` 名称已退役但仍会路由到 V4.1 Flash。
+- 官方文档说明 Flash 默认开启思考模式；当前代码是多轮工具调用，若保留思考模式还需回传 `reasoning_content`，因此统一显式关闭。
+
+**实现**
+
+- `src/lib/llm.js` 的服务端兜底和用户 BYOK 缺省模型改为 `deepseek-flash`。
+- `src/lib/aiGate.js` 的 DeepSeek 预设、`chat/marketData.js`、`match-masters/route.js` 同步默认值。
+- `buildProviderBody()` 对 DeepSeek Flash / V4 系列发送 `thinking: { type: 'disabled' }`，与 MiMo 的非思考适配保持一致。
+- 成本表改为 V4.1 Flash 官方峰值价的 RMB 折算（USD/CNY=7.2）：输入未命中 ¥2.16、命中 ¥0.0432、输出 ¥8.64 / 百万 token，仍可用环境变量覆盖。
+- `.env.example`、README、PRD、architecture、QA 同步更新。
+
+**验证**
+
+- `npm test`：44 项全部通过。
+- 直接调用 DeepSeek API：HTTP 200，返回 `model=deepseek-flash`、`content=OK`、`reasoning_content=""`，确认模型 ID 与关闭思考参数有效。
+
+
 ## 2026-09-15 · 修复“持有”语义与收盘互评日期错位
 
 **背景**：用户反馈两点：无标的的「持有」只显示“不动 / 目标仓位 0%”，看不出实际持有股票；收盘后已生成次日策略，但“大师互评策略”仍显示“今天还没有大师点评”。

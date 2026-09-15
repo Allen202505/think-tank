@@ -433,6 +433,7 @@ memory/
 - 未配置 service role 时，测试环境仍通过接口返回预演数据，但不会持久化。
 - 公共底表允许匿名读取公开赛数据，满足任何访客随时查看账户、持仓和收益。
 - 大师智能体（已落地）：每位大师 = 人设 + 记忆 + 工具 + 结构化决策。LLM 只输出 `{action, symbol, targetPct, reason, risk}`，成交价/持仓/收益仍由结算引擎按真实行情计算。
+- 站长默认模型为 DeepSeek-V4.1-Flash（`deepseek-flash`），默认关闭思考模式；用户 BYOK 设置仍可覆盖模型与 Base URL。
 - 已落地地基（零 token）：`marketSnapshot.mjs` 全市场感知层 + `masterLeagueTools.mjs` 工具层（概览/筛选/快照/日线/持仓），配套 `/api/master-league/tools` 调试入口。
 - 明确不做「把全市场塞进上下文」：数据在服务端流转，只有工具查询结果才进模型，5000+ 只股票不产生 token 成本。
 - 已跑通单大师 agent 循环：`masterLeagueAgent.mjs` + `POST /api/master-league/agent {masterId}`，含结构化校验与强制收口。
