@@ -139,3 +139,33 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 - URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental` 自动进入功能箱并选中对应模块。
 - 本地记忆：`thinktank_toolbox_tab` 保存用户最后一次选择的 Tab。
 - 挂载策略：四个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
+
+## 芒格财报侦查诊断数据流（2026-09-16）
+
+```text
+/api/munger 解析链接/附件文本
+    ↓ 并行
+┌──────────────────────────────┬────────────────────────────────┐
+│ buildEarningsDataCard        │ buildAStockForensicEvidence    │
+│ 行情 / 财务历史 / 预期 / 研报 │ 三表 / 主要指标 / 年报附注    │
+└──────────────────────────────┴────────────────────────────────┘
+    ↓
+证据包 + Skill 规则注入 LLM
+    ↓
+芒格正文 + 结构化 diagnosis + followUps
+    ↓
+MungerFinance → FinancialDiagnosisChecklist
+  ├─ 芒格回答区
+  ├─ 一页纸财务诊断清单
+  ├─ 3 个继续调查问题（可直接追问）
+  └─ 原始数据核验（折叠）
+```
+
+- `src/app/api/chat/financialForensics.js`：A 股财报侦查数据层。并行拉取东财 `RPT_F10_FINANCE_GBALANCE`、`RPT_F10_FINANCE_GINCOME`、`RPT_F10_FINANCE_GCASHFLOW`、主要指标和最新年报/审计报告，生成结构化 seed 与附注证据包。
+- `src/lib/pdfText.js`：PDF 文本抽取与受限页范围解析。用户上传的 PDF 仍走全文；自动获取的年报只解析前 12 页 + 后 68%，覆盖审计意见与财报附注，避免整份年报解析拖慢请求。
+- `src/components/FinancialDiagnosisChecklist.js`：独立的一页纸诊断模块。桌面渲染表格，移动端切换为卡片；状态、优先级、来源和 `⚪ 数据不足` 均由后端结构控制，不靠模型返回 emoji。
+- 芒格提示词要求先按 Skill 完成排查，再基于诊断结果写正文；`diagnosis.rows` 只允许引用三表、年报附注、审计报告或明确的数据不足。
+- 年报/审计报告原始来源优先使用东方财富公告正文接口 `np-anotice-stock.eastmoney.com` / `np-cnotice-stock.eastmoney.com`；附注命中失败时降级为结构化三表 + 数据不足，不编造数字。
+- 数据缓存：三表 12 小时、年报/附注证据 7 天、公告列表 24 小时；单次证据包外层超时 22 秒，失败静默降级。
+- `withTimeout()` 现在会在 Promise 完成后清理定时器，避免服务端进程因超时定时器悬挂 20 秒以上。
+- 当前 A 股优先；港股、美股证据链未接入，仍使用原有系统数据核验并明确边界。

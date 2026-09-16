@@ -571,10 +571,13 @@ async function fetchQuoteEM(secid) {
 
 // 给 Promise 加超时（Yahoo 在某些网络不可达时可能卡住）
 export function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Yahoo 请求超时')), ms)),
-  ]);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('数据请求超时')), ms);
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
 }
 
 // ─── Yahoo Finance（美股/港股补充） ──────────────────────

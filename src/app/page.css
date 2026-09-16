@@ -1008,6 +1008,70 @@
 .mg-data-card[open] summary { border-bottom: 1px dashed var(--border-subtle); }
 .mg-data-card-body { padding: 10px 12px; font-size: 12.5px; line-height: 1.75; color: var(--text); white-space: pre-wrap; word-break: break-word; }
 
+/* 一页纸财务诊断清单 */
+.mg-forensic { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.mg-forensic-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.mg-forensic-kicker { font-size: 10px; letter-spacing: 0.16em; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.mg-forensic-head h3 { margin: 0; font-family: var(--font-serif); font-size: 21px; color: var(--accent-strong); line-height: 1.25; }
+.mg-forensic-head p { margin: 5px 0 0; font-size: 12px; line-height: 1.65; color: var(--text-muted); }
+.mg-forensic-period { flex-shrink: 0; font-size: 11px; color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 4px 9px; }
+.mg-forensic-summary { border-left: 2px solid var(--accent-dim); padding-left: 12px; display: flex; flex-direction: column; gap: 6px; }
+.mg-forensic-company { font-size: 14px; font-weight: 800; color: var(--text); }
+.mg-forensic-model { margin: 0; font-size: 13px; line-height: 1.75; color: var(--text); white-space: pre-wrap; }
+.mg-forensic-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mg-forensic-meta span { font-size: 10.5px; line-height: 1.3; color: var(--accent-strong); background: var(--accent-bg); border-radius: 999px; padding: 3px 8px; }
+.mg-forensic-meta span.coverage { color: var(--text-muted); background: transparent; border: 1px solid var(--border-subtle); }
+.mg-forensic-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 10px; }
+.mg-forensic-table { width: 100%; min-width: 960px; border-collapse: collapse; table-layout: fixed; }
+.mg-forensic-table th { background: rgba(120, 100, 60, 0.05); color: var(--text-muted); font-size: 11px; font-weight: 700; text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border-subtle); }
+.mg-forensic-table td { vertical-align: top; padding: 11px 10px; border-bottom: 1px dashed var(--border-subtle); font-size: 12px; line-height: 1.65; color: var(--text); }
+.mg-forensic-table tr:last-child td { border-bottom: 0; }
+.mg-forensic-table th:nth-child(1), .mg-forensic-table td:nth-child(1) { width: 65px; }
+.mg-forensic-table th:nth-child(2), .mg-forensic-table td:nth-child(2) { width: 145px; }
+.mg-forensic-table th:nth-child(3), .mg-forensic-table td:nth-child(3) { width: 150px; }
+.mg-forensic-table th:nth-child(4), .mg-forensic-table td:nth-child(4) { width: 100px; }
+.mg-forensic-table th:nth-child(5), .mg-forensic-table td:nth-child(5) { width: 235px; }
+.mg-forensic-table strong { display: block; color: var(--text); font-size: 12.5px; }
+.mg-forensic-table small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
+.mg-forensic-priority { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; border-radius: 999px; font-size: 10px; font-weight: 800; border: 1px solid var(--border-subtle); color: var(--text-muted); }
+.mg-forensic-priority.p0 { color: var(--bear); border-color: rgba(180, 80, 70, 0.35); background: rgba(180, 80, 70, 0.07); }
+.mg-forensic-priority.p1 { color: var(--accent-strong); border-color: var(--accent-dim); background: var(--accent-bg); }
+.mg-forensic-badge { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; border-radius: 999px; padding: 3px 7px; font-size: 10.5px; font-weight: 700; border: 1px solid var(--border-subtle); color: var(--text-muted); background: transparent; }
+.mg-forensic-badge.normal { color: #4f7a52; border-color: rgba(79, 122, 82, 0.30); }
+.mg-forensic-badge.watch { color: #9b741d; border-color: rgba(155, 116, 29, 0.35); }
+.mg-forensic-badge.abnormal { color: #b1642f; border-color: rgba(177, 100, 47, 0.38); }
+.mg-forensic-badge.high { color: var(--bear); border-color: rgba(180, 80, 70, 0.42); }
+.mg-forensic-badge.insufficient { color: var(--text-muted); }
+.mg-forensic-cards { display: none; }
+.mg-forensic-questions { border-top: 1px dashed var(--border-subtle); padding-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.mg-forensic-questions-title { font-size: 12px; font-weight: 800; color: var(--accent-strong); margin-bottom: 1px; }
+.mg-forensic-questions button { display: flex; align-items: flex-start; gap: 9px; width: 100%; box-sizing: border-box; border: 1px solid var(--border-subtle); border-radius: 9px; background: transparent; color: var(--text); text-align: left; padding: 9px 10px; font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; cursor: pointer; }
+.mg-forensic-questions button:hover { border-color: var(--accent-dim); background: var(--accent-bg); }
+.mg-forensic-questions button span { flex-shrink: 0; color: var(--accent); font-weight: 800; font-size: 11px; }
+.mg-forensic-evidence, .mg-forensic-sources { border: 1px solid var(--border-subtle); border-radius: 9px; background: rgba(120, 100, 60, 0.035); }
+.mg-forensic-evidence summary, .mg-forensic-sources summary { cursor: pointer; list-style: none; padding: 9px 11px; color: var(--accent-strong); font-size: 12px; font-weight: 700; }
+.mg-forensic-evidence summary::-webkit-details-marker, .mg-forensic-sources summary::-webkit-details-marker { display: none; }
+.mg-forensic-evidence[open] summary, .mg-forensic-sources[open] summary { border-bottom: 1px dashed var(--border-subtle); }
+.mg-forensic-evidence pre { margin: 0; padding: 11px; white-space: pre-wrap; word-break: break-word; color: var(--text); font-size: 11.5px; line-height: 1.7; font-family: var(--font-sans); }
+.mg-forensic-sources ul { margin: 0; padding: 10px 12px 11px 28px; color: var(--text-muted); font-size: 11.5px; line-height: 1.7; }
+.mg-forensic-sources a { color: var(--accent-strong); }
+.mg-forensic-empty { margin: 0; color: var(--text-muted); font-size: 12.5px; line-height: 1.7; }
+@media (max-width: 760px) {
+  .mg-forensic { padding: 14px 12px; gap: 12px; }
+  .mg-forensic-head h3 { font-size: 19px; }
+  .mg-forensic-table-wrap { display: none; }
+  .mg-forensic-cards { display: flex; flex-direction: column; gap: 9px; }
+  .mg-forensic-card { border: 1px solid var(--border-subtle); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 7px; }
+  .mg-forensic-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .mg-forensic-card-head > div { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .mg-forensic-card-head strong { font-size: 12.5px; line-height: 1.45; }
+  .mg-forensic-card-value { font-size: 13px; font-weight: 800; color: var(--accent-strong); }
+  .mg-forensic-card-value small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 10.5px; font-weight: 400; }
+  .mg-forensic-card p { margin: 0; font-size: 12px; line-height: 1.68; color: var(--text); }
+  .mg-forensic-card-next { font-size: 11.5px; line-height: 1.65; color: var(--text-muted); border-top: 1px dashed var(--border-subtle); padding-top: 7px; }
+  .mg-forensic-card-next b { color: var(--accent-strong); }
+}
+
 .mg-fu-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .mg-fu-item { font-size: 12.5px; color: var(--text); line-height: 1.6; }
 .mg-points { display: flex; flex-direction: column; gap: 12px; }

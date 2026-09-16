@@ -7,6 +7,7 @@ import { useDrawerResize } from '../lib/drawerResize';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import ModuleHero from './ModuleHero';
+import FinancialDiagnosisChecklist from './FinancialDiagnosisChecklist';
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -131,7 +132,7 @@ export default function MungerFinance() {
       const res = await fetch('/api/munger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'followup', question: msg, report: note, prevContent: result.content, aiConfig: getAiConfig() }),
+        body: JSON.stringify({ mode: 'followup', question: msg, report: note, prevContent: result.content, diagnosis: result.diagnosis || null, aiConfig: getAiConfig() }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '追问失败，请重试');
@@ -267,15 +268,6 @@ export default function MungerFinance() {
                 <span className="mg-speech-tag">财报解读</span>
               </div>
               <div className="mg-speech-body">{renderRich(result.content)}</div>
-              {result.dataCard && (
-                <details className="mg-data-card" open={false}>
-                  <summary>
-                    <span className="mg-data-card-title">📋 系统数据核验</span>
-                    <span className="mg-data-card-hint">定量数据交叉验证（来自行情/财务数据层，非财报文本）</span>
-                  </summary>
-                  <div className="mg-data-card-body">{renderInline(result.dataCard, 'dc')}</div>
-                </details>
-              )}
               {Array.isArray(result.followUps) && result.followUps.length > 0 && (
                 <div className="mg-followups">
                   <div className="mg-fu-label">想深挖？点击即可举手提问芒格：</div>
@@ -291,6 +283,14 @@ export default function MungerFinance() {
               </div>
           </div>
         </div>
+      )}
+
+      {result && !loading && (
+        <FinancialDiagnosisChecklist
+          diagnosis={result.diagnosis}
+          dataCard={result.dataCard}
+          onAsk={openDrawer}
+        />
       )}
 
       {/* 举手提问 · 与芒格单聊浮层（样式与大师PK 一致） */}

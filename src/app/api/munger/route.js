@@ -6,6 +6,7 @@ import { SYSTEM_GUARD } from '../../../lib/security';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
+import { extractPdfText } from '../../../lib/pdfText';
 
 // 去掉 AI 把整段/整行用中文或英文引号首尾包起来的“包装引号”（只剥行首/行尾成对引号，不动正文内部的引号）
 function stripWrappingQuotes(text) {
@@ -16,34 +17,8 @@ function stripWrappingQuotes(text) {
     .trim();
 }
 import { buildEarningsDataCard } from '../chat/earningsEngine.js';
+import { buildAStockForensicEvidence, normalizeDiagnosis, buildFallbackDiagnosis } from '../chat/financialForensics.js';
 import { findMasterById } from '../../../lib/breakfast';
-
-// 进程内解析 PDF 文本：懒加载内嵌 pdfjs（仅解析 PDF 时），降低路由模块冷启动/内存开销
-async function extractPdfText(buf) {
-  // pdfjs 模块顶层 new DOMMatrix()；文本解析不需要渲染，先 polyfill，再加载 pdfjs + worker（假 worker 进程内）
-  globalThis.DOMMatrix = globalThis.DOMMatrix || class DOMMatrix {
-    constructor() { this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0; }
-  };
-  globalThis.Path2D = globalThis.Path2D || class Path2D {};
-  const pdfjsLib = await import('../../../../scripts/vendor/pdfjs.mjs');
-  const pdfWorker = await import('../../../../scripts/vendor/pdf.worker.mjs');
-  globalThis.pdfjsWorker = pdfWorker;
-  const getDocument = pdfjsLib.getDocument;
-  const doc = await getDocument({
-    data: new Uint8Array(buf),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    disableFontFace: true,
-    verbosity: 0,
-  }).promise;
-  let text = '';
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const c = await page.getTextContent();
-    text += c.items.map((it) => it.str || '').join(' ') + '\n';
-  }
-  return text.trim();
-}
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
@@ -102,7 +77,9 @@ export async function POST(request) {
       const question = typeof body.question === 'string' ? body.question.trim() : '';
       const prevContent = typeof body.prevContent === 'string' ? body.prevContent.trim() : '';
       const report = typeof body.report === 'string' ? body.report.trim() : '';
+      const diagnosis = body.diagnosis && typeof body.diagnosis === 'object' ? body.diagnosis : null;
       if (!question) return Response.json({ error: '缺少追问内容' }, { status: 400 });
+      const diagnosisSection = diagnosis ? `\n一页纸财务诊断清单（继续排查时必须沿用）：\n${JSON.stringify(diagnosis).slice(0, 5000)}\n` : '';
       const prompt = `你是 ${munger.name}（${munger.title}）。用户追问你之前对这份财报的解读，请正面、深入回答这个具体问题。
 
 你的画像：
@@ -110,6 +87,7 @@ ${masterProfileLine(munger)}
 
 你此前的解读：
 ${prevContent || '（暂无）'}
+${diagnosisSection}
 
 财报原文（节选）：
 ${report.slice(0, 4000) || '（未提供财报原文）'}
@@ -155,12 +133,13 @@ ${question}
     if (!reportText) return Response.json({ error: '请提供财报链接或上传附件' }, { status: 400 });
     if (note) reportText += `\n\n【补充说明】${note.slice(0, 2000)}`;
 
-    // 系统数据核验卡：财报文本 → 识别公司 → 拉行情/财务历史/机构预期/研报（失败静默降级）
-    let dataCard = null;
-    try {
-      const card = await buildEarningsDataCard(reportText);
-      if (card && card.hasData) dataCard = card;
-    } catch (e) { /* 降级：无数据卡也能正常解读 */ }
+    // 财报侦查证据包与系统数据核验并行拉取；任一失败都不影响主流程。
+    const [cardResult, forensicResult] = await Promise.all([
+      buildEarningsDataCard(reportText).catch(() => null),
+      buildAStockForensicEvidence(reportText).catch(() => null),
+    ]);
+    const dataCard = cardResult && cardResult.hasData ? cardResult : null;
+    const forensic = forensicResult && forensicResult.hasData ? forensicResult : null;
     const dataCardSection = dataCard
       ? `【系统数据核验卡】（来自实时行情/财务数据层，用于与财报文本交叉验证；仅当财报确实涉及 ${dataCard.stock && dataCard.stock.name ? dataCard.stock.name : '该公司'} 时使用，否则忽略）
 ${dataCard.text}
@@ -170,12 +149,25 @@ ${dataCard.text}
 - 系统数据核验卡里没有的精确数字，仍按原规则不得编造。`
       : `（本次未获取到可核验的系统数据：财报文本未能识别出明确公司，或数据源暂不可用。请仅基于财报文本解读，并在存疑处明确标注"待验证"，不要编造数字。）`;
 
+    const forensicSection = forensic
+      ? `【财报侦查诊断 Skill · A股证据包】
+${forensic.evidenceText}
+
+使用要求：
+- 先按 Skill 完成问题排查，再基于排查结果写芒格解读；不要把证据包原样复述给用户。
+- 只能使用上方证据包、系统数据核验卡和财报原文中的事实。证据不足必须写“数据不足”，禁止用印象补数字。
+- 异常是风险信号，不是造假结论。必须分开“事实、可能原因、下一步验证”。
+- 最终 diagnosis.rows 选 6-10 项，优先 P0；每项必须有证据来源。`
+      : `（本次未取得 A 股财报侦查证据包。若财报涉及 A 股，diagnosis.rows 只保留能由财报原文直接支持的项目；其余标记为数据不足。）`;
+
     const prompt = `你是 ${munger.name}（${munger.title}）。用户会给你一份财报（可能是文本，也可能是链接——若是链接请按可读到的正文理解）。请像芒格一样"深入浅出"地解读这份财报。
 
 你的画像：
 ${masterProfileLine(munger)}
 
 ${dataCardSection}
+
+${forensicSection}
 
 解读要求（像讲课，不是写研究报告）：
 1. 先一句话说出这份财报最该被记住的结论。
@@ -186,19 +178,27 @@ ${dataCardSection}
 6. content 直接就是解读正文，不要任何前缀、标签或标题（严禁出现「context：」「回答：」「解读：」等字样）。
 7. followUps 必须是**完整的问句**（以「？」结尾、能直接提问），例如「应收账款快速增长的根本原因是什么？」「潜在的坏账风险有多大？」；不要用名词短语或陈述句。
 
+同时生成「一页纸财务诊断清单」：
+- rows 数量 6-10 条，按 P0、P1、P2 排序。
+- status 只能填 normal、watch、abnormal、high、insufficient，对应 🟢正常、🟡关注、🟠明显异常、🔴高风险信号、⚪数据不足。
+- current 写当前值/变化；trend 写同比、近三年或行业对比；finding 写业务含义，必须区分事实和推测；next 写下一步查什么；source 写三表、年报附注、审计报告或数据不足。
+- topQuestions 必须正好 3 个完整问句，围绕本次最值得继续调查的问题。
+- coverage 填三个整数：structured 表示已采用的结构化财务项数，filing 表示已采用的年报/附注项数，missing 表示明确数据缺口项数。
+
 只输出一个 JSON，不要输出任何其他内容：
-{"content":"你的解读发言（分段、带加粗）","followUps":["完整的问句1？","完整的问句2？"]}
+{"content":"你的解读发言（分段、带加粗）","followUps":["完整的问句1？","完整的问句2？"],"diagnosis":{"company":"公司名称（代码）","businessModel":"一句话经营模式","focus":["本期重点1","本期重点2"],"rows":[{"priority":"P0","domain":"利润质量","metric":"经营现金流/净利润","current":"当前值","trend":"同比或趋势","status":"normal","finding":"事实与业务含义","next":"下一步验证","source":"三表"}],"topQuestions":["问题1？","问题2？","问题3？"],"coverage":{"structured":0,"filing":0,"missing":0},"asOf":"2025年报"}}
 注意：所有引号用中文引号「」或“”，禁止英文双引号。`;
-    const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 6000)}`), '{"content":"解读","followUps":["追问1"]}', 2000, true, body.aiConfig);
+    const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 9000)}`), '{"content":"解读","followUps":["追问1"],"diagnosis":{"rows":[],"topQuestions":[]}}', 3400, true, body.aiConfig);
     const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
     if (!normalized) {
-      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(extractContentFromRaw(raw) || raw.trim()), followUps: [], dataCard: dataCard ? dataCard.text : null } });
+      if (raw && raw.trim()) return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(extractContentFromRaw(raw) || raw.trim()), followUps: [], dataCard: dataCard ? dataCard.text : null, diagnosis: buildFallbackDiagnosis(forensic) } });
       return Response.json({ error: 'AI 输出格式异常，请重试一次' }, { status: 502 });
     }
     const followUps = Array.isArray(normalized.followUps)
       ? normalized.followUps.filter((f) => typeof f === 'string' && f.trim()).slice(0, 3)
       : [];
-    return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(normalized.content.trim()), followUps, dataCard: dataCard ? dataCard.text : null } });
+    const diagnosis = normalizeDiagnosis(normalized.diagnosis, forensic);
+    return Response.json({ ok: true, result: { mode: 'report', content: stripWrappingQuotes(normalized.content.trim()), followUps, dataCard: dataCard ? dataCard.text : null, diagnosis } });
   } catch (e) {
     const isNet = e && (e.name === 'TypeError' || /fetch|network|ECONN|ENOTFOUND|ETIMEDOUT/i.test(String(e.message)));
     return Response.json({ error: isNet ? '连接 AI 服务失败（网络异常），请稍后重试' : (e.message || '服务器内部错误') }, { status: 500 });
