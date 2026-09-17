@@ -27,6 +27,7 @@
 - `git diff --check`：通过。
 - 真实 A 股确定性证据包（贵州茅台 600519，不调用 AI）：经营现金流从上年 `1.07` 降到 `0.75` 时正确识别为进一步恶化并保持 P0；改善分支由单测覆盖。
 - Chrome headless 本地预览：确认 `本期核心结论`、结论图标、状态独立行均渲染；改善样例显示 P1 而不是 P0；底部 `>0<` 彻底消失。
+- 提交 `16583a4` 已推送至 GitHub `main`；Vercel Production 页面 chunk `/_next/static/chunks/app/page-0a497c114922be88.js` 已包含「本期核心结论」和 `mg-forensic-status-line`，确认前端修正已上线。
 
 **边界**：本轮仍未调用真实 AI 重跑一份完整线上财报，避免无谓消耗；实际 AI JSON 会经过同一归一化与兜底。
 
