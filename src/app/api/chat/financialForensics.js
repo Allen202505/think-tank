@@ -454,6 +454,95 @@ function businessModelText(mainBusiness, industry) {
   return bits.join('\n') || '行业与业务结构证据不足，需结合年报经营情况进一步确认。';
 }
 
+// 将结构化 seed 翻译成 PRD 要求的“侦查问题 + 下一步核查”。
+// seed 仍然只保存可取证的财务事实，问题与动作模板在这里统一收口，避免 AI 自行改口径。
+const QUESTION_META = {
+  ocfNp: {
+    question: '利润为什么没有变成现金？',
+    nextCheck: { what: '查现金流量表附注、应收、合同资产和存货', lookAt: '看销售商品收现与营收、净利润的匹配度', judge: '判断利润主要卡在应收、合同资产还是存货' },
+  },
+  fcf: {
+    question: '公司投入资本后还能留下多少自由现金？',
+    nextCheck: { what: '查购建固定资产、无形资产和其他长期资产支付的现金', lookAt: '看自由现金流、在建工程转固与折旧变化', judge: '判断资本开支是否形成有效产能和现金回报' },
+  },
+  deduct: {
+    question: '净利润是不是依赖非主营收益？',
+    nextCheck: { what: '查非经常性损益明细', lookAt: '看政府补助、投资收益、资产处置等占比', judge: '判断利润是否主要来自主营经营' },
+  },
+  margins: {
+    question: '盈利能力的变化来自哪里？',
+    nextCheck: { what: '查分产品、分地区收入成本与毛利率', lookAt: '看价格、产品结构、原材料与产能利用率', judge: '判断毛利率变化来自经营改善、成本波动还是结构变化' },
+  },
+  receivables: {
+    question: '收入增长是不是透支了应收？',
+    nextCheck: { what: '查应收账款、应收票据和合同资产附注', lookAt: '看账龄、坏账准备、前五名客户和期后回款', judge: '判断收入增长是否伴随回款压力' },
+  },
+  inventory: {
+    question: '存货增长是否与真实需求匹配？',
+    nextCheck: { what: '查存货明细、跌价准备和产能利用情况', lookAt: '看库龄、产成品占比、产品价格与销量', judge: '判断存货增长是正常备货还是需求转弱' },
+  },
+  salesCash: {
+    question: '销售回款与收入是否匹配？',
+    nextCheck: { what: '查现金流量表和合同资产变动', lookAt: '看销售商品收现、应收票据及其他应收款', judge: '判断收入含金量与回款链条是否完整' },
+  },
+  contractLiab: {
+    question: '合同负债能否支撑后续收入？',
+    nextCheck: { what: '查合同负债、在手订单和收入确认政策', lookAt: '看预收款与收入、订单之间的领先关系', judge: '判断未来收入能否顺畅确认' },
+  },
+  cashDebt: {
+    question: '账面现金能否覆盖真实债务压力？',
+    nextCheck: { what: '查货币资金、有息负债与担保质押附注', lookAt: '看受限资金、债务期限和偿付安排', judge: '判断账面现金对真实债务的覆盖能力' },
+  },
+  cashYield: {
+    question: '账面货币资金是否产生了合理收益？',
+    nextCheck: { what: '查货币资金结构和利息收入明细', lookAt: '看定期存款、理财、受限资金和平均余额', judge: '判断资金收益是否与账面规模匹配' },
+  },
+  goodwill: {
+    question: '商誉是否存在减值敏感点？',
+    nextCheck: { what: '查商誉减值测试和并购标的业绩承诺', lookAt: '看现金流预测、折现率和承诺完成度', judge: '判断商誉是否存在需要升级处理的减值风险' },
+  },
+  capexDep: {
+    question: '资本开支是在扩张还是在维持经营？',
+    nextCheck: { what: '查在建工程、固定资产和资本开支附注', lookAt: '看项目进度、转固时点和折旧变化', judge: '判断资本开支是扩张性投入还是维持性补漏' },
+  },
+  fixedAssets: {
+    question: '固定资产扩张是否转化为收入？',
+    nextCheck: { what: '查固定资产、在建工程和产能利用数据', lookAt: '看新增产能投产后的收入与利润', judge: '判断资产扩张是否转化为有效回报' },
+  },
+  returns: {
+    question: '公司真实资本回报率如何？',
+    nextCheck: { what: '查 ROE 拆解和资本成本口径', lookAt: '看净利率、总资产周转率、权益乘数与有息负债', judge: '判断回报来自经营效率还是财务杠杆' },
+  },
+  audit: {
+    question: '审计意见是否留下需要继续核查的事项？',
+    nextCheck: { what: '查审计报告和关键审计事项', lookAt: '看强调事项、保留意见基础及持续经营段落', judge: '判断审计意见是否留下需要升级处理的线索' },
+  },
+};
+
+function splitNextStep(nextStep) {
+  const text = String(nextStep || '').replace(/\s+/g, ' ').trim();
+  if (!text) return { what: '补充年报附注或结构化财务数据', lookAt: '看关键科目的变化和口径', judge: '判断当前异常是否持续' };
+  const parts = text.split(/\s*(?:→|->|；|;)\s*/).filter(Boolean);
+  if (parts.length >= 3) return { what: parts[0], lookAt: parts[1], judge: parts.slice(2).join('；') };
+  return { what: text, lookAt: '看相关附注、历史趋势和现金流量', judge: '判断当前信号是短期波动还是持续性问题' };
+}
+
+function fallbackEvidenceList(seed) {
+  const primary = seed.current && seed.metric ? `${seed.metric}：${seed.current}` : seed.current;
+  const values = [primary, seed.trend, seed.evidence]
+    .filter((v) => v && String(v).trim() && String(v).trim() !== '—')
+    .map((v) => String(v).replace(/\s+/g, ' ').trim());
+  return [...new Set(values)].slice(0, 3);
+}
+
+function fallbackJudgment(seed) {
+  const fact = String(seed.evidence || seed.current || '当前披露有限').replace(/\s+/g, ' ').trim();
+  if (seed.statusHint === 'insufficient') return '当前披露不足以完成判断，需要先补齐相关附注和历史对比，再决定是否升级排查。';
+  if (seed.statusHint === 'high' || seed.statusHint === 'abnormal') return `${fact}。这是一项值得优先升级的异常信号，但异常不等于造假，需回到附注、原始凭证和后续报告验证。`;
+  if (seed.statusHint === 'watch') return `${fact}。当前更像是需要重点核查的信号，暂不能直接定性，建议沿着下一步核查拆开原因。`;
+  return `${fact}。按现有数据暂未发现明显异常，仍需结合附注和后续报告观察是否持续。`;
+}
+
 function buildSeeds(annualRows, finHistory) {
   const rows = Array.isArray(annualRows) ? annualRows : [];
   const latest = rows[rows.length - 1] || {};
@@ -701,32 +790,80 @@ function buildSeeds(annualRows, finHistory) {
 
 function seedToFallbackRow(seed) {
   const status = ['normal', 'watch', 'abnormal', 'high', 'insufficient'].includes(seed.statusHint) ? seed.statusHint : 'insufficient';
+  const meta = QUESTION_META[seed.key] || {};
   return {
     priority: seed.priorityHint || 'P1',
     domain: seed.domain || '财务排查',
+    question: meta.question || seed.metric || '这项财务数据是否出现了需要继续核查的变化？',
     metric: seed.metric || '待补充指标',
     current: seed.current || '数据不足',
     trend: seed.trend || '—',
     status,
-    finding: seed.evidence || '当前证据不足，需补充数据。',
+    evidence: fallbackEvidenceList(seed),
+    judgment: fallbackJudgment(seed),
+    nextCheck: meta.nextCheck || splitNextStep(seed.nextStep),
     next: seed.nextStep || '补充年报附注或结构化财务数据。',
     source: seed.source || '系统核验',
   };
 }
 
+function pickDiagnosisSeeds(seeds) {
+  const list = Array.isArray(seeds) ? seeds : [];
+  const severity = { high: 5, abnormal: 4, watch: 3, insufficient: 2, normal: 1 };
+  const sorted = [...list].sort((a, b) => (severity[b.statusHint] || 0) - (severity[a.statusHint] || 0));
+  const picked = [];
+  const caps = { P0: 3, P1: 5, P2: 3 };
+  for (const priority of ['P0', 'P1', 'P2']) {
+    for (const seed of sorted.filter((s) => (s.priorityHint || 'P1') === priority).slice(0, caps[priority])) {
+      if (!picked.includes(seed)) picked.push(seed);
+    }
+  }
+  for (const seed of sorted) {
+    if (picked.length >= 10) break;
+    if (!picked.includes(seed)) picked.push(seed);
+  }
+  return picked.slice(0, 10);
+}
+
+function buildCoreConclusions(rows) {
+  const riskRows = rows.filter((r) => ['high', 'abnormal', 'watch'].includes(r.status));
+  const primary = riskRows[0] || rows[0];
+  const positive = rows.find((r) => r.status === 'normal' && r !== primary);
+  const contradiction = primary?.judgment || '当前没有足够证据识别核心矛盾。';
+  const risk = riskRows.slice(0, 2)
+    .filter(Boolean)
+    .map((r) => `${r.question.replace(/？$/, '')}：${(r.evidence || [])[0] || r.judgment}`)
+    .slice(0, 2)
+    .join('；') || '暂未形成明确风险线索。';
+  const lead = positive
+    ? `${positive.question.replace(/？$/, '')}暂未见明显异常，可继续观察${positive.nextCheck?.lookAt || positive.next || '后续披露'}。`
+    : '当前以风险排查为主，暂未形成可直接验证的积极线索。';
+  return {
+    coreContradiction: contradiction.slice(0, 260),
+    mainRisk: risk.slice(0, 260),
+    keyLead: lead.slice(0, 260),
+  };
+}
+
 export function buildFallbackDiagnosis(forensic) {
   if (!forensic || !forensic.hasData) return null;
-  const rows = (forensic.seeds || []).slice(0, 9).map(seedToFallbackRow);
-  const topQuestions = (forensic.seeds || [])
+  const selectedSeeds = pickDiagnosisSeeds(forensic.seeds || []);
+  const rows = selectedSeeds.map(seedToFallbackRow);
+  const conclusions = buildCoreConclusions(rows);
+  const topQuestions = selectedSeeds
     .filter((s) => ['P0', 'P1'].includes(s.priorityHint))
-    .map((s) => s.nextStep)
+    .map((s) => QUESTION_META[s.key]?.question || s.metric)
     .filter(Boolean)
     .slice(0, 3);
   return {
     skill: '财报侦查诊断（A股）',
     company: forensic.stock?.name ? `${forensic.stock.name}（${forensic.stock.symbol}）` : forensic.stock?.symbol || '待识别公司',
     businessModel: forensic.businessModel || '业务模型证据不足。',
-    focus: [...new Set(rows.filter((r) => r.priority === 'P0').map((r) => r.domain))].slice(0, 5),
+    focus: [...new Set([
+      ...rows.filter((r) => r.priority === 'P0').map((r) => r.domain),
+      ...rows.map((r) => r.domain),
+    ])].filter(Boolean).slice(0, 6),
+    ...conclusions,
     rows,
     topQuestions,
     coverage: forensic.coverage || { structured: 0, filing: 0, missing: 0 },
@@ -752,6 +889,32 @@ function cleanText(v, max = 500) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+function normalizeEvidenceList(value, fallback = []) {
+  const raw = Array.isArray(value) ? value : [value];
+  const list = raw
+    .map((item) => cleanText(item, 220))
+    .filter(Boolean)
+    .slice(0, 3);
+  return list.length ? list : (Array.isArray(fallback) ? fallback.slice(0, 3) : []);
+}
+
+function normalizeNextCheck(value, fallback) {
+  if (!value) return fallback || splitNextStep('');
+  if (value && typeof value === 'object') {
+    return {
+      what: cleanText(value.what || value.check, 180) || fallback?.what || '',
+      lookAt: cleanText(value.lookAt || value.look || value.watch, 180) || fallback?.lookAt || '',
+      judge: cleanText(value.judge || value.judgment || value.verify, 180) || fallback?.judge || '',
+    };
+  }
+  const parsed = splitNextStep(value);
+  return {
+    what: cleanText(parsed.what, 180) || fallback?.what || '',
+    lookAt: cleanText(parsed.lookAt, 180) || fallback?.lookAt || '',
+    judge: cleanText(parsed.judge, 180) || fallback?.judge || '',
+  };
+}
+
 export function normalizeDiagnosis(raw, forensic) {
   const fallback = buildFallbackDiagnosis(forensic);
   if (!raw || typeof raw !== 'object') return fallback;
@@ -759,19 +922,37 @@ export function normalizeDiagnosis(raw, forensic) {
   const normalizedRows = rows
     .filter((r) => r && typeof r === 'object')
     .slice(0, 10)
-    .map((r) => ({
-      priority: /^P[0-2]$/.test(String(r.priority || '').toUpperCase()) ? String(r.priority).toUpperCase() : 'P1',
-      domain: cleanText(r.domain, 30) || '财务排查',
-      metric: cleanText(r.metric, 80) || '待补充指标',
-      current: cleanText(r.current, 160) || '数据不足',
-      trend: cleanText(r.trend, 180) || '—',
-      status: STATUS_ALIAS[r.status] || STATUS_ALIAS[String(r.status || '').trim()] || 'insufficient',
-      finding: cleanText(r.finding || r.evidence || r.interpretation, 620) || '当前证据不足，需补充数据。',
-      next: cleanText(r.next || r.nextStep || r.nextCheck, 260) || '补充年报附注或结构化财务数据。',
-      source: cleanText(r.source, 80) || '系统核验',
-    }));
+    .map((r, index) => {
+      const fb = fallback?.rows?.[index] || {};
+      const priority = /^P[0-2]$/.test(String(r.priority || '').toUpperCase()) ? String(r.priority).toUpperCase() : (fb.priority || 'P1');
+      const current = cleanText(r.current, 160) || fb.current || '数据不足';
+      const trend = cleanText(r.trend, 180) || fb.trend || '—';
+      const nextCheck = normalizeNextCheck(r.nextCheck || r.next || r.nextStep, fb.nextCheck);
+      const nextText = `${nextCheck.what}${nextCheck.lookAt ? ` → ${nextCheck.lookAt}` : ''}${nextCheck.judge ? ` → ${nextCheck.judge}` : ''}`;
+      return {
+        priority,
+        domain: cleanText(r.domain, 30) || fb.domain || '财务排查',
+        question: cleanText(r.question || r.metric, 120) || fb.question || '这项财务数据是否出现了需要继续核查的变化？',
+        metric: cleanText(r.metric, 80) || fb.metric || '待补充指标',
+        current,
+        trend,
+        status: STATUS_ALIAS[r.status] || STATUS_ALIAS[String(r.status || '').trim()] || fb.status || 'insufficient',
+        evidence: normalizeEvidenceList(r.evidence || r.keyEvidence || r.current, fb.evidence),
+        judgment: cleanText(r.judgment || r.finding || r.interpretation || r.conclusion, 620) || fb.judgment || '当前证据不足，需补充数据。',
+        nextCheck,
+        next: nextText || cleanText(r.next || r.nextStep, 260) || fb.next || '补充年报附注或结构化财务数据。',
+        source: cleanText(r.source, 80) || fb.source || '系统核验',
+        details: {
+          current,
+          trend,
+          calculation: cleanText(r.calculation || r.metric, 180) || fb.metric || '',
+          rawEvidence: cleanText(r.rawEvidence || r.evidenceRaw || r.evidenceDetail, 420),
+        },
+      };
+    });
   if (!fallback && !normalizedRows.length) return null;
   const safeRows = normalizedRows.length >= Math.min(4, fallback?.rows?.length || 0) ? normalizedRows : fallback?.rows || normalizedRows;
+  const derivedConclusions = buildCoreConclusions(safeRows);
   const rawQuestions = Array.isArray(raw.topQuestions) ? raw.topQuestions : (Array.isArray(raw.followUps) ? raw.followUps : []);
   const topQuestions = rawQuestions.map((q) => cleanText(q, 180)).filter(Boolean).slice(0, 3);
   for (const q of (fallback?.topQuestions || [])) {
@@ -783,7 +964,12 @@ export function normalizeDiagnosis(raw, forensic) {
     skill: '财报侦查诊断（A股）',
     company: cleanText(raw.company, 80) || fallback?.company || '待识别公司',
     businessModel: cleanText(raw.businessModel, 900) || fallback?.businessModel || '业务模型证据不足。',
-    focus: Array.isArray(raw.focus) ? raw.focus.map((x) => cleanText(x, 30)).filter(Boolean).slice(0, 6) : (fallback?.focus || []),
+    focus: Array.isArray(raw.focus) && raw.focus.length
+      ? raw.focus.map((x) => cleanText(x, 30)).filter(Boolean).slice(0, 6)
+      : (fallback?.focus || []),
+    coreContradiction: cleanText(raw.coreContradiction, 260) || fallback?.coreContradiction || derivedConclusions.coreContradiction,
+    mainRisk: cleanText(raw.mainRisk, 260) || fallback?.mainRisk || derivedConclusions.mainRisk,
+    keyLead: cleanText(raw.keyLead, 260) || fallback?.keyLead || derivedConclusions.keyLead,
     rows: safeRows,
     topQuestions: topQuestions.length ? topQuestions : (fallback?.topQuestions || []),
     coverage: raw.coverage && typeof raw.coverage === 'object' ? {
@@ -805,8 +991,11 @@ function buildEvidenceText({ stock, annual, latest, businessModel, seeds, filing
   lines.push('');
   lines.push('一、结构化财务证据');
   for (const s of seeds) {
+    const meta = QUESTION_META[s.key];
     lines.push(`· [${s.priorityHint}] ${s.domain}｜${s.metric}｜当前：${s.current}｜趋势：${s.trend}`);
+    if (meta?.question) lines.push(`  侦查问题模板：${meta.question}`);
     lines.push(`  证据：${s.evidence}`);
+    if (meta?.nextCheck) lines.push(`  核查模板：查什么：${meta.nextCheck.what}；看什么：${meta.nextCheck.lookAt}；判断什么：${meta.nextCheck.judge}`);
     lines.push(`  下一步：${s.nextStep}`);
   }
   lines.push('');

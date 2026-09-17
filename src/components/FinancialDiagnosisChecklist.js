@@ -1,37 +1,146 @@
 'use client';
 
 const STATUS_META = {
-  normal: { icon: '🟢', label: '正常', cls: 'normal' },
-  watch: { icon: '🟡', label: '关注', cls: 'watch' },
-  abnormal: { icon: '🟠', label: '明显异常', cls: 'abnormal' },
-  high: { icon: '🔴', label: '高风险信号', cls: 'high' },
+  normal: { icon: '🟢', label: '暂未发现明显异常', cls: 'normal' },
+  watch: { icon: '🟡', label: '重点核查', cls: 'watch' },
+  abnormal: { icon: '🟠', label: '异常信号', cls: 'abnormal' },
+  high: { icon: '🔴', label: '异常信号', cls: 'high' },
   insufficient: { icon: '⚪', label: '数据不足', cls: 'insufficient' },
+};
+
+const PRIORITY_META = {
+  P0: { label: '先查', desc: '不先解决，会影响基本面理解' },
+  P1: { label: '重点', desc: '重要，但不是第一顺位' },
+  P2: { label: '补充', desc: '延伸问题或暂未发现异常' },
 };
 
 function statusMeta(status) {
   return STATUS_META[status] || STATUS_META.insufficient;
 }
 
+function priorityOf(row) {
+  const priority = String(row?.priority || '').toUpperCase();
+  return PRIORITY_META[priority] ? priority : 'P1';
+}
+
+function text(value) {
+  return value == null ? '' : String(value).trim();
+}
+
+function rowQuestion(row) {
+  return text(row.question || row.metric || row.domain) || '这项财务数据是否出现了需要继续核查的变化？';
+}
+
+function rowEvidence(row) {
+  const raw = Array.isArray(row.evidence) ? row.evidence : [row.evidence];
+  const list = raw.map(text).filter(Boolean);
+  if (list.length) return list.slice(0, 3);
+  return [row.current, row.trend, row.finding].map(text).filter((v) => v && v !== '—').slice(0, 3);
+}
+
+function rowJudgment(row) {
+  return text(row.judgment || row.finding || row.interpretation || row.conclusion) || '当前证据不足，需继续补充披露后再判断。';
+}
+
+function rowNextCheck(row) {
+  if (row.nextCheck && typeof row.nextCheck === 'object') {
+    return {
+      what: text(row.nextCheck.what || row.nextCheck.check),
+      lookAt: text(row.nextCheck.lookAt || row.nextCheck.look || row.nextCheck.watch),
+      judge: text(row.nextCheck.judge || row.nextCheck.judgment || row.nextCheck.verify),
+    };
+  }
+  const raw = text(row.next || row.nextStep);
+  const parts = raw.split(/\s*(?:→|->|；|;)\s*/).filter(Boolean);
+  if (parts.length >= 3) return { what: parts[0], lookAt: parts[1], judge: parts.slice(2).join('；') };
+  return { what: raw, lookAt: '', judge: '' };
+}
+
+function rowAskPrompt(row) {
+  const q = rowQuestion(row);
+  const next = rowNextCheck(row);
+  const action = [next.what, next.lookAt, next.judge].filter(Boolean).join('；');
+  return `请继续侦查“${q}”这条线索：${action || '回到财报原文核对关键数据和附注口径'}。`;
+}
+
 function coverageText(coverage) {
   if (!coverage || typeof coverage !== 'object') return [];
   const out = [];
-  if (Number(coverage.structured) > 0) out.push(`结构化财报 ${Number(coverage.structured)} 项`);
+  if (Number(coverage.structured) > 0) out.push(`结构化 ${Number(coverage.structured)} 项`);
   if (Number(coverage.filing) > 0) out.push(`年报/附注 ${Number(coverage.filing)} 项`);
   if (Number(coverage.missing) > 0) out.push(`明确缺口 ${Number(coverage.missing)} 项`);
   return out;
 }
 
+function deriveConclusions(rows) {
+  const riskRows = rows.filter((row) => ['high', 'abnormal', 'watch'].includes(row.status));
+  const primary = riskRows[0] || rows[0];
+  const secondary = riskRows[1] || rows[1];
+  const positive = rows.find((row) => row.status === 'normal' && row !== primary && row !== secondary);
+  return {
+    coreContradiction: primary ? rowJudgment(primary) : '当前没有足够证据识别核心矛盾。',
+    mainRisk: [primary, secondary].filter(Boolean).map((row) => rowEvidence(row)[0]).filter(Boolean).join('；') || '暂未形成明确风险线索。',
+    keyLead: positive ? `${rowQuestion(positive).replace(/？$/, '')}暂未见明显异常，可继续观察后续披露。` : '当前以风险排查为主，暂未形成可直接验证的积极线索。',
+  };
+}
+
+function EvidenceDetails({ row }) {
+  const details = row.details && typeof row.details === 'object' ? row.details : {};
+  const items = [
+    ['当前值 / 变化', details.current || row.current],
+    ['趋势 / 对比', details.trend || row.trend],
+    ['计算口径', details.calculation],
+    ['原始证据', details.rawEvidence],
+    ['数据来源', row.source],
+  ].filter(([, value]) => text(value) && text(value) !== '—');
+  if (!items.length) return null;
+  return (
+    <details className="mg-forensic-row-details">
+      <summary>查看证据详情</summary>
+      <dl>
+        {items.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{text(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
+function NextCheck({ row }) {
+  const next = rowNextCheck(row);
+  const steps = [
+    ['查什么', next.what],
+    ['看什么', next.lookAt],
+    ['判断什么', next.judge],
+  ].filter(([, value]) => value);
+  if (!steps.length) return <span className="mg-forensic-muted">补充财报原文或附注后继续核查。</span>;
+  return (
+    <div className="mg-forensic-next-steps">
+      {steps.map(([label, value], index) => (
+        <div className="mg-forensic-next-step" key={label}>
+          <span>{label}</span>
+          <p>{value}</p>
+          {index < steps.length - 1 ? <i aria-hidden="true">→</i> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SourceLinks({ sources }) {
-  const list = Array.isArray(sources) ? sources.filter((s) => s && (s.title || s.url)).slice(0, 8) : [];
+  const list = Array.isArray(sources) ? sources.filter((source) => source && (source.title || source.url)).slice(0, 8) : [];
   if (!list.length) return null;
   return (
     <details className="mg-forensic-sources">
-      <summary>证据来源</summary>
+      <summary>证据来源与口径</summary>
       <ul>
-        {list.map((s, i) => (
-          <li key={`${s.type || 'source'}-${i}`}>
-            {s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.title || '查看原文'}</a> : (s.title || '系统数据')}
-            {s.date ? <span> · {s.date}</span> : null}
+        {list.map((source, index) => (
+          <li key={`${source.type || 'source'}-${index}`}>
+            {source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.title || '查看原文'}</a> : (source.title || '系统数据')}
+            {source.date ? <span> · {source.date}</span> : null}
           </li>
         ))}
       </ul>
@@ -39,43 +148,83 @@ function SourceLinks({ sources }) {
   );
 }
 
-export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk }) {
-  if (!diagnosis) {
-    return (
-      <section className="mg-forensic">
-        <div className="mg-forensic-head">
-          <div>
-            <div className="mg-forensic-kicker">FINANCIAL FORENSICS</div>
-            <h3>一页纸财务诊断清单</h3>
-          </div>
-          <span className="mg-forensic-badge insufficient">⚪ 待生成</span>
+function EmptyChecklist() {
+  return (
+    <section className="mg-forensic">
+      <div className="mg-forensic-head">
+        <div>
+          <div className="mg-forensic-kicker">A-SHARE FINANCIAL FORENSICS</div>
+          <h3>一页纸财务诊断清单</h3>
         </div>
-        <p className="mg-forensic-empty">本次旧结果中没有诊断清单。重新解读一份 A 股财报后会自动生成。</p>
-      </section>
-    );
-  }
+        <span className="mg-forensic-badge insufficient">⚪ 待生成</span>
+      </div>
+      <p className="mg-forensic-empty">本次旧结果中没有诊断清单。重新解读一份 A 股财报后会自动生成。</p>
+    </section>
+  );
+}
+
+export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk }) {
+  if (!diagnosis) return <EmptyChecklist />;
 
   const rows = Array.isArray(diagnosis.rows) ? diagnosis.rows.slice(0, 10) : [];
+  const fallbackConclusions = deriveConclusions(rows);
+  const conclusions = {
+    coreContradiction: text(diagnosis.coreContradiction) || fallbackConclusions.coreContradiction,
+    mainRisk: text(diagnosis.mainRisk) || fallbackConclusions.mainRisk,
+    keyLead: text(diagnosis.keyLead) || fallbackConclusions.keyLead,
+  };
   const coverage = coverageText(diagnosis.coverage);
-  const topQuestions = Array.isArray(diagnosis.topQuestions) ? diagnosis.topQuestions.filter(Boolean).slice(0, 3) : [];
+  const gaps = rows.filter((row) => row.status === 'insufficient').map(rowQuestion);
+  const topQuestions = Array.isArray(diagnosis.topQuestions)
+    ? diagnosis.topQuestions.map(text).filter(Boolean).slice(0, 3)
+    : [];
 
   return (
     <section className="mg-forensic">
       <div className="mg-forensic-head">
         <div>
-          <div className="mg-forensic-kicker">FINANCIAL FORENSICS · A股</div>
+          <div className="mg-forensic-kicker">A-SHARE FINANCIAL FORENSICS</div>
           <h3>一页纸财务诊断清单</h3>
-          <p>先发现问题，再下结论；异常是排查信号，不代表已经证实造假。</p>
+          <p>先发现问题，再下结论。异常只是排查信号，不等于已经证实造假。</p>
         </div>
         {diagnosis.asOf && <span className="mg-forensic-period">{diagnosis.asOf}</span>}
       </div>
 
-      <div className="mg-forensic-summary">
-        <div className="mg-forensic-company">{diagnosis.company || '待识别公司'}</div>
-        <p className="mg-forensic-model">{diagnosis.businessModel || '经营模式证据不足。'}</p>
+      <div className="mg-forensic-profile">
+        <div>
+          <div className="mg-forensic-company">{diagnosis.company || '待识别公司'}</div>
+          <p className="mg-forensic-model">{diagnosis.businessModel || '经营模式证据不足。'}</p>
+        </div>
         <div className="mg-forensic-meta">
-          {(diagnosis.focus || []).map((item, i) => <span key={`${item}-${i}`}>{item}</span>)}
-          {coverage.map((item, i) => <span key={`${item}-${i}`} className="coverage">{item}</span>)}
+          {(diagnosis.focus || []).slice(0, 6).map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
+          {coverage.map((item, index) => <span key={`${item}-${index}`} className="coverage">{item}</span>)}
+        </div>
+      </div>
+
+      <div className="mg-forensic-conclusions">
+        <article className="core">
+          <span>核心矛盾</span>
+          <p>{conclusions.coreContradiction}</p>
+        </article>
+        <article className="risk">
+          <span>主要风险</span>
+          <p>{conclusions.mainRisk}</p>
+        </article>
+        <article className="lead">
+          <span>重点线索</span>
+          <p>{conclusions.keyLead}</p>
+        </article>
+      </div>
+
+      <div className="mg-forensic-list-head">
+        <div>
+          <strong>一页纸侦查清单</strong>
+          <span>优先级只代表调查顺序，不代表股票评级</span>
+        </div>
+        <div className="mg-forensic-priority-legend">
+          <span className="p0">P0 先查</span>
+          <span className="p1">P1 重点</span>
+          <span className="p2">P2 补充</span>
         </div>
       </div>
 
@@ -85,33 +234,45 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
             <table className="mg-forensic-table">
               <thead>
                 <tr>
-                  <th>优先级</th>
-                  <th>诊断项</th>
-                  <th>当前 / 趋势</th>
-                  <th>状态</th>
-                  <th>核心发现</th>
-                  <th>下一步</th>
+                  <th scope="col">优先级</th>
+                  <th scope="col">侦查问题</th>
+                  <th scope="col">关键证据</th>
+                  <th scope="col">侦查判断</th>
+                  <th scope="col">下一步核查</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => {
+                {rows.map((row, index) => {
+                  const priority = priorityOf(row);
                   const meta = statusMeta(row.status);
+                  const evidence = rowEvidence(row);
                   return (
-                    <tr key={`${row.metric}-${i}`}>
-                      <td><span className={`mg-forensic-priority ${String(row.priority || '').toLowerCase()}`}>{row.priority || 'P1'}</span></td>
+                    <tr key={`${rowQuestion(row)}-${index}`} className={`${priority.toLowerCase()} ${meta.cls}`}>
                       <td>
-                        <strong>{row.metric}</strong>
-                        <small>{row.domain}</small>
+                        <span className={`mg-forensic-priority ${priority.toLowerCase()}`}>{priority}</span>
+                        <small>{PRIORITY_META[priority].label}</small>
                       </td>
                       <td>
-                        <strong>{row.current}</strong>
-                        <small>{row.trend}</small>
+                        <strong className="mg-forensic-question">{rowQuestion(row)}</strong>
+                        <div className="mg-forensic-question-meta">
+                          <span>{row.domain || '财务排查'}</span>
+                          <span className={`mg-forensic-badge ${meta.cls}`}>{meta.icon} {meta.label}</span>
+                        </div>
                       </td>
-                      <td><span className={`mg-forensic-badge ${meta.cls}`}>{meta.icon} {meta.label}</span></td>
-                      <td>{row.finding}</td>
                       <td>
-                        <span>{row.next}</span>
-                        {row.source && <small>{row.source}</small>}
+                        {evidence.length ? (
+                          <ul className="mg-forensic-evidence-list">
+                            {evidence.map((item, evidenceIndex) => <li key={`${item}-${evidenceIndex}`}>{item}</li>)}
+                          </ul>
+                        ) : <span className="mg-forensic-muted">数据不足</span>}
+                        <EvidenceDetails row={row} />
+                      </td>
+                      <td><p className="mg-forensic-judgment">{rowJudgment(row)}</p></td>
+                      <td>
+                        <NextCheck row={row} />
+                        <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
+                          让芒格继续查 <span aria-hidden="true">›</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -121,20 +282,35 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
           </div>
 
           <div className="mg-forensic-cards">
-            {rows.map((row, i) => {
+            {rows.map((row, index) => {
+              const priority = priorityOf(row);
               const meta = statusMeta(row.status);
+              const evidence = rowEvidence(row);
               return (
-                <article className="mg-forensic-card" key={`${row.metric}-card-${i}`}>
+                <article className={`mg-forensic-card ${priority.toLowerCase()} ${meta.cls}`} key={`${rowQuestion(row)}-card-${index}`}>
                   <div className="mg-forensic-card-head">
                     <div>
-                      <span className={`mg-forensic-priority ${String(row.priority || '').toLowerCase()}`}>{row.priority || 'P1'}</span>
-                      <strong>{row.metric}</strong>
+                      <span className={`mg-forensic-priority ${priority.toLowerCase()}`}>{priority}</span>
+                      <strong>{rowQuestion(row)}</strong>
                     </div>
                     <span className={`mg-forensic-badge ${meta.cls}`}>{meta.icon} {meta.label}</span>
                   </div>
-                  <div className="mg-forensic-card-value">{row.current}<small>{row.trend}</small></div>
-                  <p>{row.finding}</p>
-                  <div className="mg-forensic-card-next"><b>下一步：</b>{row.next}</div>
+                  <div className="mg-forensic-card-block">
+                    <b>关键证据</b>
+                    {evidence.length ? <ul>{evidence.map((item, evidenceIndex) => <li key={`${item}-${evidenceIndex}`}>{item}</li>)}</ul> : <p>数据不足</p>}
+                    <EvidenceDetails row={row} />
+                  </div>
+                  <div className="mg-forensic-card-block">
+                    <b>侦查判断</b>
+                    <p>{rowJudgment(row)}</p>
+                  </div>
+                  <div className="mg-forensic-card-block">
+                    <b>下一步核查</b>
+                    <NextCheck row={row} />
+                  </div>
+                  <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
+                    让芒格继续查 <span aria-hidden="true">›</span>
+                  </button>
                 </article>
               );
             })}
@@ -144,25 +320,40 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
         <p className="mg-forensic-empty">本次没有足够证据生成诊断项。请补充年报、附注或公司代码后重试。</p>
       )}
 
+      {gaps.length > 0 && (
+        <div className="mg-forensic-gaps">
+          <div>
+            <strong>数据缺口</strong>
+            <span>以下问题需要补充披露后再判断，当前不猜测结论</span>
+          </div>
+          <ul>{gaps.slice(0, 5).map((gap, index) => <li key={`${gap}-${index}`}>{gap}</li>)}</ul>
+        </div>
+      )}
+
       {topQuestions.length > 0 && (
         <div className="mg-forensic-questions">
-          <div className="mg-forensic-questions-title">本次最值得继续调查的 3 个问题</div>
-          {topQuestions.map((q, i) => (
-            <button key={`${q}-${i}`} type="button" onClick={() => onAsk && onAsk(q)} title="举手提问芒格">
-              <span>{String(i + 1).padStart(2, '0')}</span>
-              {q}
+          <div className="mg-forensic-questions-title">下一步最值得追问的 3 个问题</div>
+          {topQuestions.map((question, index) => (
+            <button key={`${question}-${index}`} type="button" onClick={() => onAsk && onAsk(question)} title="举手提问芒格">
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              {question}
             </button>
           ))}
         </div>
       )}
 
-      {dataCard && (
-        <details className="mg-forensic-evidence">
-          <summary>查看原始系统数据核验</summary>
-          <pre>{dataCard}</pre>
-        </details>
+      {(dataCard || diagnosis.sources?.length) && (
+        <div className="mg-forensic-supplement">
+          <div className="mg-forensic-supplement-title">补充信息</div>
+          {dataCard && (
+            <details className="mg-forensic-evidence">
+              <summary>系统数据核验与原始口径</summary>
+              <pre>{dataCard}</pre>
+            </details>
+          )}
+          <SourceLinks sources={diagnosis.sources} />
+        </div>
       )}
-      <SourceLinks sources={diagnosis.sources} />
     </section>
   );
 }

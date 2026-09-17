@@ -156,15 +156,19 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
     ↓
 MungerFinance → FinancialDiagnosisChecklist
   ├─ 芒格回答区
-  ├─ 一页纸财务诊断清单
-  ├─ 3 个继续调查问题（可直接追问）
-  └─ 原始数据核验（折叠）
+  ├─ 核心矛盾 / 主要风险 / 重点线索
+  ├─ 五列侦查清单（问题 / 证据 / 判断 / 核查路径）
+  ├─ 单条继续追问 + 3 个继续调查问题
+  ├─ 数据缺口
+  └─ 系统数据核验与来源（折叠）
 ```
 
 - `src/app/api/chat/financialForensics.js`：A 股财报侦查数据层。并行拉取东财 `RPT_F10_FINANCE_GBALANCE`、`RPT_F10_FINANCE_GINCOME`、`RPT_F10_FINANCE_GCASHFLOW`、主要指标和最新年报/审计报告，生成结构化 seed 与附注证据包。
 - `src/lib/pdfText.js`：PDF 文本抽取与受限页范围解析。用户上传的 PDF 仍走全文；自动获取的年报只解析前 12 页 + 后 68%，覆盖审计意见与财报附注，避免整份年报解析拖慢请求。
-- `src/components/FinancialDiagnosisChecklist.js`：独立的一页纸诊断模块。桌面渲染表格，移动端切换为卡片；状态、优先级、来源和 `⚪ 数据不足` 均由后端结构控制，不靠模型返回 emoji。
-- 芒格提示词要求先按 Skill 完成排查，再基于诊断结果写正文；`diagnosis.rows` 只允许引用三表、年报附注、审计报告或明确的数据不足。
+- `src/components/FinancialDiagnosisChecklist.js`：独立的一页纸诊断模块。顶部提炼三类结论；桌面渲染五列表格，移动端切换为卡片；每条支持证据详情展开、单条定向追问和数据缺口提示。状态、优先级、来源和 `⚪ 数据不足` 均由后端结构控制，不靠模型返回 emoji。
+- `diagnosis` 结构升级为 `coreContradiction/mainRisk/keyLead + rows[question,evidence[],judgment,nextCheck{what,lookAt,judge},status,source]`；归一化层同时兼容旧版 `metric/current/trend/finding/next`，避免历史本地结果失效。
+- `financialForensics.js` 为 15 类结构化 seed 维护“侦查问题 + 三步核查”模板；AI 输出不足时，由确定性 seed 生成同结构清单，问题、证据和核查路径不依赖模型自由发挥。
+- 芒格提示词要求先按 Skill 完成排查，再基于诊断结果写正文；`diagnosis.rows` 只允许引用三表、年报附注、审计报告或明确的数据不足，并要求 P0 2-3 条、总数 6-10 条、下一步固定三段式。
 - 年报/审计报告原始来源优先使用东方财富公告正文接口 `np-anotice-stock.eastmoney.com` / `np-cnotice-stock.eastmoney.com`；附注命中失败时降级为结构化三表 + 数据不足，不编造数字。
 - 数据缓存：三表 12 小时、年报/附注证据 7 天、公告列表 24 小时；单次证据包外层超时 22 秒，失败静默降级。
 - `withTimeout()` 现在会在 Promise 完成后清理定时器，避免服务端进程因超时定时器悬挂 20 秒以上。

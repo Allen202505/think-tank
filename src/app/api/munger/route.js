@@ -178,16 +178,21 @@ ${forensicSection}
 6. content 直接就是解读正文，不要任何前缀、标签或标题（严禁出现「context：」「回答：」「解读：」等字样）。
 7. followUps 必须是**完整的问句**（以「？」结尾、能直接提问），例如「应收账款快速增长的根本原因是什么？」「潜在的坏账风险有多大？」；不要用名词短语或陈述句。
 
-同时生成「一页纸财务诊断清单」：
-- rows 数量 6-10 条，按 P0、P1、P2 排序。
-- status 只能填 normal、watch、abnormal、high、insufficient，对应 🟢正常、🟡关注、🟠明显异常、🔴高风险信号、⚪数据不足。
-- current 写当前值/变化；trend 写同比、近三年或行业对比；finding 写业务含义，必须区分事实和推测；next 写下一步查什么；source 写三表、年报附注、审计报告或数据不足。
+同时生成「一页纸财务诊断清单」。它必须回答：这家公司现在最值得关注什么、证据是什么、证据怎么理解、下一步去哪里查。按“侦查问题 → 关键证据 → 侦查判断 → 下一步核查”组织，不要写成指标罗列或财报摘要。
+- 顶部自动提炼 3 条结论：coreContradiction（核心矛盾）、mainRisk（主要风险）、keyLead（值得继续追踪的积极/中性线索）。
+- rows 数量 6-10 条，按 P0、P1、P2 排序；P0 优先控制在 2-3 条，P1 2-5 条，P2 1-3 条。优先级只代表调查顺序，不代表股票评级。
+- question 必须是自然语言问题句，且能直接引出后面的证据与核查；不能把“经营现金流/净利润”“非经常性损益占比”这类指标名原样当问题。
+- evidence 是 1-3 条事实，只放财报实际数据、趋势或原始口径，不放推理；数据不足就直接写“数据不足”，禁止猜测。
+- judgment 只基于已经展示的 evidence，使用“可能/提示/需要继续核查”等谨慎表述；不得把异常直接写成造假、舞弊或暴雷结论。
+- nextCheck 固定填 what/lookAt/judge 三步，分别对应“查什么 / 看什么 / 判断什么”；查不到附注时也要保留可执行的下一步。
+- status 只能填 normal、watch、abnormal、high、insufficient，分别显示为“暂未发现明显异常、重点核查、异常信号、异常信号、数据不足”。颜色只用于信息分层。
+- source 写三表、年报附注、审计报告或数据不足；不要编造附注编号和具体页码。
 - topQuestions 必须正好 3 个完整问句，围绕本次最值得继续调查的问题。
 - coverage 填三个整数：structured 表示已采用的结构化财务项数，filing 表示已采用的年报/附注项数，missing 表示明确数据缺口项数。
 
 只输出一个 JSON，不要输出任何其他内容：
-{"content":"你的解读发言（分段、带加粗）","followUps":["完整的问句1？","完整的问句2？"],"diagnosis":{"company":"公司名称（代码）","businessModel":"一句话经营模式","focus":["本期重点1","本期重点2"],"rows":[{"priority":"P0","domain":"利润质量","metric":"经营现金流/净利润","current":"当前值","trend":"同比或趋势","status":"normal","finding":"事实与业务含义","next":"下一步验证","source":"三表"}],"topQuestions":["问题1？","问题2？","问题3？"],"coverage":{"structured":0,"filing":0,"missing":0},"asOf":"2025年报"}}
-注意：所有引号用中文引号「」或“”，禁止英文双引号。`;
+{"content":"你的解读发言（分段、带加粗）","followUps":["完整的问句1？","完整的问句2？"],"diagnosis":{"company":"公司名称（代码）","businessModel":"一句话经营模式","focus":["本期重点1","本期重点2"],"coreContradiction":"当前最值得理解的经营矛盾","mainRisk":"最需要继续验证的风险线索","keyLead":"值得继续追踪的积极或中性线索","rows":[{"priority":"P0","domain":"利润质量","question":"利润为什么没有变成现金？","evidence":["经营现金流为负","归母净利润为正","经营现金流/归母净利润约 -1.7"],"judgment":"利润与现金流明显背离，提示需要继续拆解应收、合同资产和存货，暂不能直接定性。","nextCheck":{"what":"查现金流量表附注、应收、合同资产和存货","lookAt":"看销售商品收现与营收、净利润的匹配度","judge":"判断利润主要卡在应收、合同资产还是存货"},"status":"watch","source":"三表 / 年报附注"}],"topQuestions":["问题1？","问题2？","问题3？"],"coverage":{"structured":0,"filing":0,"missing":0},"asOf":"2025年报"}}
+注意：JSON 的结构引号按 JSON 语法使用英文双引号；JSON 字符串内容中的引号使用中文引号「」或“”。`;
     const { raw, parsed } = await generateJson(buildMessages(prompt, `这份财报是：\n${reportText.slice(0, 9000)}`), '{"content":"解读","followUps":["追问1"],"diagnosis":{"rows":[],"topQuestions":[]}}', 3400, true, body.aiConfig);
     const normalized = parsed && typeof parsed.content === 'string' && parsed.content.trim() ? parsed : null;
     if (!normalized) {
