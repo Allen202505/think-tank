@@ -13,7 +13,7 @@ function mockForensic() {
     seeds: [
       {
         key: 'ocfNp', priorityHint: 'P0', domain: '利润质量', metric: '经营现金流/净利润', current: '0.60倍', trend: '上年1.00倍',
-        evidence: '经营现金流低于净利润', nextStep: '核对应收和存货', statusHint: 'watch', source: '三表',
+        change: { kind: 'improve', magnitude: 0.76 }, evidence: '经营现金流低于净利润', nextStep: '核对应收和存货', statusHint: 'watch', source: '三表',
       },
       {
         key: 'inventory', priorityHint: 'P1', domain: '资产质量', metric: '存货增速-营收增速', current: '+20pct', trend: '存货快于收入',
@@ -46,7 +46,8 @@ test('normalizeDiagnosis maps the PRD five-column schema and fills three follow-
     topQuestions: ['现金流为什么下降？'],
   }, forensic);
   assert.equal(result.rows[0].status, 'watch');
-  assert.equal(result.rows[0].question, '利润为什么没有变成现金？');
+  assert.equal(result.rows[0].priority, 'P1');
+  assert.equal(result.rows[0].question, '经营现金流为什么大幅改善，改善能否持续？');
   assert.equal(result.rows[0].nextCheck.what, '查现金流量表附注');
   assert.equal(result.rows[0].evidence.length, 2);
   assert.equal(result.topQuestions.length, 3);
@@ -58,9 +59,9 @@ test('normalizeDiagnosis maps the PRD five-column schema and fills three follow-
 test('buildFallbackDiagnosis keeps evidence-grounded rows and PRD action structure when model output is absent', () => {
   const result = buildFallbackDiagnosis(mockForensic());
   assert.equal(result.rows.length, 2);
-  assert.equal(result.rows[0].priority, 'P0');
+  assert.equal(result.rows[0].priority, 'P1');
   assert.equal(result.rows[0].status, 'watch');
-  assert.equal(result.rows[0].question, '利润为什么没有变成现金？');
+  assert.equal(result.rows[0].question, '经营现金流为什么大幅改善，改善能否持续？');
   assert.equal(result.rows[0].nextCheck.what, '查现金流量表附注、应收、合同资产和存货');
   assert.match(result.rows[0].judgment, /重点核查/);
   assert.ok(result.coreContradiction);

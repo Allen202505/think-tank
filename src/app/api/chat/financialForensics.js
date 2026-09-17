@@ -527,6 +527,52 @@ function splitNextStep(nextStep) {
   return { what: text, lookAt: '看相关附注、历史趋势和现金流量', judge: '判断当前信号是短期波动还是持续性问题' };
 }
 
+function classifyCashFlowChange(current, prev) {
+  const c = num(current);
+  const p = num(prev);
+  if (c == null || p == null) return null;
+  if (c < 0 && p >= 0) return { kind: 'first-adverse' };
+  if (c >= 0 && p < 0) return { kind: 'improve' };
+  if (c < 0 && p < 0) {
+    const relative = Math.abs(p) > 0 ? (c - p) / Math.abs(p) : 0;
+    if (relative > 0.15) return { kind: 'improve', magnitude: relative };
+    if (relative < -0.15) return { kind: 'worsen', magnitude: relative };
+    return { kind: 'persistent' };
+  }
+  const relative = Math.abs(p) > 0 ? (c - p) / Math.abs(p) : 0;
+  if (relative > 0.15) return { kind: 'improve', magnitude: relative };
+  if (relative < -0.15) return { kind: 'worsen', magnitude: relative };
+  return { kind: 'persistent' };
+}
+
+function priorityForSeed(seed) {
+  const priority = seed.priorityHint || 'P1';
+  const kind = seed.change?.kind;
+  if (kind === 'first-adverse' || kind === 'worsen') return 'P0';
+  if (kind === 'improve') return seed.statusHint === 'high' ? 'P0' : 'P1';
+  if (seed.statusHint === 'normal') return 'P2';
+  if (seed.statusHint === 'insufficient') return priority === 'P0' ? 'P1' : 'P2';
+  if (priority === 'P0') return 'P1';
+  return priority;
+}
+
+function questionForSeed(seed) {
+  if (seed.question) return seed.question;
+  const kind = seed.change?.kind;
+  if (seed.key === 'ocfNp') {
+    if (kind === 'improve') return '经营现金流为什么大幅改善，改善能否持续？';
+    if (kind === 'first-adverse') return '利润为什么第一次没有变成现金？';
+    if (kind === 'worsen') return '经营现金流为什么进一步恶化？';
+    if (kind === 'persistent') return '长期利润与现金背离反映什么商业模式风险？';
+  }
+  if (seed.key === 'fcf') {
+    if (kind === 'improve') return '自由现金流为什么改善，改善能否持续？';
+    if (kind === 'first-adverse') return '自由现金流为什么第一次转负？';
+    if (kind === 'worsen') return '自由现金流为什么进一步恶化？';
+  }
+  return QUESTION_META[seed.key]?.question || seed.metric || '这项财务数据是否出现了需要继续核查的变化？';
+}
+
 function fallbackEvidenceList(seed) {
   const primary = seed.current && seed.metric ? `${seed.metric}：${seed.current}` : seed.current;
   const values = [primary, seed.trend, seed.evidence]
@@ -557,6 +603,7 @@ function buildSeeds(annualRows, finHistory) {
   add({
     key: 'ocfNp',
     priorityHint: 'P0',
+    change: classifyCashFlowChange(latest.ocf, prev.ocf),
     domain: '利润质量',
     metric: '经营现金流 / 归母净利润',
     current: ocfNp == null ? '数据不足' : `${fmtRatio(ocfNp)} 倍`,
@@ -568,9 +615,11 @@ function buildSeeds(annualRows, finHistory) {
   });
 
   const fcf = latest.ocf != null && latest.capex != null ? latest.ocf - latest.capex : null;
+  const prevFcf = prev.ocf != null && prev.capex != null ? prev.ocf - prev.capex : null;
   add({
     key: 'fcf',
     priorityHint: 'P0',
+    change: classifyCashFlowChange(fcf, prevFcf),
     domain: '自由现金流',
     metric: '经营现金流 - 资本开支',
     current: fcf == null ? '数据不足' : fmtYi(fcf),
@@ -774,6 +823,7 @@ function buildSeeds(annualRows, finHistory) {
     add({
       key: 'audit',
       priorityHint: 'P0',
+      change: /标准无保留/.test(latest.auditOpinion) ? { kind: 'persistent' } : { kind: 'first-adverse' },
       domain: '审计意见',
       metric: '境内审计意见',
       current: latest.auditOpinion,
@@ -792,13 +842,14 @@ function seedToFallbackRow(seed) {
   const status = ['normal', 'watch', 'abnormal', 'high', 'insufficient'].includes(seed.statusHint) ? seed.statusHint : 'insufficient';
   const meta = QUESTION_META[seed.key] || {};
   return {
-    priority: seed.priorityHint || 'P1',
+    priority: priorityForSeed(seed),
     domain: seed.domain || '财务排查',
-    question: meta.question || seed.metric || '这项财务数据是否出现了需要继续核查的变化？',
+    question: questionForSeed(seed),
     metric: seed.metric || '待补充指标',
     current: seed.current || '数据不足',
     trend: seed.trend || '—',
     status,
+    change: seed.change || null,
     evidence: fallbackEvidenceList(seed),
     judgment: fallbackJudgment(seed),
     nextCheck: meta.nextCheck || splitNextStep(seed.nextStep),
@@ -810,11 +861,15 @@ function seedToFallbackRow(seed) {
 function pickDiagnosisSeeds(seeds) {
   const list = Array.isArray(seeds) ? seeds : [];
   const severity = { high: 5, abnormal: 4, watch: 3, insufficient: 2, normal: 1 };
-  const sorted = [...list].sort((a, b) => (severity[b.statusHint] || 0) - (severity[a.statusHint] || 0));
+  const priorityRank = { P0: 0, P1: 1, P2: 2 };
+  const sorted = [...list].sort((a, b) => {
+    const priorityDiff = priorityRank[priorityForSeed(a)] - priorityRank[priorityForSeed(b)];
+    return priorityDiff || (severity[b.statusHint] || 0) - (severity[a.statusHint] || 0);
+  });
   const picked = [];
   const caps = { P0: 3, P1: 5, P2: 3 };
   for (const priority of ['P0', 'P1', 'P2']) {
-    for (const seed of sorted.filter((s) => (s.priorityHint || 'P1') === priority).slice(0, caps[priority])) {
+    for (const seed of sorted.filter((s) => priorityForSeed(s) === priority).slice(0, caps[priority])) {
       if (!picked.includes(seed)) picked.push(seed);
     }
   }
@@ -832,7 +887,7 @@ function buildCoreConclusions(rows) {
   const contradiction = primary?.judgment || '当前没有足够证据识别核心矛盾。';
   const risk = riskRows.slice(0, 2)
     .filter(Boolean)
-    .map((r) => `${r.question.replace(/？$/, '')}：${(r.evidence || [])[0] || r.judgment}`)
+    .map((r) => r.judgment)
     .slice(0, 2)
     .join('；') || '暂未形成明确风险线索。';
   const lead = positive
@@ -851,8 +906,8 @@ export function buildFallbackDiagnosis(forensic) {
   const rows = selectedSeeds.map(seedToFallbackRow);
   const conclusions = buildCoreConclusions(rows);
   const topQuestions = selectedSeeds
-    .filter((s) => ['P0', 'P1'].includes(s.priorityHint))
-    .map((s) => QUESTION_META[s.key]?.question || s.metric)
+    .filter((s) => ['P0', 'P1'].includes(priorityForSeed(s)))
+    .map((s) => questionForSeed(s))
     .filter(Boolean)
     .slice(0, 3);
   return {
@@ -889,6 +944,23 @@ function cleanText(v, max = 500) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+function normalizeKey(v) {
+  return cleanText(v, 120).replace(/\s+/g, '').replace(/归母/g, '');
+}
+
+function isNarrativeConclusion(value) {
+  const valueText = cleanText(value, 300);
+  const chinese = (valueText.match(/[\u4e00-\u9fff]/g) || []).length;
+  const digits = (valueText.match(/\d/g) || []).length;
+  const hasExplanation = /[，。；：、？！]/.test(valueText);
+  return chinese >= 8 && (digits === 0 || chinese >= digits / 2) && (hasExplanation || chinese >= 12);
+}
+
+function conclusionText(value, fallback) {
+  const valueText = cleanText(value, 260);
+  return isNarrativeConclusion(valueText) ? valueText : (fallback || '');
+}
+
 function normalizeEvidenceList(value, fallback = []) {
   const raw = Array.isArray(value) ? value : [value];
   const list = raw
@@ -923,8 +995,16 @@ export function normalizeDiagnosis(raw, forensic) {
     .filter((r) => r && typeof r === 'object')
     .slice(0, 10)
     .map((r, index) => {
-      const fb = fallback?.rows?.[index] || {};
-      const priority = /^P[0-2]$/.test(String(r.priority || '').toUpperCase()) ? String(r.priority).toUpperCase() : (fb.priority || 'P1');
+      const metricKey = normalizeKey(r.metric);
+      const questionKey = normalizeKey(r.question);
+      const fb = fallback?.rows?.find((row) => (
+        (metricKey && normalizeKey(row.metric) === metricKey)
+        || (questionKey && normalizeKey(row.question) === questionKey)
+      )) || fallback?.rows?.[index] || {};
+      const rawPriority = /^P[0-2]$/.test(String(r.priority || '').toUpperCase()) ? String(r.priority).toUpperCase() : 'P1';
+      const priority = fb.priority || rawPriority;
+      const rawQuestion = cleanText(r.question || r.metric, 120);
+      const question = (fb.change?.kind && fb.question) ? fb.question : (rawQuestion || fb.question || '这项财务数据是否出现了需要继续核查的变化？');
       const current = cleanText(r.current, 160) || fb.current || '数据不足';
       const trend = cleanText(r.trend, 180) || fb.trend || '—';
       const nextCheck = normalizeNextCheck(r.nextCheck || r.next || r.nextStep, fb.nextCheck);
@@ -932,11 +1012,12 @@ export function normalizeDiagnosis(raw, forensic) {
       return {
         priority,
         domain: cleanText(r.domain, 30) || fb.domain || '财务排查',
-        question: cleanText(r.question || r.metric, 120) || fb.question || '这项财务数据是否出现了需要继续核查的变化？',
+        question,
         metric: cleanText(r.metric, 80) || fb.metric || '待补充指标',
         current,
         trend,
         status: STATUS_ALIAS[r.status] || STATUS_ALIAS[String(r.status || '').trim()] || fb.status || 'insufficient',
+        change: r.change && typeof r.change === 'object' ? r.change : (fb.change || null),
         evidence: normalizeEvidenceList(r.evidence || r.keyEvidence || r.current, fb.evidence),
         judgment: cleanText(r.judgment || r.finding || r.interpretation || r.conclusion, 620) || fb.judgment || '当前证据不足，需补充数据。',
         nextCheck,
@@ -954,22 +1035,29 @@ export function normalizeDiagnosis(raw, forensic) {
   const safeRows = normalizedRows.length >= Math.min(4, fallback?.rows?.length || 0) ? normalizedRows : fallback?.rows || normalizedRows;
   const derivedConclusions = buildCoreConclusions(safeRows);
   const rawQuestions = Array.isArray(raw.topQuestions) ? raw.topQuestions : (Array.isArray(raw.followUps) ? raw.followUps : []);
-  const topQuestions = rawQuestions.map((q) => cleanText(q, 180)).filter(Boolean).slice(0, 3);
+  const topQuestions = rawQuestions
+    .map((q) => cleanText(q, 180))
+    .filter((q) => q && !/^0+(?:\.0+)?$/.test(q))
+    .slice(0, 3);
   for (const q of (fallback?.topQuestions || [])) {
     if (topQuestions.length >= 3) break;
     const text = cleanText(q, 180);
     if (text && !topQuestions.includes(text)) topQuestions.push(text);
   }
+  const normalizedFocus = Array.isArray(raw.focus)
+    ? raw.focus
+      .map((x) => cleanText(x, 16))
+      .filter((x) => x && x.length <= 12 && !/[，。；！？]/.test(x))
+      .slice(0, 6)
+    : [];
   return {
     skill: '财报侦查诊断（A股）',
     company: cleanText(raw.company, 80) || fallback?.company || '待识别公司',
     businessModel: cleanText(raw.businessModel, 900) || fallback?.businessModel || '业务模型证据不足。',
-    focus: Array.isArray(raw.focus) && raw.focus.length
-      ? raw.focus.map((x) => cleanText(x, 30)).filter(Boolean).slice(0, 6)
-      : (fallback?.focus || []),
-    coreContradiction: cleanText(raw.coreContradiction, 260) || fallback?.coreContradiction || derivedConclusions.coreContradiction,
-    mainRisk: cleanText(raw.mainRisk, 260) || fallback?.mainRisk || derivedConclusions.mainRisk,
-    keyLead: cleanText(raw.keyLead, 260) || fallback?.keyLead || derivedConclusions.keyLead,
+    focus: normalizedFocus.length ? normalizedFocus : (fallback?.focus || []),
+    coreContradiction: conclusionText(raw.coreContradiction, fallback?.coreContradiction || derivedConclusions.coreContradiction),
+    mainRisk: conclusionText(raw.mainRisk, fallback?.mainRisk || derivedConclusions.mainRisk),
+    keyLead: conclusionText(raw.keyLead, fallback?.keyLead || derivedConclusions.keyLead),
     rows: safeRows,
     topQuestions: topQuestions.length ? topQuestions : (fallback?.topQuestions || []),
     coverage: raw.coverage && typeof raw.coverage === 'object' ? {
@@ -992,8 +1080,9 @@ function buildEvidenceText({ stock, annual, latest, businessModel, seeds, filing
   lines.push('一、结构化财务证据');
   for (const s of seeds) {
     const meta = QUESTION_META[s.key];
-    lines.push(`· [${s.priorityHint}] ${s.domain}｜${s.metric}｜当前：${s.current}｜趋势：${s.trend}`);
-    if (meta?.question) lines.push(`  侦查问题模板：${meta.question}`);
+    const marginal = s.change?.kind ? `边际状态：${s.change.kind}` : '';
+    lines.push(`· [${priorityForSeed(s)}] ${s.domain}｜${s.metric}｜当前：${s.current}｜趋势：${s.trend}${marginal ? `｜${marginal}` : ''}`);
+    lines.push(`  侦查问题模板：${questionForSeed(s)}`);
     lines.push(`  证据：${s.evidence}`);
     if (meta?.nextCheck) lines.push(`  核查模板：查什么：${meta.nextCheck.what}；看什么：${meta.nextCheck.lookAt}；判断什么：${meta.nextCheck.judge}`);
     lines.push(`  下一步：${s.nextStep}`);

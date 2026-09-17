@@ -19,8 +19,14 @@ function statusMeta(status) {
 }
 
 function priorityOf(row) {
-  const priority = String(row?.priority || '').toUpperCase();
-  return PRIORITY_META[priority] ? priority : 'P1';
+  const raw = String(row?.priority || '').toUpperCase();
+  const priority = PRIORITY_META[raw] ? raw : 'P1';
+  const changeKind = row?.change?.kind;
+  if (changeKind === 'improve') return 'P1';
+  if (changeKind === 'persistent' && row?.status === 'watch' && priority === 'P0') return 'P1';
+  if (row?.status === 'normal' && priority === 'P0') return 'P2';
+  if (row?.status === 'insufficient' && priority === 'P0') return 'P1';
+  return priority;
 }
 
 function text(value) {
@@ -40,6 +46,18 @@ function rowEvidence(row) {
 
 function rowJudgment(row) {
   return text(row.judgment || row.finding || row.interpretation || row.conclusion) || '当前证据不足，需继续补充披露后再判断。';
+}
+
+function isNarrativeConclusion(value) {
+  const valueText = text(value);
+  const chinese = (valueText.match(/[\u4e00-\u9fff]/g) || []).length;
+  const digits = (valueText.match(/\d/g) || []).length;
+  return chinese >= 8 && (digits === 0 || chinese >= digits / 2) && (/[，。；：、？！]/.test(valueText) || chinese >= 12);
+}
+
+function readableConclusion(value, fallback) {
+  const valueText = text(value);
+  return isNarrativeConclusion(valueText) ? valueText : fallback;
 }
 
 function rowNextCheck(row) {
@@ -75,11 +93,10 @@ function coverageText(coverage) {
 function deriveConclusions(rows) {
   const riskRows = rows.filter((row) => ['high', 'abnormal', 'watch'].includes(row.status));
   const primary = riskRows[0] || rows[0];
-  const secondary = riskRows[1] || rows[1];
-  const positive = rows.find((row) => row.status === 'normal' && row !== primary && row !== secondary);
+  const positive = rows.find((row) => row.status === 'normal' && row !== primary);
   return {
     coreContradiction: primary ? rowJudgment(primary) : '当前没有足够证据识别核心矛盾。',
-    mainRisk: [primary, secondary].filter(Boolean).map((row) => rowEvidence(row)[0]).filter(Boolean).join('；') || '暂未形成明确风险线索。',
+    mainRisk: riskRows.slice(0, 2).map(rowJudgment).filter(Boolean).join('；') || '暂未形成明确风险线索。',
     keyLead: positive ? `${rowQuestion(positive).replace(/？$/, '')}暂未见明显异常，可继续观察后续披露。` : '当前以风险排查为主，暂未形成可直接验证的积极线索。',
   };
 }
@@ -169,14 +186,27 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
   const rows = Array.isArray(diagnosis.rows) ? diagnosis.rows.slice(0, 10) : [];
   const fallbackConclusions = deriveConclusions(rows);
   const conclusions = {
-    coreContradiction: text(diagnosis.coreContradiction) || fallbackConclusions.coreContradiction,
-    mainRisk: text(diagnosis.mainRisk) || fallbackConclusions.mainRisk,
-    keyLead: text(diagnosis.keyLead) || fallbackConclusions.keyLead,
+    coreContradiction: readableConclusion(diagnosis.coreContradiction, fallbackConclusions.coreContradiction),
+    mainRisk: readableConclusion(diagnosis.mainRisk, fallbackConclusions.mainRisk),
+    keyLead: readableConclusion(diagnosis.keyLead, fallbackConclusions.keyLead),
   };
   const coverage = coverageText(diagnosis.coverage);
-  const gaps = rows.filter((row) => row.status === 'insufficient').map(rowQuestion);
+  const gaps = rows
+    .filter((row) => row.status === 'insufficient')
+    .map(rowQuestion)
+    .filter((question) => question && !/^0+(?:\.0+)?$/.test(question));
+  const focusTags = (Array.isArray(diagnosis.focus) ? diagnosis.focus : [])
+    .map(text)
+    .filter((item) => item && item.length <= 12 && !/[，。；！？]/.test(item))
+    .slice(0, 6);
+  if (!focusTags.length) {
+    for (const row of rows) {
+      const domain = text(row.domain);
+      if (domain && !focusTags.includes(domain) && focusTags.length < 6) focusTags.push(domain);
+    }
+  }
   const topQuestions = Array.isArray(diagnosis.topQuestions)
-    ? diagnosis.topQuestions.map(text).filter(Boolean).slice(0, 3)
+    ? diagnosis.topQuestions.map(text).filter((q) => q && !/^0+(?:\.0+)?$/.test(q)).slice(0, 3)
     : [];
 
   return (
@@ -191,29 +221,51 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
       </div>
 
       <div className="mg-forensic-profile">
-        <div>
+        <div className="mg-forensic-profile-main">
           <div className="mg-forensic-company">{diagnosis.company || '待识别公司'}</div>
           <p className="mg-forensic-model">{diagnosis.businessModel || '经营模式证据不足。'}</p>
         </div>
-        <div className="mg-forensic-meta">
-          {(diagnosis.focus || []).slice(0, 6).map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
-          {coverage.map((item, index) => <span key={`${item}-${index}`} className="coverage">{item}</span>)}
+        <div className="mg-forensic-profile-foot">
+          {focusTags.length > 0 && (
+            <div className="mg-forensic-focus-tags">
+              <span className="mg-forensic-inline-label">本期重点</span>
+              {focusTags.map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
+            </div>
+          )}
+          {coverage.length > 0 && (
+            <div className="mg-forensic-coverage-tags">
+              <span className="mg-forensic-inline-label">证据覆盖</span>
+              {coverage.map((item, index) => <span key={`${item}-${index}`}>{item}</span>)}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mg-forensic-conclusions">
-        <article className="core">
-          <span>核心矛盾</span>
-          <p>{conclusions.coreContradiction}</p>
-        </article>
-        <article className="risk">
-          <span>主要风险</span>
-          <p>{conclusions.mainRisk}</p>
-        </article>
-        <article className="lead">
-          <span>重点线索</span>
-          <p>{conclusions.keyLead}</p>
-        </article>
+      <div className="mg-forensic-conclusions-wrap">
+        <div className="mg-forensic-section-title">本期核心结论</div>
+        <div className="mg-forensic-conclusions">
+          <article className="core">
+            <div className="mg-forensic-conclusion-icon" aria-hidden="true">⚖</div>
+            <div>
+              <span>核心矛盾</span>
+              <p>{conclusions.coreContradiction}</p>
+            </div>
+          </article>
+          <article className="risk">
+            <div className="mg-forensic-conclusion-icon" aria-hidden="true">⚠</div>
+            <div>
+              <span>主要风险</span>
+              <p>{conclusions.mainRisk}</p>
+            </div>
+          </article>
+          <article className="lead">
+            <div className="mg-forensic-conclusion-icon" aria-hidden="true">↗</div>
+            <div>
+              <span>重点线索</span>
+              <p>{conclusions.keyLead}</p>
+            </div>
+          </article>
+        </div>
       </div>
 
       <div className="mg-forensic-list-head">
@@ -256,6 +308,8 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                         <strong className="mg-forensic-question">{rowQuestion(row)}</strong>
                         <div className="mg-forensic-question-meta">
                           <span>{row.domain || '财务排查'}</span>
+                        </div>
+                        <div className="mg-forensic-status-line">
                           <span className={`mg-forensic-badge ${meta.cls}`}>{meta.icon} {meta.label}</span>
                         </div>
                       </td>
@@ -293,6 +347,8 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                       <span className={`mg-forensic-priority ${priority.toLowerCase()}`}>{priority}</span>
                       <strong>{rowQuestion(row)}</strong>
                     </div>
+                  </div>
+                  <div className="mg-forensic-status-line">
                     <span className={`mg-forensic-badge ${meta.cls}`}>{meta.icon} {meta.label}</span>
                   </div>
                   <div className="mg-forensic-card-block">
@@ -342,7 +398,7 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
         </div>
       )}
 
-      {(dataCard || diagnosis.sources?.length) && (
+      {Boolean(dataCard || diagnosis.sources?.length) && (
         <div className="mg-forensic-supplement">
           <div className="mg-forensic-supplement-title">补充信息</div>
           {dataCard && (
