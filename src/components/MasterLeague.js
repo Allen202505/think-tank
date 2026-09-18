@@ -31,10 +31,16 @@ import styles from './MasterLeague.module.css';
 const LIKES_KEY = 'thinktank_master_league_likes_v1';
 const INVITED_KEY = 'thinktank_master_league_invited_v1';
 
-function Die({ face, className = '' }) {
+const DICE_FACES = [1, 2, 3, 4, 5, 6];
+
+function Die({ className = '' }) {
   return (
-    <span className={`${styles.die} ${className}`} data-face={face} aria-hidden="true">
-      {Array.from({ length: 9 }).map((_, index) => <i key={index} />)}
+    <span className={`${styles.die3d} ${className}`} aria-hidden="true">
+      {DICE_FACES.map((face) => (
+        <span className={styles.dieFace} data-face={face} key={face}>
+          {Array.from({ length: 9 }).map((_, index) => <i key={index} />)}
+        </span>
+      ))}
     </span>
   );
 }
@@ -654,10 +660,9 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
         </header>
         <section className={styles.loadingState} aria-live="polite" role="status">
           <span className={styles.loadingDice} aria-hidden="true">
-            <Die face={5} className={styles.dieA} />
-            <Die face={4} className={styles.dieB} />
+            <Die className={styles.dieA} />
+            <Die className={styles.dieB} />
           </span>
-          <strong>正在摇骰子</strong>
           <p>正在同步真实行情与大师账户，请稍候…</p>
         </section>
       </main>

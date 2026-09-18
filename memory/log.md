@@ -8,7 +8,7 @@
 
 **改动**
 
-- `MasterLeague.js` 新增 `Die` 组件，主加载态改为两颗 CSS 骰子滚动/摇晃，文案改为「正在摇骰子」。
+- `MasterLeague.js` 新增 `Die` 组件，主加载态改为两颗 CSS 3D 骰子滚动/摇晃；每颗由六个面组成，正文只保留「正在同步真实行情与大师账户，请稍候…」。
 - 右上角「读取公开赛数据」胶囊的 `RefreshCw` 替换为迷你骰子图标；刷新按钮仍保留旋转图标表示刷新动作。
 - `MasterLeague.module.css` 增加骰子面、点数、双骰不同节奏的滚动动画和 `prefers-reduced-motion` 降级，移除旧 Orbit spinner 与 loading dots。
 - 同步更新 `memory/PRD.md`、`memory/architecture.md`、`memory/QA.md`。
@@ -18,7 +18,7 @@
 - `npm test`：47/47 通过。
 - `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
 - `git diff --check`：通过。
-- 本地生产服务首屏 HTML 验证：包含 `loadingDice`、`qualityDie` 和「正在摇骰子」文案，骰子会在数据返回前立即显示。
+- 本地生产服务首屏 HTML 验证：包含 `loadingDice`、12 个 `dieFace` 面和同步提示，确认两颗 3D 骰子会在数据返回前立即显示，且不包含「正在摇骰子」。
 - 提交 `172774b` 已推送至 GitHub `main`；生产首屏 HTML 与页面 chunk `/_next/static/chunks/app/page-3e8eec2813d60665.js` 已确认包含「正在摇骰子」，旧 `loadingOrbit` 已消失。
 
 **边界**：骰子为纯 CSS/组件实现，不引入图片或第三方动画库；系统开启减少动态效果时自动停用动画。
