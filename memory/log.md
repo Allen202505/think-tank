@@ -19,6 +19,7 @@
 - `npm test`：47/47 通过。
 - `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
 - `git diff --check`：通过。
+- 提交 `eb3e6b0` 已推送至 GitHub `main`；生产 page chunk `/_next/static/chunks/app/page-35d89e02124223d4.js` 已确认包含 `sp-3d-die` 与 `sp-die-face`，Vercel Production 已生效。
 
 **边界**：骰子是纯 CSS/组件实现，不引入图片或第三方动画库；股票池数据加载、云同步和错误降级逻辑未改。
 
