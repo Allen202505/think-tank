@@ -57,7 +57,7 @@ think-tank/
 - 服务端默认模型为 DeepSeek-V4.1-Flash（API ID `deepseek-flash`）；`src/lib/llm.js` 对 DeepSeek Flash/V4 系列显式发送 `thinking: { type: "disabled" }`，保持多轮工具调用上下文兼容并控制成本。
 - `src/lib/masterLeagueDb.js`: 公开赛公共底表读写；服务端 service role 独占写入，匿名/登录用户可读取公开快照。
 - 公开赛人物：利弗莫尔、威科夫、达瓦斯、勒布、科斯托拉尼、巴鲁克；每人包含时代、原始方法、A股映射和一句话简介。
-- `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`。
+- `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`；前端允许中文单字触发候选，6 位纯代码跳过候选请求。
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
 - 行情容错：东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`；客户端对网关 HTML/非 JSON 响应做统一友好降级。

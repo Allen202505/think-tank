@@ -352,7 +352,9 @@ export default function IndustryCycleAnalysis() {
 
   useEffect(() => {
     const q = symbol.trim();
-    if (!suggestOpen || q.length < 2 || /^\d{6}$/.test(q)) {
+    // 中文单字也允许模糊搜索（如“茅”“中”“化”）；英文/数字仍至少 2 位，避免无意义请求。
+    const tooShort = q.length < 2 && !/[\u4e00-\u9fa5]/.test(q);
+    if (!suggestOpen || tooShort || /^\d{6}$/.test(q)) {
       setSuggestions([]);
       setSuggestLoading(false);
       return undefined;
