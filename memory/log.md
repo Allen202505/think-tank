@@ -27,6 +27,7 @@
 - `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
 - `git diff --check`：通过。
 - 直接用页面真实的 `safeJsonParse` / `extractChatFields` / `normalizeSpeechMessage` 跑截图同形 JSON：成功保留 `investorId=burry`、`stance=BEAR`、正文和 keyPoint，输出正文中不含 `investorId/keyPoint/content` 结构字段。
+- 提交 `22c46e0` 已推送至 GitHub `main`；生产 CSS `/_next/static/css/563c1e89067a2edf.css` 已包含操作按钮覆盖规则，生产 page chunk `/_next/static/chunks/app/page-0928ca9718f9fe18.js` 已包含新解析兜底逻辑。
 
 ## 2026-09-18 · 股票池加载态改为单颗 3D 骰子
 
