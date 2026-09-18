@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeDiagnosis, buildFallbackDiagnosis } from '../src/app/api/chat/financialForensics.js';
+import { normalizeDiagnosis, buildFallbackDiagnosis, detectReportPeriod, pickAnalysisRows } from '../src/app/api/chat/financialForensics.js';
 
 function mockForensic() {
   return {
@@ -72,4 +72,16 @@ test('buildFallbackDiagnosis keeps evidence-grounded rows and PRD action structu
 
 test('normalizeDiagnosis returns null without forensic data', () => {
   assert.equal(normalizeDiagnosis({ rows: [] }, null), null);
+});
+
+test('report period detection keeps interim reports on the same-period series', () => {
+  const period = detectReportPeriod('中钢国际 2025 年半年度报告');
+  assert.equal(period.key, 'h1');
+  const rows = pickAnalysisRows([
+    { reportDate: '2024-06-30', reportName: '2024中报' },
+    { reportDate: '2024-12-31', reportName: '2024年报' },
+    { reportDate: '2025-06-30', reportName: '2025中报' },
+    { reportDate: '2025-12-31', reportName: '2025年报' },
+  ], period);
+  assert.deepEqual(rows.map((row) => row.reportDate), ['2024-06-30', '2025-06-30']);
 });

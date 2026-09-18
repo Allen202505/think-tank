@@ -165,7 +165,7 @@ MungerFinance → FinancialDiagnosisChecklist
   └─ 系统数据核验与来源（折叠）
 ```
 
-- `src/app/api/chat/financialForensics.js`：A 股财报侦查数据层。并行拉取东财 `RPT_F10_FINANCE_GBALANCE`、`RPT_F10_FINANCE_GINCOME`、`RPT_F10_FINANCE_GCASHFLOW`、主要指标和最新年报/审计报告，生成结构化 seed 与附注证据包。
+- `src/app/api/chat/financialForensics.js`：A 股财报侦查数据层。并行拉取东财 `RPT_F10_FINANCE_GBALANCE`、`RPT_F10_FINANCE_GINCOME`、`RPT_F10_FINANCE_GCASHFLOW`、主要指标和最新年报/审计报告，生成结构化 seed 与附注证据包。构建 seed 前先从报告文本识别年报/半年报/一季报/三季报，并选择同口径历史序列做边际比较。
 - `src/lib/pdfText.js`：PDF 文本抽取与受限页范围解析。用户上传的 PDF 仍走全文；自动获取的年报只解析前 12 页 + 后 68%，覆盖审计意见与财报附注，避免整份年报解析拖慢请求。
 - `src/components/FinancialDiagnosisChecklist.js`：独立的一页纸诊断模块。公司画像只保留短标签，三类核心结论独立成区；桌面渲染五列表格，移动端切换为卡片；状态胶囊单独一行；每条支持证据详情展开、单条定向追问和数据缺口提示。表格去掉外框和优先级左侧竖线，使用图标、提亮色块和状态色做层级。状态、优先级、来源和 `⚪ 数据不足` 均由后端结构控制，不靠模型返回 emoji。
 - `diagnosis` 结构升级为 `coreContradiction/mainRisk/keyLead + rows[question,evidence[],judgment,nextCheck{what,lookAt,judge},status,source]`；归一化层同时兼容旧版 `metric/current/trend/finding/next`，避免历史本地结果失效。

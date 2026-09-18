@@ -2,6 +2,29 @@
 
 ## 🧭 项目执行规则（长期有效）
 
+## 2026-09-18 · 修复中报/季报边际变化仍被年报口径覆盖
+
+**背景**：用户 review 上一轮「现金流改善但仍被列为 P0」的修复，指出线上看起来仍未改好。
+
+**Review 结论**
+
+- 上一轮确实增加了 `improve / worsen / persistent` 边际分类和动态问题，但 `financialForensics.js` 的结构化证据一直通过 `pickRows(joined, true)` 只取年报序列。
+- 如果用户提交的是半年报，系统仍比较 2024 年报 vs 2023 年报；即使报告正文显示 `-6.86 亿 vs -29.12 亿` 的明显改善，确定性 seed 也看不到，因此无法触发“改善降为 P1”。
+
+**改动**
+
+- 新增 `detectReportPeriod(reportText)`：识别一季报、半年报、三季报、年报。
+- 新增 `pickAnalysisRows(rows, reportPeriod)`：按 `reportDate` 的 `03-31 / 06-30 / 09-30 / 12-31` 选择同口径历史序列；识别不到报告期时才回退年报序列。
+- `buildInner` 改为先识别报告期，再用同口径 `analysisRows` 计算同比、边际变化和诊断 seed。
+- `financialForensics.test.mjs` 增加报告期识别与半年报同期序列测试。
+- 同步更新 `memory/PRD.md`、`memory/architecture.md`、`memory/QA.md`。
+
+**验证**
+
+- `npm test`：48/48 通过。
+- `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
+- 真实中钢国际 000928 半年报证据包：`asOf=2026中报`、`reportPeriod=半年报`；经营现金流 `-6.86 亿`、上年同期 `-29.12 亿`，识别为 `improve`，输出 P1「经营现金流为什么大幅改善，改善能否持续？」。
+
 ## 2026-09-18 · 修复行业周期中文单字模糊搜索失效
 
 **背景**：用户反馈行业周期分析搜索框的模糊搜索疑似失效。后端实测 `中盐 / 盐化 / 化工 / 银行` 等两字及以上关键词均能返回结果。

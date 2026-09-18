@@ -98,6 +98,25 @@ function pickRows(rows, annualOnly = false) {
     .sort((a, b) => String(a.REPORT_DATE || '').localeCompare(String(b.REPORT_DATE || '')));
 }
 
+// 根据用户实际提交的报告文本识别报告期，避免半年报/季报仍用年报同比。
+export function detectReportPeriod(reportText) {
+  const text = String(reportText || '').replace(/\s+/g, '').slice(0, 4000);
+  if (/一季报|第一季度|一季度|Q1/i.test(text)) return { key: 'q1', dateEnd: '03-31', label: '一季报' };
+  if (/半年报|半年度|中报|上半年|H1/i.test(text)) return { key: 'h1', dateEnd: '06-30', label: '半年报' };
+  if (/三季报|第三季度|前三季度|Q3/i.test(text)) return { key: 'q3', dateEnd: '09-30', label: '三季报' };
+  if (/年报|年度报告|全年/i.test(text)) return { key: 'annual', dateEnd: '12-31', label: '年报' };
+  return null;
+}
+
+export function pickAnalysisRows(rows, reportPeriod) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!reportPeriod?.dateEnd) return pickRows(list, true);
+  const matched = list
+    .filter((row) => String(row?.reportDate || '').endsWith(reportPeriod.dateEnd))
+    .sort((a, b) => String(a.reportDate || '').localeCompare(String(b.reportDate || '')));
+  return matched.length ? matched : pickRows(list, true);
+}
+
 function joinStatements(balanceRows, incomeRows, cashRows) {
   const map = new Map();
   const put = (rows, mapper) => {
@@ -1119,14 +1138,15 @@ async function buildInner(reportText) {
   ]);
 
   const joined = Array.isArray(statementRows) ? statementRows : [];
-  const annualRows = pickRows(joined, true);
-  const latest = annualRows[annualRows.length - 1] || joined[joined.length - 1] || null;
+  const reportPeriod = detectReportPeriod(reportText);
+  const analysisRows = pickAnalysisRows(joined, reportPeriod);
+  const latest = analysisRows[analysisRows.length - 1] || joined[joined.length - 1] || null;
   if (!latest) return { hasData: false, reason: '未取得 A 股财务数据' };
 
-  // 把同比和常用比率挂到最新年报上，便于 seed 统一读取。
-  for (let i = 0; i < annualRows.length; i++) {
-    const cur = annualRows[i];
-    const prev = annualRows[i - 1];
+  // 把同比和常用比率挂到同一报告口径的序列上（年报对年报、半年报对上年同期）。
+  for (let i = 0; i < analysisRows.length; i++) {
+    const cur = analysisRows[i];
+    const prev = analysisRows[i - 1];
     if (!prev) continue;
     cur.revenueGrowth = growth(cur.revenue, prev.revenue);
     cur.netProfitGrowth = growth(cur.netProfit, prev.netProfit);
@@ -1136,7 +1156,7 @@ async function buildInner(reportText) {
     cur.contractLiabGrowth = growth(cur.contractLiab, prev.contractLiab);
   }
 
-  const seeds = buildSeeds(annualRows, finHistory || []);
+  const seeds = buildSeeds(analysisRows, finHistory || []);
   const filingCount = filing?.sections?.length || 0;
   const missing = seeds.filter((s) => s.statusHint === 'insufficient').length;
   const coverage = { structured: seeds.length, filing: filingCount, missing };
@@ -1162,6 +1182,7 @@ async function buildInner(reportText) {
     businessModel,
     filing: filing || null,
     sources,
+    reportPeriod: reportPeriod?.label || '年报',
   };
 }
 
