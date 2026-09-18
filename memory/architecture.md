@@ -128,6 +128,7 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 - **邀请参赛**：登录用户发布到 `master_league_invites` 公共底表，所有访客都能读取并留存；自定义大师同时通过 `onAddCustomMaster` 写回 `custom-masters-v1`，与大师 PK 共用人物库。
 - **管理员审核**：`profiles.is_admin` 控制管理员权限，邀请详情页对管理员展示邀请人、发布时间、提示词与 Skill；普通用户只能删除自己的邀请，管理员删除他人邀请时先写 `master_league_invite_blocks` 黑名单再删除数据，防止对方换浏览器重新发布。
 - **邀请降级**：`src/lib/leagueInvitePolicy.mjs` 把底表缺失（`PGRST205` / `42P01`）、缺字段（`42703`）、RLS 拒绝（`42501`）分类；缺表时联赛页静默显示官方大师，缺 `is_admin` 时按普通用户处理。
+- **加载动效**：`MasterLeague.js` 初次拉取公开赛数据时渲染两颗 CSS 骰子滚动/摇晃，右上角读取胶囊使用迷你骰子图标；`prefers-reduced-motion` 下关闭骰子动画。
 - **当前边界**：AI 决策、幂等计划落库、收盘评论任务已上线；进程内成本台账持久化、公共点赞总数和历史赛季归档仍待建设。
 
 ## 功能箱导航（2026-09-11）

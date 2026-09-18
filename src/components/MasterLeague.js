@@ -31,6 +31,14 @@ import styles from './MasterLeague.module.css';
 const LIKES_KEY = 'thinktank_master_league_likes_v1';
 const INVITED_KEY = 'thinktank_master_league_invited_v1';
 
+function Die({ face, className = '' }) {
+  return (
+    <span className={`${styles.die} ${className}`} data-face={face} aria-hidden="true">
+      {Array.from({ length: 9 }).map((_, index) => <i key={index} />)}
+    </span>
+  );
+}
+
 const money = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
   currency: 'CNY',
@@ -642,13 +650,15 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
       <main className={styles.league}>
         <header className={styles.masthead}>
           <div><h2>大师实盘公开赛</h2><p>官方组织 · 10 万元初始资金 · 仅限 A 股</p></div>
-          <span className={styles.qualityPill}><RefreshCw size={14} className={styles.spin} /> 读取公开赛数据</span>
+          <span className={styles.qualityPill}><span className={styles.qualityDie} aria-hidden="true"><i /><i /><i /></span> 读取公开赛数据</span>
         </header>
         <section className={styles.loadingState} aria-live="polite" role="status">
-          <span className={styles.loadingOrbit} aria-hidden="true"><i /></span>
-          <strong>正在读取公开赛数据</strong>
+          <span className={styles.loadingDice} aria-hidden="true">
+            <Die face={5} className={styles.dieA} />
+            <Die face={4} className={styles.dieB} />
+          </span>
+          <strong>正在摇骰子</strong>
           <p>正在同步真实行情与大师账户，请稍候…</p>
-          <span className={styles.loadingDots} aria-hidden="true"><i /><i /><i /></span>
         </section>
       </main>
     );

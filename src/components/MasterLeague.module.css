@@ -93,6 +93,28 @@
   white-space: nowrap;
 }
 
+.qualityDie {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+}
+
+.qualityDie i {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.qualityDie i:nth-child(1) { top: 2px; left: 2px; }
+.qualityDie i:nth-child(2) { top: 5px; left: 5px; }
+.qualityDie i:nth-child(3) { right: 2px; bottom: 2px; }
+
 .qualityLive { border-color: color-mix(in srgb, var(--bull) 45%, var(--border)); color: var(--bull); }
 .qualityPartial { border-color: color-mix(in srgb, var(--neutral) 52%, var(--border)); color: var(--neutral); }
 .qualityDegraded { border-color: color-mix(in srgb, var(--bear) 38%, var(--border)); color: var(--bear); }
@@ -997,25 +1019,53 @@
   text-align: center;
 }
 
-.loadingOrbit {
-  width: 52px;
-  height: 52px;
+.loadingDice {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   margin-bottom: 5px;
-  border: 2px solid var(--accent-bg-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: league-orbit 0.9s linear infinite;
+  perspective: 180px;
 }
 
-.loadingOrbit i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
+.die {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 42px;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 18px rgba(60, 46, 24, 0.13);
+  transform-style: preserve-3d;
 }
+
+.die i {
+  width: 5px;
+  height: 5px;
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  opacity: 0;
+}
+
+.die[data-face="5"] i:nth-child(1),
+.die[data-face="5"] i:nth-child(3),
+.die[data-face="5"] i:nth-child(5),
+.die[data-face="5"] i:nth-child(7),
+.die[data-face="5"] i:nth-child(9),
+.die[data-face="4"] i:nth-child(1),
+.die[data-face="4"] i:nth-child(3),
+.die[data-face="4"] i:nth-child(7),
+.die[data-face="4"] i:nth-child(9) { opacity: 1; }
+
+.dieA { animation: league-die-a 1.35s ease-in-out infinite; }
+.dieB { animation: league-die-b 1.35s ease-in-out 0.08s infinite; }
 
 .loadingState strong {
   color: var(--text);
@@ -1029,13 +1079,19 @@
   font-size: 12px;
 }
 
-.loadingDots { display: inline-flex; gap: 5px; margin-top: 5px; }
-.loadingDots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-dim); animation: league-dot 1.15s ease-in-out infinite; }
-.loadingDots i:nth-child(2) { animation-delay: 0.14s; }
-.loadingDots i:nth-child(3) { animation-delay: 0.28s; }
+@keyframes league-die-a {
+  0%, 100% { transform: translate3d(-2px, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(-10deg); }
+  25% { transform: translate3d(3px, -8px, 0) rotateX(180deg) rotateY(80deg) rotateZ(12deg); }
+  50% { transform: translate3d(-1px, 0, 0) rotateX(360deg) rotateY(170deg) rotateZ(-8deg); }
+  75% { transform: translate3d(3px, -7px, 0) rotateX(540deg) rotateY(260deg) rotateZ(10deg); }
+}
 
-@keyframes league-orbit { to { transform: rotate(360deg); } }
-@keyframes league-dot { 0%, 70%, 100% { opacity: 0.3; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
+@keyframes league-die-b {
+  0%, 100% { transform: translate3d(2px, -1px, 0) rotateX(0deg) rotateY(0deg) rotateZ(11deg); }
+  25% { transform: translate3d(-3px, -7px, 0) rotateX(160deg) rotateY(-70deg) rotateZ(-12deg); }
+  50% { transform: translate3d(1px, 0, 0) rotateX(340deg) rotateY(-160deg) rotateZ(7deg); }
+  75% { transform: translate3d(-3px, -9px, 0) rotateX(520deg) rotateY(-250deg) rotateZ(-10deg); }
+}
 
 @media (max-width: 980px) {
   .rankingLanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1083,8 +1139,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .spin,
-  .loadingOrbit,
-  .loadingDots i { animation: none; }
+  .die { animation: none; }
   .rankingLane,
   .decisionSlip { transition: none; }
 }
