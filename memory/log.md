@@ -19,7 +19,7 @@
 - `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
 - `git diff --check`：通过。
 - 本地生产服务首屏 HTML 验证：包含 `loadingDice`、12 个 `dieFace` 面和同步提示，确认两颗 3D 骰子会在数据返回前立即显示，且不包含「正在摇骰子」。
-- 提交 `172774b` 已推送至 GitHub `main`；生产首屏 HTML 与页面 chunk `/_next/static/chunks/app/page-3e8eec2813d60665.js` 已确认包含「正在摇骰子」，旧 `loadingOrbit` 已消失。
+- 提交 `d5f958f` 已推送至 GitHub `main`；生产首屏 HTML 已确认包含 `loadingDice`、12 个 `dieFace` 和「正在同步真实行情与大师账户，请稍候…」，不再包含「正在摇骰子」或旧 `loadingOrbit`。
 
 **边界**：骰子为纯 CSS/组件实现，不引入图片或第三方动画库；系统开启减少动态效果时自动停用动画。
 
