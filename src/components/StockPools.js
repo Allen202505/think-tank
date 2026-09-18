@@ -28,6 +28,20 @@ function savePoolTab(t) {
   try { localStorage.setItem(POOL_TAB_KEY, t); } catch (e) { /* ignore */ }
 }
 
+const DICE_FACES = [1, 2, 3, 4, 5, 6];
+
+function StockPoolDie() {
+  return (
+    <span className="sp-3d-die" aria-hidden="true">
+      {DICE_FACES.map((face) => (
+        <span className="sp-die-face" data-face={face} key={face}>
+          {Array.from({ length: 9 }).map((_, index) => <i key={index} />)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 // ── 本地持久缓存：收盘/非交易时段"拿过一次"就不再重复请求（刷新/重启也不丢） ──
 // 有效期来自服务端 meta.cacheUntilMs（收盘后=下一开盘；盘中≈60s）
 const POOL_LS_CACHE = 'thinktank_pool_cache_v2';
@@ -820,7 +834,7 @@ export default function StockPools() {
               {reviewLoading && !reviewResult && (
                 <div className="sp-review-loading">
                   <div className="sp-review-loading-inner">
-                    <svg className="sp-loading-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                    <StockPoolDie />
                     <span className="sp-review-loading-text">正在邀请大师轮流点评你的持仓<span className="sp-loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
                   </div>
                 </div>
@@ -888,7 +902,7 @@ export default function StockPools() {
               {loading && (
                 <div className="sp-loading">
                   <div className="sp-loading-inner">
-                    <svg className="sp-loading-icon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                    <StockPoolDie />
                     <span className="sp-loading-text">正在拉取行情与统计<span className="sp-loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
                   </div>
                 </div>

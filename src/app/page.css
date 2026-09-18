@@ -1349,11 +1349,82 @@
 .sp-suggest-empty-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin: 0; }
 .sp-suggest-empty .mg-btn { align-self: flex-start; }
 .sp-loading { display: flex; align-items: center; justify-content: center; min-height: 320px; }
-.sp-loading-inner { display: flex; align-items: center; gap: 12px; color: var(--accent); }
-.sp-loading-icon { animation: sp-scan 1.5s ease-in-out infinite; flex-shrink: 0; }
-@keyframes sp-scan {
-  0%, 100% { transform: rotate(-18deg); }
-  50% { transform: rotate(18deg); }
+.sp-loading-inner { display: flex; align-items: center; gap: 12px; color: var(--accent); perspective: 240px; }
+.sp-3d-die {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  transform-style: preserve-3d;
+  animation: sp-die-3d 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.sp-die-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  box-sizing: border-box;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-dim));
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-input) 86%, var(--accent-bg)) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38), inset -4px -5px 8px rgba(60, 46, 24, 0.08), 0 8px 16px rgba(60, 46, 24, 0.12);
+  backface-visibility: hidden;
+}
+.sp-die-face::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.42), transparent 46%, rgba(60, 46, 24, 0.08));
+  pointer-events: none;
+}
+.sp-die-face i {
+  position: relative;
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  opacity: 0;
+}
+.sp-die-face[data-face="1"] i:nth-child(5),
+.sp-die-face[data-face="2"] i:nth-child(1),
+.sp-die-face[data-face="2"] i:nth-child(9),
+.sp-die-face[data-face="3"] i:nth-child(1),
+.sp-die-face[data-face="3"] i:nth-child(5),
+.sp-die-face[data-face="3"] i:nth-child(9),
+.sp-die-face[data-face="4"] i:nth-child(1),
+.sp-die-face[data-face="4"] i:nth-child(3),
+.sp-die-face[data-face="4"] i:nth-child(7),
+.sp-die-face[data-face="4"] i:nth-child(9),
+.sp-die-face[data-face="5"] i:nth-child(1),
+.sp-die-face[data-face="5"] i:nth-child(3),
+.sp-die-face[data-face="5"] i:nth-child(5),
+.sp-die-face[data-face="5"] i:nth-child(7),
+.sp-die-face[data-face="5"] i:nth-child(9),
+.sp-die-face[data-face="6"] i:nth-child(1),
+.sp-die-face[data-face="6"] i:nth-child(3),
+.sp-die-face[data-face="6"] i:nth-child(4),
+.sp-die-face[data-face="6"] i:nth-child(6),
+.sp-die-face[data-face="6"] i:nth-child(7),
+.sp-die-face[data-face="6"] i:nth-child(9) { opacity: 1; }
+.sp-die-face[data-face="1"] { transform: translateZ(22px); }
+.sp-die-face[data-face="6"] { transform: rotateY(180deg) translateZ(22px); }
+.sp-die-face[data-face="3"] { transform: rotateY(90deg) translateZ(22px); }
+.sp-die-face[data-face="4"] { transform: rotateY(-90deg) translateZ(22px); }
+.sp-die-face[data-face="5"] { transform: rotateX(90deg) translateZ(22px); }
+.sp-die-face[data-face="2"] { transform: rotateX(-90deg) translateZ(22px); }
+@keyframes sp-die-3d {
+  0%, 100% { transform: translate3d(-1px, 0, 0) rotateX(-18deg) rotateY(24deg) rotateZ(-10deg); }
+  25% { transform: translate3d(2px, -8px, 0) rotateX(120deg) rotateY(210deg) rotateZ(14deg); }
+  50% { transform: translate3d(-1px, 0, 0) rotateX(260deg) rotateY(380deg) rotateZ(-8deg); }
+  75% { transform: translate3d(2px, -7px, 0) rotateX(430deg) rotateY(560deg) rotateZ(12deg); }
 }
 .sp-loading-text { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.02em; }
 .sp-loading-dots { display: inline-flex; gap: 1px; margin-left: 2px; }
@@ -1361,6 +1432,9 @@
 .sp-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
 .sp-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes sp-blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sp-3d-die { animation: none; }
+}
 
 /* ── 求大师评价我的票（心理按摩） ── */
 .sp-review { display: flex; flex-direction: column; gap: 16px; }
@@ -1370,7 +1444,7 @@
 .sp-review-refresh { flex-shrink: 0; padding: 8px 14px; font-size: 12px; border-radius: 999px; }
 .sp-review-ico { font-size: 15px; line-height: 1; }
 .sp-review-loading { display: flex; align-items: center; justify-content: center; min-height: 260px; }
-.sp-review-loading-inner { display: flex; align-items: center; gap: 12px; color: var(--accent); }
+.sp-review-loading-inner { display: flex; align-items: center; gap: 12px; color: var(--accent); perspective: 240px; }
 .sp-review-loading-text { font-size: 14px; font-weight: 700; color: var(--accent); }
 .sp-review-list { display: flex; flex-direction: column; gap: 12px; }
 .sp-review-master { display: flex; flex-direction: column; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px 14px; }
