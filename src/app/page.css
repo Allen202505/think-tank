@@ -120,6 +120,8 @@
 .speech-content { background: var(--bg-input); border: 1px solid var(--border-subtle); padding: 11px 15px; font-size: 14px; line-height: 1.9; border-radius: 14px; box-shadow: var(--shadow-bubble); font-weight: 400; display: inline-block; max-width: 92%; }
 .speech-key { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .speech-key-text { min-width: 0; flex: 1 1 auto; }
+.speech-key .reply-btn,
+.speech-key .explain-btn { margin-left: 0; }
 .verdict-block { background: linear-gradient(135deg, var(--accent-bg), rgba(58,123,213,0.04)); border: 1px solid var(--accent-dim); padding: 16px 18px; border-radius: 10px; }
 .verdict-title { font-size: 15.5px; color: var(--accent); margin-bottom: 9px; font-weight: 800; }
 .verdict-summary { font-size: 13.5px; line-height: 1.9; color: var(--text); margin: 0; opacity: 0.9; }

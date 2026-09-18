@@ -221,8 +221,11 @@ flowchart TB
 | 单聊深聊 | buildChatPrompt | 纯文本回答（观点→理由→证据→建议，150-300 字） |
 | 追问 | buildFollowUpPrompt | JSON：`{discussion:[{investorId,stance,content,keyPoint}], verdict:{...}}` |
 
+- 群聊发言解析容错：`safeJsonParse` 失败后必须继续用 `extractChatFields` 抽取 `content/keyPoint`；已完成列表、流式当前条和历史本地结果渲染前都走 `normalizeSpeechMessage`，禁止把 `{"investorId":...}` 整段 JSON 当正文显示。
+
 ### 7.4 小白解释（v2026-08-11 新增）
 - 位置：每条大师发言（含流式打完后）气泡右下角，与 💡 总结（keyPoint）同一行右侧，「🤔 看不懂？小白点这里看解释」按钮
+- 布局：气泡内操作行 `justify-content: flex-end`；`reply-btn` / `explain-btn` 在 `.speech-key` 内取消 `margin-left:auto`，避免 keyPoint 为空时「举手提问」被两个自动边距挤到中间。
 - 逻辑：点击 → 右侧抽屉（drawer-overlay + explain-drawer，从右侧滑入，宽 560px/94vw，非弹窗）→ 调**专用流式接口 `/api/explain`**（SSE 边生成边推送，首段约 1s 到达）→ 展示两部分：「大师说了啥」（大白话总结）+「相关指标」（术语/指标解释）；不展示发言原文
 - 缓存：同一发言解释结果缓存（explainCacheRef），重复点击不重复调用
 - 失败降级：加载态「正在用大白话解释…」、失败显示错误提示

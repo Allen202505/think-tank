@@ -2,6 +2,32 @@
 
 ## 🧭 项目执行规则（长期有效）
 
+## 2026-09-18 · 修复大师PK英文 JSON 乱码与举手提问错位
+
+**背景**：用户截图反馈大师群聊里出现整段 `{"investorId":...}` 英文 JSON；同时发言气泡底部的「举手提问」漂到中间，右侧解释按钮仍靠右。
+
+**根因**
+
+- 群聊单条发言解析只在 `safeJsonParse` 成功时使用结构字段；遇到 content 内含未转义英文引号的 JSON，解析失败后直接把整段原文当正文渲染。旧的 `extractChatFields` 兜底只用于单聊/回辩，群聊路径没有调用。
+- `.speech-key` 内两个操作按钮分别带 `margin-left:auto`，在 keyPoint 为空时分摊剩余空间：举手提问落在中间，解释按钮落在最右。
+
+**改动**
+
+- `src/app/page.js`
+  - 群聊发言统一走 `parseChatResult`，JSON 失败时继续用 `extractChatFields` 抽 `investorId/stance/content/keyPoint`。
+  - 新增 `normalizeSpeechMessage`，对已完成发言、流式当前发言和历史本地结果做渲染前二次去结构，兼容已经落库/缓存的坏 JSON。
+  - 非结构化追问兜底也优先抽取 `content/keyPoint`，不再直接显示 JSON 原文。
+- `src/app/page.css`
+  - `.speech-key .reply-btn` 与 `.speech-key .explain-btn` 取消 `margin-left:auto`，操作行保持 `justify-content:flex-end`，按钮固定在气泡右下角。
+- 同步更新 `memory/PRD.md`、`memory/QA.md`。
+
+**验证**
+
+- `npm test`：47/47 通过。
+- `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
+- `git diff --check`：通过。
+- 直接用页面真实的 `safeJsonParse` / `extractChatFields` / `normalizeSpeechMessage` 跑截图同形 JSON：成功保留 `investorId=burry`、`stance=BEAR`、正文和 keyPoint，输出正文中不含 `investorId/keyPoint/content` 结构字段。
+
 ## 2026-09-18 · 股票池加载态改为单颗 3D 骰子
 
 **背景**：在大师实盘加载态换成骰子后，用户希望股票池也统一视觉语言，只保留一颗 3D 骰子，不再使用放大镜 + 闪烁点的通用 loading。

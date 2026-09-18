@@ -177,7 +177,13 @@ function parseChatResult(text, fallbackInvestorId) {
     parsed = extractChatFields(text);
   }
   if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
-    return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: parsed.content.trim(), keyPoint: String(parsed.keyPoint || '').trim() };
+    const stance = String(parsed.stance || '').toUpperCase();
+    return {
+      investorId: parsed.investorId || fallbackInvestorId,
+      stance: ['BULL', 'BEAR', 'NEUTRAL'].includes(stance) ? stance : 'NEUTRAL',
+      content: parsed.content.trim(),
+      keyPoint: String(parsed.keyPoint || '').trim(),
+    };
   }
   return { investorId: fallbackInvestorId, stance: 'NEUTRAL', content: String(text || ''), keyPoint: '' };
 }
@@ -189,7 +195,29 @@ function extractChatFields(text) {
   const contentMatch = t.match(/"content"\s*:\s*["“”]([\s\S]*?)["“”](?=\s*,\s*"keyPoint")/);
   if (!contentMatch) return null;
   const keyPointMatch = t.match(/"keyPoint"\s*:\s*["“”]([\s\S]*?)["“”](?=\s*[。，、；：！？…]*\s*[,}])/);
-  return { content: contentMatch[1], keyPoint: keyPointMatch ? keyPointMatch[1] : '' };
+  const investorMatch = t.match(/"investorId"\s*:\s*["“”]([^"”]+)["”]/);
+  const stanceMatch = t.match(/"stance"\s*:\s*["“”]?(BULL|BEAR|NEUTRAL)["”]?/i);
+  return {
+    investorId: investorMatch ? investorMatch[1] : '',
+    stance: stanceMatch ? stanceMatch[1].toUpperCase() : 'NEUTRAL',
+    content: contentMatch[1],
+    keyPoint: keyPointMatch ? keyPointMatch[1] : '',
+  };
+}
+
+// 防止历史结果或模型异常时把 {"investorId":...} 整段 JSON 当发言渲染。
+function normalizeSpeechMessage(msg) {
+  if (!msg || typeof msg !== 'object') return msg;
+  const raw = String(msg.content || '');
+  if (!/^\s*\{[\s\S]*"content"\s*:/.test(raw)) return msg;
+  const parsed = parseChatResult(raw, msg.investorId);
+  return {
+    ...msg,
+    investorId: parsed.investorId || msg.investorId,
+    stance: parsed.stance || msg.stance,
+    content: parsed.content,
+    keyPoint: parsed.keyPoint || msg.keyPoint,
+  };
 }
 
 export default function Home() {
@@ -348,12 +376,18 @@ export default function Home() {
       if (round.type === 'round') {
         const hid = round.hostId;
         if (round.hostOpening) out.push({ type: 'hostOpening', text: round.hostOpening, roundIndex, speakerId: hid, textToType: round.hostOpening });
-        (round.discussion || []).forEach((msg, i) => out.push({ type: 'speech', msg, roundIndex, index: i, speakerId: msg.investorId, textToType: msg.content || '' }));
+        (round.discussion || []).forEach((item, i) => {
+          const msg = normalizeSpeechMessage(item);
+          out.push({ type: 'speech', msg, roundIndex, index: i, speakerId: msg.investorId, textToType: msg.content || '' });
+        });
         if (round.hostClosing) out.push({ type: 'hostClosing', text: round.hostClosing, roundIndex, speakerId: hid, textToType: round.hostClosing });
         if (round.verdict && Object.keys(round.verdict).length > 0) out.push({ type: 'verdict', verdict: round.verdict, roundIndex, speakerId: null, textToType: (round.verdict.summary || '') });
       } else if (round.type === 'followUp') {
         if (round.userMsg) out.push({ type: 'userMsg', text: round.userMsg, roundIndex, speakerId: 'user', textToType: round.userMsg });
-        (round.discussion || []).forEach((msg, i) => out.push({ type: 'speech', msg, roundIndex, index: i, speakerId: msg.investorId, textToType: msg.content || '' }));
+        (round.discussion || []).forEach((item, i) => {
+          const msg = normalizeSpeechMessage(item);
+          out.push({ type: 'speech', msg, roundIndex, index: i, speakerId: msg.investorId, textToType: msg.content || '' });
+        });
         if (round.verdict && Object.keys(round.verdict).length > 0) out.push({ type: 'verdict', verdict: round.verdict, roundIndex, speakerId: null, textToType: (round.verdict.summary || '') });
       }
     });
@@ -377,7 +411,7 @@ export default function Home() {
   const getCurrentText = () => {
     if (!currentBlock?.content) return '';
     if (currentBlock.type === 'hostOpening' || currentBlock.type === 'hostClosing' || currentBlock.type === 'userMsg') return typeof currentBlock.content === 'string' ? currentBlock.content : '';
-    if (currentBlock.type === 'speech') return currentBlock.content?.content ?? '';
+    if (currentBlock.type === 'speech') return normalizeSpeechMessage(currentBlock.content)?.content ?? '';
     if (currentBlock.type === 'verdict') return currentBlock.content?.summary ?? '';
     return '';
   };
@@ -994,12 +1028,13 @@ export default function Home() {
     const parsed = safeJsonParse(text);
     if (!parsed) {
       // 没返回合法 JSON：把整段文本当成一次总结性发言兜底，避免完全没回应
+      const extracted = extractChatFields(text);
       return {
         discussion: [{
           investorId: 'host-fallback',
           stance: 'NEUTRAL',
-          content: text,
-          keyPoint: '综合回答用户追问（非结构化兜底）',
+          content: extracted?.content || text,
+          keyPoint: extracted?.keyPoint || '综合回答用户追问（非结构化兜底）',
         }],
         verdict: {},
       };
@@ -1038,11 +1073,7 @@ export default function Home() {
             : buildOneSpeechPrompt(query, investors, previousParts, step.speakerId);
           const text = await getResponseText([{ role: 'user', content: prompt }], query, snapshotRef.current);
           let parsed;
-          if (soloSpeech) {
-            parsed = parseChatResult(text, step.speakerId);
-          } else {
-            parsed = safeJsonParse(text) || { investorId: step.speakerId, stance: 'NEUTRAL', content: text, keyPoint: '' };
-          }
+          parsed = parseChatResult(text, step.speakerId);
           setCurrentBlock(c => c ? { ...c, content: parsed } : c);
         } else if (step.type === 'hostClosing') {
           const opening = completedBlocks.find(b => b.type === 'hostOpening')?.content || '';
@@ -1692,7 +1723,7 @@ export default function Home() {
                       </div>
                     )}
                     {block.type === 'speech' && (() => {
-                      const msg = block.msg ?? block.content;
+                      const msg = normalizeSpeechMessage(block.msg ?? block.content);
                       const inv = invMap[msg?.investorId ?? block.speakerId] || result.investors?.[block.index % (result.investors?.length || 1)];
                       if (!inv) return null;
                       const st = STANCES[msg.stance] || STANCES.NEUTRAL;
@@ -1797,7 +1828,7 @@ export default function Home() {
                       </div>
                     )}
                     {typingPhase === 'content' && currentBlock.type === 'speech' && (() => {
-                      const msg = currentBlock.msg ?? currentBlock.content;
+                      const msg = normalizeSpeechMessage(currentBlock.msg ?? currentBlock.content);
                       const inv = invMap[msg?.investorId ?? currentBlock.speakerId] || result.investors?.[currentBlock.index % (result.investors?.length || 1)];
                       if (!inv) return null;
                       const st = STANCES[msg?.stance] || STANCES.NEUTRAL;
