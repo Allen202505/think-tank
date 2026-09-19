@@ -1086,6 +1086,10 @@
 .mg-forensic-judgment { margin: 0; color: var(--text); }
 .mg-forensic-muted { color: var(--text-muted); font-size: 11.5px; }
 
+.mg-forensic-detail-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.mg-forensic-detail-tools .mg-forensic-row-details { margin-top: 0; }
+.mg-forensic-evidence-explain { border: 1px solid var(--accent-dim); border-radius: 999px; background: var(--accent-bg); color: var(--accent-strong); padding: 3px 8px; font-family: var(--font-sans); font-size: 10.5px; font-weight: 700; line-height: 1.4; cursor: pointer; }
+.mg-forensic-evidence-explain:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent-bg) 76%, var(--bg-card)); }
 .mg-forensic-row-details { margin-top: 8px; }
 .mg-forensic-row-details summary { cursor: pointer; color: var(--accent-strong); font-size: 10.5px; font-weight: 700; list-style: none; }
 .mg-forensic-row-details summary::-webkit-details-marker { display: none; }

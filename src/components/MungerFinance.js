@@ -83,11 +83,11 @@ export default function MungerFinance() {
     if (drawerBodyRef.current) drawerBodyRef.current.scrollTop = drawerBodyRef.current.scrollHeight;
   }, [drawerMsgs, drawerLoading]);
 
-  const openDrawer = useCallback((initialQuestion) => {
+  const openDrawer = useCallback((initialQuestion, options = {}) => {
     setDrawerOpen(true);
     setDrawerInput('');
     setDrawerError('');
-    if (initialQuestion) sendDrawer(initialQuestion);
+    if (initialQuestion) sendDrawer(initialQuestion, options.displayText);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerLoading, result]);
 
@@ -120,13 +120,13 @@ export default function MungerFinance() {
     try { localStorage.setItem(MUNGER_STATE_KEY, JSON.stringify({ result, note, fileName, reportTab })); } catch (e) { /* ignore */ }
   }, [result, note, fileName, reportTab]);
 
-  const sendDrawer = useCallback(async (raw) => {
+  const sendDrawer = useCallback(async (raw, displayText = '') => {
     const msg = String(raw || drawerInput || '').trim();
     if (!msg || drawerLoading || !result) return;
     if (!ensureAiReady()) return;
     setDrawerInput('');
     setDrawerError('');
-    setDrawerMsgs((prev) => [...prev, { role: 'user', text: msg }]);
+    setDrawerMsgs((prev) => [...prev, { role: 'user', text: String(displayText || msg).trim() }]);
     setDrawerLoading(true);
     try {
       const res = await fetch('/api/munger', {

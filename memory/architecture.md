@@ -169,6 +169,7 @@ MungerFinance → FinancialDiagnosisChecklist
 - `src/lib/pdfText.js`：PDF 文本抽取与受限页范围解析。用户上传的 PDF 仍走全文；自动获取的年报只解析前 12 页 + 后 68%，覆盖审计意见与财报附注，避免整份年报解析拖慢请求。
 - `src/components/FinancialDiagnosisChecklist.js`：独立的一页纸诊断模块。公司画像只保留短标签，三类核心结论独立成区；桌面渲染五列表格，移动端切换为卡片；状态胶囊单独一行；每条支持证据详情展开、单条定向追问和数据缺口提示。表格去掉外框和优先级左侧竖线，使用图标、提亮色块和状态色做层级。状态、优先级、来源和 `⚪ 数据不足` 均由后端结构控制，不靠模型返回 emoji。
 - `diagnosis` 结构升级为 `coreContradiction/mainRisk/keyLead + rows[question,evidence[],judgment,nextCheck{what,lookAt,judge},status,source]`；归一化层同时兼容旧版 `metric/current/trend/finding/next`，避免历史本地结果失效。
+- `FinancialDiagnosisChecklist` 的「小白答疑」复用芒格右侧浮层：内部 prompt 包含证据字段和 5 个解释要点，浮层用户消息只显示「小白答疑：问题」；`sendDrawer(raw, displayText)` 分离发送内容与可见文案。
 - `financialForensics.js` 为 15 类结构化 seed 维护“侦查问题 + 三步核查”模板；AI 输出不足时，由确定性 seed 生成同结构清单，问题、证据和核查路径不依赖模型自由发挥。
 - `financialForensics.js` 对现金流等指标增加边际变化分类：首次转负/显著恶化进入 P0，明显改善进入 P1 并生成“为什么改善、能否持续”的问题，持续无变化的旧问题降为背景风险。
 - 芒格提示词要求先判断边际变化再排优先级，再基于诊断结果写正文；`diagnosis.rows` 只允许引用三表、年报附注、审计报告或明确的数据不足，并要求 P0 只留给首次出现/显著恶化/资金安全问题、总数 6-10 条、下一步固定三段式。
