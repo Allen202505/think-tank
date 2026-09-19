@@ -120,11 +120,11 @@ export default function TermAddModal() {
         >
           {selected && (
             <button type="button" className="ctx-item ctx-ask-naval" onClick={startNavalAsk}>
-              <span className="ctx-icon">💬</span> 向纳瓦尔提问{selected ? `“${selected.slice(0, 12)}${selected.length > 12 ? '…' : ''}”` : ''}
+              <span className="ctx-icon">💬</span> 向纳瓦尔提问
             </button>
           )}
           <button type="button" className="ctx-item" onClick={() => openModal(selected)}>
-            <span className="ctx-icon">📖</span> 添加词条{selected ? `“${selected.slice(0, 12)}${selected.length > 12 ? '…' : ''}”` : ''}
+            <span className="ctx-icon">📖</span> 添加词条
           </button>
           <div className="ctx-hint">选中词条可问纳瓦尔，也可以加入词条库</div>
         </div>
