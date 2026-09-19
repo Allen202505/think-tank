@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/debate/index",
+    "pages/reading/index",
+    "pages/history/index",
+    "pages/history-detail/index",
+    "pages/profile/index",
+    "pages/privacy/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f3ecdf",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "多棱镜笔记",
+    "backgroundColor": "#f3ecdf",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "__usePrivacyCheck__": true
+}

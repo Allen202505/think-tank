@@ -1,0 +1,89 @@
+<view class="page-shell reading-page">
+  <view class="page-intro">
+    <text class="intro-title serif">读懂一条财经资讯</text>
+    <text class="intro-copy">粘贴公开新闻、公告摘要或概念说明，整理成一张可继续学习的事实卡片。</text>
+  </view>
+
+  <view class="source-note">
+    <text class="source-note-title">只粘贴公开材料</text>
+    <text class="source-note-copy">请勿提交个人信息、内幕信息、付费研报原文或带有荐买荐卖指令的内容。</text>
+  </view>
+
+  <view class="input-section">
+    <view class="field-label">
+      <text>资讯或概念材料</text>
+      <text class="field-counter">{{text.length}} / 6000</text>
+    </view>
+    <textarea
+      class="text-field reading-field"
+      value="{{text}}"
+      maxlength="6000"
+      placeholder="在这里粘贴一段公开财经资讯或概念说明…"
+      placeholder-class="placeholder"
+      cursor-spacing="28"
+      bindinput="onInput"
+    ></textarea>
+    <view class="input-actions">
+      <text class="sample-action" bindtap="fillSample">填入示例</text>
+      <text wx:if="{{text}}" class="clear-action" bindtap="clearText">清空</text>
+    </view>
+  </view>
+
+  <view wx:if="{{error}}" class="error-panel inline-error">{{error}}</view>
+
+  <button
+    class="primary-button submit-button"
+    loading="{{loading}}"
+    disabled="{{loading}}"
+    bindtap="submitText"
+  >{{loading ? '正在整理卡片…' : '生成学习卡片'}}</button>
+
+  <view wx:if="{{loading}}" id="reading-result" class="card loading-card">
+    <view class="loading-lines">
+      <view class="loading-line"></view>
+      <view class="loading-line short"></view>
+      <view class="loading-line"></view>
+      <view class="loading-line short"></view>
+    </view>
+  </view>
+
+  <view wx:if="{{result}}" id="reading-result" class="result-block">
+    <view class="result-heading">
+      <text class="result-title serif">{{result.title}}</text>
+      <text class="result-summary">{{result.summary}}</text>
+    </view>
+
+    <view class="point-list">
+      <view wx:for="{{result.points}}" wx:key="label" class="point-row">
+        <text class="point-label">{{item.label}}</text>
+        <text class="point-content">{{item.content}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.concepts.length}}" class="concept-section">
+      <text class="concept-section-title serif">概念拆解</text>
+      <view wx:for="{{result.concepts}}" wx:key="term" class="concept-row">
+        <text class="concept-term">{{item.term}}</text>
+        <text class="concept-explanation">{{item.explanation}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.uncertainties.length}}" class="uncertainty-block">
+      <text class="uncertainty-title">仍需核实或观察</text>
+      <view wx:for="{{result.uncertainties}}" wx:key="*this" class="uncertainty-row">
+        <view class="uncertainty-dot"></view>
+        <text class="uncertainty-copy">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="takeaway-block">
+      <text class="takeaway-label">阅读提示</text>
+      <text class="takeaway-copy">{{result.takeaway}}</text>
+    </view>
+
+    <view class="notice result-notice">{{disclaimer}}</view>
+    <view class="result-actions">
+      <button class="secondary-button" bindtap="goHistory">查看学习记录</button>
+    </view>
+  </view>
+</view>

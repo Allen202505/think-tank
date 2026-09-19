@@ -1,0 +1,46 @@
+<view class="page-shell privacy-page">
+  <view class="privacy-header">
+    <text class="privacy-title serif">隐私保护说明</text>
+    <text class="privacy-date">更新日期：2026 年 9 月 19 日</text>
+    <text class="privacy-lead">多棱镜笔记无需注册账号，也不收集通讯录、定位、相机、相册、麦克风等权限。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">1. 我们处理哪些信息</text>
+    <text class="privacy-copy">你在“财经圆桌”输入的问题、在“读懂财经资讯”粘贴的公开材料，会用于生成本次学习内容。请不要提交姓名、电话、证件、账户、持仓或其他敏感个人信息。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">2. 微信用户标识如何使用</text>
+    <text class="privacy-copy">云函数会获取当前微信用户的 OpenID，用于防刷限流。OpenID 会先进行 SHA-256 哈希处理，服务端内存只保存哈希后的短期计数，不用于识别、画像、推荐或营销，也不会写入业务数据库。计数到期后自动失效。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">3. 本地学习记录</text>
+    <text class="privacy-copy">学习记录仅保存在当前设备的微信本地缓存中，最多 30 条。你可以在“关于与边界”中随时清除。卸载小程序或清理微信缓存后，记录可能丢失，我们无法恢复。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">4. AI 与第三方服务</text>
+    <text class="privacy-copy">为生成学习内容，当前输入的文本会通过微信云函数发送至本项目的 AI 服务接口处理。业务接口不会将问题正文写入数据库，也不会用于训练自有模型。微信云开发、网络服务和模型服务商可能按照其平台规则处理必要的运行日志。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">5. 我们不做什么</text>
+    <view class="privacy-list-row"><text class="privacy-dot">·</text><text class="privacy-copy">不要求手机号、身份证或银行卡，不提供交易、开户或支付功能。</text></view>
+    <view class="privacy-list-row"><text class="privacy-dot">·</text><text class="privacy-copy">不读取聊天记录、通讯录、精确位置、相册或相机。</text></view>
+    <view class="privacy-list-row"><text class="privacy-dot">·</text><text class="privacy-copy">不出售、出租或向无关第三方提供个人信息。</text></view>
+    <view class="privacy-list-row"><text class="privacy-dot">·</text><text class="privacy-copy">不提供证券期货投资咨询，不根据个人信息生成荐买荐卖结论。</text></view>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">6. 内容边界</text>
+    <text class="privacy-copy">本工具只用于财经通识学习与公开资讯整理。AI 可能产生错误、遗漏或过时信息，不构成投资建议、收益承诺或交易依据。涉及重大决策时，请咨询具备合法资质的专业人士。</text>
+  </view>
+
+  <view class="privacy-section">
+    <text class="privacy-section-title serif">7. 联系与反馈</text>
+    <text class="privacy-copy">如对隐私说明或数据处理有疑问，可通过项目公开反馈地址联系我们。</text>
+    <button class="secondary-button contact-button" bindtap="copyContact">复制项目反馈地址</button>
+  </view>
+</view>

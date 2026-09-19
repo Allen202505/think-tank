@@ -31,6 +31,10 @@ think-tank/
 │   ├── project.md            # 项目基本信息
 │   ├── architecture.md       # 系统架构（本文件）
 │   └── log.md                # 决策记录
+├── miniprogram/              # 微信原生小程序提审版
+│   ├── pages/                # 首页/圆桌/资讯/记录/关于/隐私
+│   └── utils/                # 云函数调用与本地存储
+├── cloudfunctions/mini-api/  # 小程序签名代理云函数
 └── package.json
 ```
 
@@ -177,3 +181,27 @@ MungerFinance → FinancialDiagnosisChecklist
 - 数据缓存：三表 12 小时、年报/附注证据 7 天、公告列表 24 小时；单次证据包外层超时 22 秒，失败静默降级。
 - `withTimeout()` 现在会在 Promise 完成后清理定时器，避免服务端进程因超时定时器悬挂 20 秒以上。
 - 当前 A 股优先；港股、美股证据链未接入，仍使用原有系统数据核验并明确边界。
+
+## 微信小程序提审版架构（2026-09-19）
+
+```text
+微信小程序（原生 WXML/WXSS/JS）
+    ↓ wx.cloud.callFunction
+微信云函数 mini-api
+    ↓ 时间戳 + nonce + OpenID + 请求体 HMAC-SHA256
+Next.js /api/mini/debate 或 /api/mini/reading
+    ↓ 输入拦截 → DeepSeek → 输出拦截
+结构化学习卡片返回小程序
+    ↓
+wx.setStorageSync（最多 30 条，仅本机）
+```
+
+- `miniprogram/`：原生小程序源码，不依赖 Taro/uni-app，避免额外构建链。
+- `miniprogram/config.js`：真实云环境 ID 的配置入口；未配置时前端直接提示，不发起请求。
+- `cloudfunctions/mini-api`：小程序唯一云函数入口；动作白名单固定为 `debate` 和 `reading`，不暴露 Web 端其他 API。
+- `src/lib/miniProgramPolicy.js`：输入输出合规规则、结构化结果归一化、HMAC 签名与 OpenID 哈希。
+- `src/app/api/mini/debate/route.js`：财经圆桌接口；2-4 个学习视角，不拉行情、不做具体证券判断。
+- `src/app/api/mini/reading/route.js`：公开材料学习卡片接口；只做摘要、概念和影响维度梳理。
+- 安全：小程序不直连 Vercel；云函数请求必须通过时间戳、nonce、OpenID 和请求体 HMAC 校验；重复/篡改/过期请求被拒绝。
+- 隐私：OpenID 仅短期用于限流，服务端哈希后存在进程内 Map；问题正文不写入业务数据库；历史记录只在设备本地。
+- 类目边界：个人主体选择教育信息展示/信息查询，不申请金融业类目；企业版若接入行情、财报或模拟交易，应独立部署和提审。

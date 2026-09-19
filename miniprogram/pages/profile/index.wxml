@@ -1,0 +1,40 @@
+<view class="page-shell profile-page">
+  <view class="profile-hero">
+    <view class="profile-seal"><text class="profile-seal-text serif">知</text></view>
+    <text class="profile-title serif">多棱镜笔记</text>
+    <text class="profile-subtitle">财经通识 · 多视角学习工具</text>
+    <text class="profile-version">版本 {{version}}</text>
+  </view>
+
+  <view class="profile-section">
+    <text class="profile-section-title serif">这个工具做什么</text>
+    <text class="profile-section-copy">用多个分析框架解释财经概念，并把公开资讯整理成事实、概念、影响与不确定性四层信息，帮助读者建立自己的判断过程。</text>
+  </view>
+
+  <view class="boundary-card">
+    <text class="boundary-title serif">明确不做这些事</text>
+    <view class="boundary-row"><text class="boundary-mark">01</text><text class="boundary-copy">不推荐具体证券，不提供买卖、加减仓或持有指令。</text></view>
+    <view class="boundary-row"><text class="boundary-mark">02</text><text class="boundary-copy">不提供目标价、止损止盈位、收益预测或稳赚承诺。</text></view>
+    <view class="boundary-row"><text class="boundary-mark">03</text><text class="boundary-copy">不提供证券、期货、基金等投资咨询服务。</text></view>
+    <view class="boundary-row"><text class="boundary-mark">04</text><text class="boundary-copy">不接入交易、开户、支付或用户公开发布功能。</text></view>
+  </view>
+
+  <view class="menu-list">
+    <view class="menu-row" hover-class="menu-row-active" bindtap="openPrivacy">
+      <text class="menu-title">隐私保护说明</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-row" hover-class="menu-row-active" bindtap="copyFeedback">
+      <text class="menu-title">项目反馈地址</text>
+      <text class="menu-value">复制</text>
+    </view>
+    <view class="menu-row" hover-class="menu-row-active" bindtap="clearLocalHistory">
+      <text class="menu-title">清除本地学习记录</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="legal-note">
+    <text>AI 生成内容可能存在错误或遗漏。请将本工具作为学习辅助，不要作为投资决策依据。</text>
+  </view>
+</view>

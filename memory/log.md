@@ -2,6 +2,45 @@
 
 ## 🧭 项目执行规则（长期有效）
 
+## 2026-09-19 · 新增微信小程序个人提审版
+
+**背景**：用户要求把现有项目转为小程序，并完成个人开发者发布提审准备。现有 Web 端包含行情、选股池、财报诊断、实盘联赛和 AI 投资裁决；微信官方类目表显示金融业相关类目不在个人主体开放范围，因此不能把完整 Web 功能直接搬入个人小程序。
+
+**改动**
+
+- 新增原生微信小程序 `miniprogram/`，包含首页、财经圆桌、读懂财经资讯、学习记录、记录详情、关于与边界、隐私保护说明 7 个页面。
+- 新增云函数 `cloudfunctions/mini-api/`，小程序不直连 Vercel；云函数只允许 `debate` 和 `reading` 两个动作，并用 `MINI_PROXY_SECRET` 对 action、时间戳、nonce、OpenID 和请求体做 HMAC-SHA256 签名。
+- 新增 Web API `/api/mini/debate` 和 `/api/mini/reading`：
+  - 校验签名、时间窗口和重复 nonce；
+  - OpenID 经 SHA-256 后按用户日历日限流，默认每日 8 次；
+  - 股票代码、荐买荐卖、加减仓、目标价、止损止盈、收益预测在调用模型前拒绝；
+  - 模型输出再次做关键词与结构化校验，不合格内容不展示。
+- 新增 `src/lib/miniProgramPolicy.js`、`src/lib/miniProgramApi.js`、`scripts/mini-program-policy.test.mjs`。
+- 新增 `scripts/miniprogram-preflight.mjs` 与 `npm run preflight:mini`，检查页面完整性、AppID/云环境占位、web-view、直接 `wx.request` 和提审图标。
+- 新增 `miniprogram/utils/mock.js` 与 `demoMode`，无需 AppID/云开发即可在微信开发者工具预览完整界面；`--release` 预检会强制关闭该模式。
+- 新增提审资料：`submission/提审包说明.md`、`submission/审核话术.md`、`submission/版本描述.txt`、`submission/截图清单.md`、`submission/隐私保护指引填写.md`，以及 144/1024 图标。
+- 新增运行文档 `miniprogram/README.md`，更新 `README.md`、`memory/project.md`、`memory/architecture.md`、`memory/PRD.md`、`memory/QA.md`。
+
+**影响范围**
+
+- Web 端原有功能不受影响，只新增两条受限的小程序 API。
+- 小程序提审版明确不含行情、股票代码查询、选股、财报诊断、实盘联赛、交易、开户、支付、广告或用户公开发布。
+- 个人主体建议类目为“教育服务-教育信息展示”，可按审核要求补充“工具-信息查询”。
+
+**验证**
+
+- `npm test`：56/56 通过，新增 8 个小程序策略、签名和结构归一化用例。
+- `npm run build`：通过，`/api/mini/debate` 和 `/api/mini/reading` 已进入生产构建。
+- 小程序和云函数 JS 全部通过 `node --check`；12 个 JSON 配置解析通过。
+- `npm run preflight:mini` 通过：7 个页面、39 个小程序文件、无 web-view/直接请求。
+- 本地签名联调：无签名返回 401；股票代码问题返回 400；合法圆桌和资讯请求均返回 200，并生成结构化结果。
+- 尚未在真实 AppID、微信云开发环境和真机执行；因此不能标记为已提审或已发布。
+
+**待办**
+
+- 需要用户提供真实小程序 AppID、创建云环境、在 Vercel 与云函数配置相同 `MINI_PROXY_SECRET`。
+- 导入微信开发者工具后补做真机回归和真实页面截图，再按提审包提交审核。
+
 ## 2026-09-19 · 精简全局右键菜单按钮文案
 
 **背景**：用户反馈右键菜单把选中词条拼在按钮后面，长词条会让「向纳瓦尔提问 / 添加词条」按钮过长。

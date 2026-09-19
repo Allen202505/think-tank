@@ -1,0 +1,43 @@
+<view class="page-shell history-page">
+  <view class="history-header">
+    <view>
+      <text class="history-title serif">学习记录</text>
+      <text class="history-note">记录仅保存在当前设备，最多保留 30 条。</text>
+    </view>
+    <text wx:if="{{allRecords.length}}" class="clear-all" bindtap="clearAll">清空</text>
+  </view>
+
+  <view class="filter-row">
+    <view class="filter-item {{filter === 'all' ? 'filter-item-active' : ''}}" data-filter="all" bindtap="changeFilter">全部</view>
+    <view class="filter-item {{filter === 'debate' ? 'filter-item-active' : ''}}" data-filter="debate" bindtap="changeFilter">圆桌</view>
+    <view class="filter-item {{filter === 'reading' ? 'filter-item-active' : ''}}" data-filter="reading" bindtap="changeFilter">资讯</view>
+  </view>
+
+  <view wx:if="{{records.length}}" class="record-list">
+    <view
+      wx:for="{{records}}"
+      wx:key="id"
+      class="record-row"
+      hover-class="record-row-active"
+      data-id="{{item.id}}"
+      bindtap="openRecord"
+    >
+      <view class="record-meta">
+        <text class="record-type">{{item.typeText}}</text>
+        <text class="record-time">{{item.timeText}}</text>
+      </view>
+      <text class="record-title">{{item.title}}</text>
+      <text class="record-summary">{{item.summary}}</text>
+      <view class="record-footer">
+        <text class="record-source">{{item.source}}</text>
+        <text class="record-delete" data-id="{{item.id}}" catchtap="deleteRecord">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="empty-block">
+    <text class="empty-title serif">还没有学习记录</text>
+    <text class="empty-copy">完成一次财经圆桌或资讯卡片后，记录会出现在这里。</text>
+    <button class="secondary-button empty-action" bindtap="goLearn">开始学习</button>
+  </view>
+</view>

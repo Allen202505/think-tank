@@ -32,6 +32,24 @@ export function rateLimit(key, { limit = 30, windowMs = 60000 } = {}) {
 const globalRateLimitStore = globalThis;
 const dailyFree = globalRateLimitStore.__thinkTankDailyFree ||= new Map(); // ip -> { date, count }
 
+export function guardFreeDailyKey(identity, { limit = 40 } = {}) {
+  const key = String(identity || 'anonymous');
+  const today = new Date().toISOString().slice(0, 10);
+  const now = Date.now();
+  const resetAt = new Date(now);
+  resetAt.setHours(24, 0, 0, 0);
+  const b = dailyFree.get(`key:${key}`);
+  if (!b || b.date !== today) {
+    dailyFree.set(`key:${key}`, { date: today, count: 1 });
+    return { ok: true, free: true };
+  }
+  b.count += 1;
+  if (b.count > limit) {
+    return { ok: false, retryAfter: Math.max(1, Math.ceil((resetAt.getTime() - now) / 1000)), free: true, limit };
+  }
+  return { ok: true, free: true };
+}
+
 // aiConfig 为空（未带用户 Key）→ 免费调用，计入每日配额；带 Key 不占用。
 export function guardFreeDaily(request, aiConfig, { limit = 40 } = {}) {
   const hasKey = aiConfig && typeof aiConfig === 'object' && String(aiConfig.apiKey || '').trim();

@@ -1,0 +1,289 @@
+.debate-page {
+  padding-top: 28rpx;
+}
+
+.page-intro {
+  padding: 12rpx 0 38rpx;
+}
+
+.intro-title,
+.intro-copy {
+  display: block;
+}
+
+.intro-title {
+  font-size: 48rpx;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.intro-copy {
+  max-width: 620rpx;
+  margin-top: 16rpx;
+  color: var(--ink-soft);
+  font-size: 27rpx;
+  line-height: 1.7;
+}
+
+.input-section {
+  margin-top: 14rpx;
+}
+
+.question-field {
+  min-height: 300rpx;
+}
+
+.placeholder {
+  color: var(--ink-faint);
+}
+
+.input-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 14rpx;
+}
+
+.input-hint {
+  flex: 1;
+  color: var(--ink-faint);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.clear-action {
+  flex-shrink: 0;
+  color: var(--gold);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.perspective-section {
+  margin-top: 46rpx;
+}
+
+.perspective-label {
+  margin-bottom: 18rpx;
+}
+
+.perspective-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.perspective-chip {
+  position: relative;
+  width: calc(50% - 8rpx);
+  min-height: 154rpx;
+  padding: 24rpx 22rpx;
+  overflow: hidden;
+  border: 1rpx solid var(--line);
+  border-radius: 20rpx;
+  background: rgba(255, 253, 248, 0.48);
+}
+
+.perspective-chip-active {
+  background: rgba(234, 219, 184, 0.42);
+}
+
+.perspective-chip-selected {
+  border-color: var(--gold);
+  background: rgba(234, 219, 184, 0.52);
+}
+
+.perspective-name,
+.perspective-subtitle {
+  display: block;
+}
+
+.perspective-name {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.perspective-subtitle {
+  margin-top: 10rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.selection-mark {
+  position: absolute;
+  right: 18rpx;
+  bottom: 16rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border: 1rpx solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.perspective-chip-selected .selection-mark {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+.inline-error {
+  margin-top: 26rpx;
+}
+
+.submit-button {
+  margin-top: 38rpx;
+}
+
+.loading-card {
+  margin-top: 34rpx;
+}
+
+.result-block {
+  margin-top: 54rpx;
+  padding-top: 8rpx;
+}
+
+.result-heading {
+  padding: 0 4rpx;
+}
+
+.result-title,
+.result-summary,
+.result-source {
+  display: block;
+}
+
+.result-title {
+  font-size: 43rpx;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.result-summary {
+  margin-top: 16rpx;
+  color: var(--ink-soft);
+  font-size: 27rpx;
+  line-height: 1.72;
+}
+
+.result-rule {
+  width: 72rpx;
+  height: 4rpx;
+  margin: 28rpx 0 18rpx;
+  background: var(--gold);
+}
+
+.result-source {
+  color: var(--ink-faint);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.viewpoint-list {
+  margin-top: 34rpx;
+}
+
+.viewpoint {
+  padding: 30rpx 0 34rpx;
+  border-top: 1rpx solid var(--line);
+}
+
+.viewpoint-head {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.viewpoint-label {
+  flex-shrink: 0;
+  color: var(--gold);
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.viewpoint-line {
+  flex: 1;
+  height: 1rpx;
+  background: var(--line);
+}
+
+.viewpoint-content {
+  display: block;
+  margin-top: 20rpx;
+  color: var(--ink);
+  font-size: 29rpx;
+  line-height: 1.82;
+}
+
+.question-prompt {
+  margin-top: 24rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 16rpx;
+  background: rgba(234, 219, 184, 0.3);
+}
+
+.question-prompt-label,
+.question-prompt-copy {
+  display: block;
+}
+
+.question-prompt-label {
+  color: var(--gold);
+  font-size: 21rpx;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.question-prompt-copy {
+  margin-top: 8rpx;
+  color: var(--ink-soft);
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+
+.takeaway-block {
+  padding: 28rpx 30rpx;
+  border: 1rpx solid var(--line-strong);
+  border-radius: 20rpx;
+  background: rgba(255, 253, 248, 0.62);
+}
+
+.takeaway-label,
+.takeaway-copy {
+  display: block;
+}
+
+.takeaway-label {
+  color: var(--gold);
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.takeaway-copy {
+  margin-top: 12rpx;
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.68;
+}
+
+.keyword-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx 20rpx;
+  margin-top: 24rpx;
+}
+
+.keyword {
+  color: var(--ink-faint);
+  font-size: 23rpx;
+}
+
+.result-notice {
+  margin-top: 32rpx;
+}
+
+.result-actions {
+  margin-top: 28rpx;
+}

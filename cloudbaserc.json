@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "version": "2.1",
+  "envId": "cloudbase-d0govchp716d4e94d",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "mini-api",
+      "timeout": 60,
+      "runtime": "Nodejs18.15",
+      "memorySize": 256,
+      "handler": "index.main",
+      "installDependency": true,
+      "description": "多棱镜笔记小程序签名代理",
+      "envVariables": {
+        "MINI_PROXY_SECRET": "{{env.MINI_PROXY_SECRET}}",
+        "THINK_TANK_API_BASE": "https://yieldglide.com"
+      }
+    }
+  ]
+}

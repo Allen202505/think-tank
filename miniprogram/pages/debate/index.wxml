@@ -1,0 +1,102 @@
+<view class="page-shell debate-page">
+  <view class="page-intro">
+    <text class="intro-title serif">财经圆桌</text>
+    <text class="intro-copy">提出一个概念、现象或风险问题，让不同分析框架分别作答。</text>
+  </view>
+
+  <view class="input-section">
+    <view class="field-label">
+      <text>学习问题</text>
+      <text class="field-counter">{{question.length}} / 360</text>
+    </view>
+    <textarea
+      class="text-field question-field"
+      value="{{question}}"
+      maxlength="360"
+      placeholder="例如：利率变化为什么会推动资产估值变化？"
+      placeholder-class="placeholder"
+      cursor-spacing="28"
+      bindinput="onInput"
+    ></textarea>
+    <view class="input-actions">
+      <text class="input-hint">不要输入股票代码、交易指令或收益预测。</text>
+      <text wx:if="{{question}}" class="clear-action" bindtap="clearQuestion">清空</text>
+    </view>
+  </view>
+
+  <view class="perspective-section">
+    <view class="field-label perspective-label">
+      <text>选择视角</text>
+      <text class="field-counter">{{selectedCount}} / 4</text>
+    </view>
+    <view class="perspective-grid">
+      <view
+        wx:for="{{perspectives}}"
+        wx:key="id"
+        class="perspective-chip {{item.selected ? 'perspective-chip-selected' : ''}}"
+        data-id="{{item.id}}"
+        hover-class="perspective-chip-active"
+        bindtap="togglePerspective"
+      >
+        <text class="perspective-name">{{item.label}}</text>
+        <text class="perspective-subtitle">{{item.subtitle}}</text>
+        <view class="selection-mark"></view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{error}}" class="error-panel inline-error">{{error}}</view>
+
+  <button
+    class="primary-button submit-button"
+    loading="{{loading}}"
+    disabled="{{loading}}"
+    bindtap="submitQuestion"
+  >{{loading ? '正在整理观点…' : '生成圆桌笔记'}}</button>
+
+  <view wx:if="{{loading}}" id="roundtable-result" class="card loading-card">
+    <view class="loading-lines">
+      <view class="loading-line"></view>
+      <view class="loading-line short"></view>
+      <view class="loading-line"></view>
+      <view class="loading-line short"></view>
+    </view>
+  </view>
+
+  <view wx:if="{{result}}" id="roundtable-result" class="result-block">
+    <view class="result-heading">
+      <text class="result-title serif">{{result.title}}</text>
+      <text class="result-summary">{{result.summary}}</text>
+      <view class="result-rule"></view>
+      <text class="result-source">问题：{{submittedQuestion}}</text>
+    </view>
+
+    <view class="viewpoint-list">
+      <view wx:for="{{result.sections}}" wx:key="id" class="viewpoint">
+        <view class="viewpoint-head">
+          <text class="viewpoint-label">{{item.heading}}</text>
+          <view class="viewpoint-line"></view>
+        </view>
+        <text class="viewpoint-content">{{item.content}}</text>
+        <view wx:if="{{item.question}}" class="question-prompt">
+          <text class="question-prompt-label">继续思考</text>
+          <text class="question-prompt-copy">{{item.question}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="takeaway-block">
+      <text class="takeaway-label">学习提示</text>
+      <text class="takeaway-copy">{{result.takeaway}}</text>
+    </view>
+
+    <view wx:if="{{result.keywords.length}}" class="keyword-line">
+      <text wx:for="{{result.keywords}}" wx:key="*this" class="keyword"># {{item}}</text>
+    </view>
+
+    <view class="notice result-notice">{{disclaimer}}</view>
+    <view class="result-actions">
+      <button class="secondary-button" bindtap="goHistory">查看学习记录</button>
+    </view>
+  </view>
+</view>

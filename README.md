@@ -14,6 +14,17 @@
 | 🧰 功能箱 | A 股财报解读与一页纸财务诊断、缠论短线、知识学堂、基础面研究四个能力按 Tab 切换 |
 | 🎯 大师的选股池 | 大师选股池 + 我的股票池，行情统计与自选新闻 |
 
+## 微信小程序提审版
+
+仓库包含个人主体可提审的轻量版小程序，定位为“财经通识学习工具”，不复制 Web 端的行情、选股、财报诊断、实盘联赛和投资裁决能力。
+
+- 源码：[`miniprogram/`](./miniprogram)
+- 云函数：[`cloudfunctions/mini-api/`](./cloudfunctions/mini-api)
+- 运行配置：[`miniprogram/README.md`](./miniprogram/README.md)
+- 提审材料：[`submission/提审包说明.md`](./submission/提审包说明.md)
+
+提审版只提供财经圆桌与公开资讯学习卡片。个人主体不能选择金融业类目，也不能提供证券期货投资咨询；请勿把 Web 端的荐买荐卖、行情、选股、模拟交易或支付功能带入个人主体提审包。
+
 ## 技术栈
 
 - Next.js 14（App Router）+ React 18

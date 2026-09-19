@@ -1,0 +1,46 @@
+<view wx:if="{{record}}" class="page-shell detail-page">
+  <view class="detail-meta">
+    <text class="detail-type">{{record.type === 'debate' ? '财经圆桌' : '资讯卡片'}}</text>
+    <text class="detail-time">{{record.timeText}}</text>
+  </view>
+
+  <text class="detail-title serif">{{record.title}}</text>
+  <text class="detail-summary">{{record.summary}}</text>
+
+  <view wx:if="{{record.type === 'debate'}}" class="detail-body">
+    <view wx:for="{{record.result.sections}}" wx:key="id" class="detail-section">
+      <text class="detail-label">{{item.heading}}</text>
+      <text class="detail-copy">{{item.content}}</text>
+      <view wx:if="{{item.question}}" class="detail-question">
+        <text class="detail-question-label">继续思考</text>
+        <text class="detail-question-copy">{{item.question}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="detail-body">
+    <view wx:for="{{record.result.points}}" wx:key="label" class="detail-section">
+      <text class="detail-label">{{item.label}}</text>
+      <text class="detail-copy">{{item.content}}</text>
+    </view>
+    <view wx:if="{{record.result.concepts.length}}" class="detail-concepts">
+      <text class="detail-concepts-title serif">概念拆解</text>
+      <view wx:for="{{record.result.concepts}}" wx:key="term" class="detail-concept-row">
+        <text class="detail-concept-term">{{item.term}}</text>
+        <text class="detail-copy">{{item.explanation}}</text>
+      </view>
+    </view>
+    <view wx:if="{{record.result.uncertainties.length}}" class="detail-uncertainty">
+      <text class="detail-uncertainty-title">仍需核实或观察</text>
+      <text wx:for="{{record.result.uncertainties}}" wx:key="*this" class="detail-uncertainty-copy">· {{item}}</text>
+    </view>
+  </view>
+
+  <view class="detail-source">
+    <text class="detail-source-title">原始输入</text>
+    <text class="detail-source-copy">{{record.source}}</text>
+  </view>
+
+  <view class="notice detail-notice">{{record.disclaimer}}</view>
+  <button class="danger-button delete-button" bindtap="deleteRecord">删除这条记录</button>
+</view>

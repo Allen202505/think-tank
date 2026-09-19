@@ -13,3 +13,9 @@ out
 # 桌面组件（widget）
 widget/node_modules
 widget/src-tauri/target
+
+# 微信开发者工具本地配置与云函数依赖
+project.private.config.json
+cloudfunctions/**/node_modules
+miniprogram/**/node_modules
+submission/review-screenshots
