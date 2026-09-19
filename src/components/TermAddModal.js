@@ -7,6 +7,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { loadTerms, saveTerms, notifyTermsChanged, pushTermsCloud } from '../lib/navalTerms';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
+import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
+import { NAVAL } from '../lib/navalPrompts';
+import AskDrawer from './AskDrawer';
 
 export default function TermAddModal() {
   const { user } = useAuth();
@@ -16,6 +19,10 @@ export default function TermAddModal() {
   const [selected, setSelected] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [name, setName] = useState('');
+  const [askOpen, setAskOpen] = useState(false);
+  const [askContext, setAskContext] = useState('');
+  const [askSeed, setAskSeed] = useState('');
+  const [askInstance, setAskInstance] = useState(0);
 
   // 全局右键 → 自定义菜单
   useEffect(() => {
@@ -61,6 +68,33 @@ export default function TermAddModal() {
     setMenuOpen(false);
   }, []);
 
+  const startNavalAsk = useCallback(() => {
+    const term = String(selected || '').trim().slice(0, 240);
+    if (!term) return;
+    setMenuOpen(false);
+    setAskContext(`选中的词条：${term}`);
+    setAskSeed(`请用小白能听懂的方式解释“${term}”，并给一个通俗例子说明它在判断中怎么用。`);
+    setAskInstance((value) => value + 1);
+    setAskOpen(true);
+  }, [selected]);
+
+  const askNaval = useCallback(async (question, conversation) => {
+    if (!ensureAiReady()) throw new Error('AI 免费体验次数已用完，请先配置 API Key');
+    consumeFree();
+    const context = [
+      askContext,
+      ...(conversation || []).map((message) => `${message.role === 'user' ? '我问' : NAVAL.name}：${String(message.text || '').slice(0, 200)}`),
+    ].filter(Boolean).join('\n');
+    const res = await fetch('/api/naval/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: question, context: context || undefined, aiConfig: getAiConfig() }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || '回复失败，请重试');
+    return { content: data.result.content, keyPoint: data.result.keyPoint || '' };
+  }, [askContext]);
+
   const saveTerm = (n) => {
     const term = { name: n, at: Date.now() };
     const next = [term, ...loadTerms().filter((t) => t.name !== n)].slice(0, 500);
@@ -84,10 +118,15 @@ export default function TermAddModal() {
           style={{ left: menuPos.x, top: menuPos.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >
+          {selected && (
+            <button type="button" className="ctx-item ctx-ask-naval" onClick={startNavalAsk}>
+              <span className="ctx-icon">💬</span> 向纳瓦尔提问{selected ? `“${selected.slice(0, 12)}${selected.length > 12 ? '…' : ''}”` : ''}
+            </button>
+          )}
           <button type="button" className="ctx-item" onClick={() => openModal(selected)}>
             <span className="ctx-icon">📖</span> 添加词条{selected ? `“${selected.slice(0, 12)}${selected.length > 12 ? '…' : ''}”` : ''}
           </button>
-          <div className="ctx-hint">添加到「纳瓦尔知识学堂」词条库</div>
+          <div className="ctx-hint">选中词条可问纳瓦尔，也可以加入词条库</div>
         </div>
       )}
 
@@ -110,6 +149,17 @@ export default function TermAddModal() {
             </div>
           </div>
         </div>
+      )}
+
+      {askOpen && (
+        <AskDrawer
+          key={`global-naval-ask-${askInstance}`}
+          master={NAVAL}
+          context={askContext}
+          onClose={() => setAskOpen(false)}
+          onAsk={askNaval}
+          seedQuestion={askSeed}
+        />
       )}
     </>
   );

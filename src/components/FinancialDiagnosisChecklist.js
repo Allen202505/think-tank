@@ -81,22 +81,6 @@ function rowAskPrompt(row) {
   return `请继续侦查“${q}”这条线索：${action || '回到财报原文核对关键数据和附注口径'}。`;
 }
 
-function evidenceExplainPrompt(row) {
-  const details = row.details && typeof row.details === 'object' ? row.details : {};
-  const evidence = rowEvidence(row);
-  const lines = [
-    `请用小白能听懂的方式解释这条财报证据，不要重新下全局结论，也不要编造数字。`,
-    `侦查问题：${rowQuestion(row)}`,
-    `关键证据：${evidence.join('；') || '数据不足'}`,
-    `当前值/变化：${text(details.current || row.current) || '数据不足'}`,
-    `趋势/对比：${text(details.trend || row.trend) || '数据不足'}`,
-    `计算口径：${text(details.calculation || row.metric) || '数据不足'}`,
-    `数据来源：${text(row.source) || '数据不足'}`,
-    '请按这 5 点回答：1）这个指标和计算口径是什么意思，分子分母分别代表什么；2）为什么这样算，想验证什么问题；3）当前值和趋势说明什么，正常范围或好坏怎么判断；4）小白最容易误解什么；5）下一步具体看财报哪里、怎么验证。',
-  ];
-  return lines.join('\n');
-}
-
 function coverageText(coverage) {
   if (!coverage || typeof coverage !== 'object') return [];
   const out = [];
@@ -117,7 +101,7 @@ function deriveConclusions(rows) {
   };
 }
 
-function EvidenceDetails({ row, onAsk }) {
+function EvidenceDetails({ row }) {
   const details = row.details && typeof row.details === 'object' ? row.details : {};
   const items = [
     ['当前值 / 变化', details.current || row.current],
@@ -126,32 +110,19 @@ function EvidenceDetails({ row, onAsk }) {
     ['原始证据', details.rawEvidence],
     ['数据来源', row.source],
   ].filter(([, value]) => text(value) && text(value) !== '—');
-  if (!items.length && !onAsk) return null;
+  if (!items.length) return null;
   return (
-    <div className="mg-forensic-detail-tools">
-      {items.length > 0 && (
-        <details className="mg-forensic-row-details">
-          <summary>查看证据详情</summary>
-          <dl>
-            {items.map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{text(value)}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-      )}
-      {onAsk && (
-        <button
-          type="button"
-          className="mg-forensic-evidence-explain"
-          onClick={() => onAsk(evidenceExplainPrompt(row), { displayText: `小白答疑：${rowQuestion(row)}` })}
-        >
-          ? 小白答疑
-        </button>
-      )}
-    </div>
+    <details className="mg-forensic-row-details">
+      <summary>查看证据详情</summary>
+      <dl>
+        {items.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{text(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }
 
@@ -348,7 +319,7 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                             {evidence.map((item, evidenceIndex) => <li key={`${item}-${evidenceIndex}`}>{item}</li>)}
                           </ul>
                         ) : <span className="mg-forensic-muted">数据不足</span>}
-                        <EvidenceDetails row={row} onAsk={onAsk} />
+                        <EvidenceDetails row={row} />
                       </td>
                       <td><p className="mg-forensic-judgment">{rowJudgment(row)}</p></td>
                       <td>
@@ -383,7 +354,7 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                   <div className="mg-forensic-card-block">
                     <b>关键证据</b>
                     {evidence.length ? <ul>{evidence.map((item, evidenceIndex) => <li key={`${item}-${evidenceIndex}`}>{item}</li>)}</ul> : <p>数据不足</p>}
-                    <EvidenceDetails row={row} onAsk={onAsk} />
+                    <EvidenceDetails row={row} />
                   </div>
                   <div className="mg-forensic-card-block">
                     <b>侦查判断</b>
