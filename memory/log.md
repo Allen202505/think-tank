@@ -21,6 +21,7 @@
 - `npm test`：48/48 通过。
 - `npm run build`：通过，Next.js 编译、Lint 和类型检查无报错。
 - 无头 Chrome 回归：证据详情旁按钮存在；点击后右侧浮层打开，用户消息为「小白答疑：经营现金流为什么大幅改善，改善能否持续？」，实际发送 prompt 包含 5 点解释要求，芒格回复正常渲染。
+- 提交 `4e22a89` 已推送至 GitHub `main`；生产 CSS `/_next/static/css/fdafa14ec5338e9e.css` 与 page chunk `/_next/static/chunks/app/page-e6ba977ee6280d47.js` 已确认包含「小白答疑」及证据解释 prompt。
 
 ## 2026-09-18 · 修复中报/季报边际变化仍被年报口径覆盖
 
