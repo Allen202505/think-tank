@@ -831,7 +831,7 @@ export default function Home() {
 
 
   const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
-  const groupQrSrc = process.env.NEXT_PUBLIC_GROUP_QR_URL || '/group-qr.png';
+  const groupQrSrc = process.env.NEXT_PUBLIC_GROUP_QR_URL || '/group-qr.png?v=20260927';
 
   useEffect(() => {
     if (!qrOpen && !groupQrOpen) return undefined;

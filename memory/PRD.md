@@ -264,7 +264,7 @@ flowchart TB
 - **打字机**：逐字渲染 + 正在输入指示（TYPING_INDICATOR_MS=100、逐字 16ms、停顿 120ms）
 - **持久化**：主题/语言/聊天方式/讨论状态 localStorage
 - **分享海报**：`src/lib/poster.js` 客户端生成 1080×1920 海报（含二维码）
-- **入群二维码**：侧栏底部「入群聊一聊」打开用户交流群二维码弹层；默认读取 `public/group-qr.png`，可通过 `NEXT_PUBLIC_GROUP_QR_URL` 覆盖；二维码过期时保持页面路径不变，直接替换默认资源
+- **入群二维码**：侧栏底部「入群聊一聊」打开用户交流群二维码弹层；默认读取 `public/group-qr.png?v=20260927`，可通过 `NEXT_PUBLIC_GROUP_QR_URL` 覆盖；二维码过期时替换默认资源并同步更新版本参数，避免继续命中旧缓存
 - **虚拟大师构建**：`/api/virtual-master` 联网搜集资料生成画像；`recipes.js` 为难点人物定制检索策略
 - **快照传递**：`/api/context` 结果存 snapshotRef，随每条发言请求发给 `/api/chat`
 - **免责声明**：页面底部固定展示「本站内容由 AI 生成，仅供学习交流与娱乐参考，不构成任何投资建议或意见」（i18n disclaimer，中英文）
