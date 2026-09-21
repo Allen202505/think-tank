@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, CheckCircle2, ChevronDown, CircleDot, CircleHelp, Compass,
-  Database, Gauge, Layers3, Minus, RefreshCw, Scale, ScanSearch, ShieldAlert, Target, TrendingUp,
+  Database, Gauge, Layers3, Minus, Scale, ScanSearch, ShieldAlert, Target, TrendingUp,
 } from 'lucide-react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import { readApiResponse } from '../lib/apiResponse.mjs';
+import Dice3D from './Dice3D';
 import ModuleHero from './ModuleHero';
 import { CYCLE_STAGES, stageIndex } from '../lib/industryCycleMeta';
+import { marketAwareTtlMs, readJsonCache, writeJsonCache } from '../lib/browserCache.mjs';
 import styles from './IndustryCycleAnalysis.module.css';
 
 const LS_KEY = 'thinktank_industry_cycle_state_v1';
@@ -362,11 +364,23 @@ export default function IndustryCycleAnalysis() {
 
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
+      const cached = readJsonCache('stock-search', q);
+      if (cached?.value) {
+        if (!ctrl.signal.aborted) {
+          setSuggestions(Array.isArray(cached.value) ? cached.value : []);
+          setSuggestLoading(false);
+        }
+        return;
+      }
       setSuggestLoading(true);
       try {
         const res = await fetch(`/api/stock-search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal });
         const data = await res.json();
-        if (!ctrl.signal.aborted) setSuggestions(res.ok && Array.isArray(data.results) ? data.results : []);
+        const results = res.ok && Array.isArray(data.results) ? data.results : [];
+        if (!ctrl.signal.aborted) {
+          setSuggestions(results);
+          if (results.length) writeJsonCache('stock-search', q, results, 24 * 60 * 60 * 1000);
+        }
       } catch (e) {
         if (!ctrl.signal.aborted) setSuggestions([]);
       } finally {
@@ -382,6 +396,14 @@ export default function IndustryCycleAnalysis() {
 
   const run = useCallback(async () => {
     if (loading || !symbol.trim()) return;
+    const cacheKey = `${symbol.trim()}::${industryData.trim()}`;
+    const cached = readJsonCache('industry-cycle', cacheKey);
+    if (cached?.value?.result) {
+      setResult(cached.value.result);
+      if (typeof cached.value.industryData === 'string') setIndustryData(cached.value.industryData);
+      setError('');
+      return;
+    }
     if (!ensureAiReady()) return;
     consumeFree();
     setLoading(true);
@@ -400,6 +422,7 @@ export default function IndustryCycleAnalysis() {
       const data = await readApiResponse(res);
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');
       setResult(data.result);
+      writeJsonCache('industry-cycle', cacheKey, { result: data.result, industryData: industryData.trim() }, marketAwareTtlMs());
       markFeatureCompleted('行业周期分析');
     } catch (e) {
       const message = String(e?.message || e || '');
@@ -480,7 +503,7 @@ export default function IndustryCycleAnalysis() {
               ) : null}
             </div>
             <button type="button" className={styles.runBtn} onClick={run} disabled={loading || !symbol.trim()}>
-              {loading ? <RefreshCw size={17} className={styles.spin} /> : <BarChart3 size={17} />}
+              {loading ? <Dice3D size={17} spinning /> : <BarChart3 size={17} />}
               {loading ? '分析中…' : '开始周期分析'}
             </button>
           </div>

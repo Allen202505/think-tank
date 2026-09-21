@@ -8,7 +8,7 @@ import {
   LEAGUE_SYMBOLS,
   PUBLIC_LEAGUE,
 } from '../../../data/masterLeague.js';
-import { buildPendingLeague, settleMasterLeague } from '../../../lib/masterLeagueEngine.mjs';
+import { buildPendingLeague, filterCompetitionDates, settleMasterLeague } from '../../../lib/masterLeagueEngine.mjs';
 import { loadPublicLeagueSnapshot, savePublicLeagueSnapshot } from '../../../lib/masterLeagueDb.js';
 import { loadPlansFromDb } from '../../../lib/masterLeaguePlansDb.js';
 import { getClientIp, limitResponse, rateLimit } from '../../../lib/rateLimit';
@@ -203,6 +203,21 @@ function jsonResponse(payload, status = 200) {
   });
 }
 
+function clipStoredLeagueToCompetitionStart(stored) {
+  const startDate = PUBLIC_LEAGUE.startDate;
+  const accounts = (stored?.accounts || []).map((account) => ({
+    ...account,
+    curve: (account?.curve || []).filter((point) => String(point?.date || '') >= startDate),
+  }));
+  const accountMap = new Map(accounts.map((account) => [account.id, account]));
+  const ranking = (stored?.ranking || []).map((row) => ({
+    ...row,
+    account: accountMap.get(row?.account?.id || row?.id) || row?.account,
+  }));
+  const dayCount = accounts.reduce((max, account) => Math.max(max, account.curve.length), 0);
+  return { ...stored, accounts, ranking, dayCount };
+}
+
 export async function GET(request) {
   const limited = rateLimit(`master-league:${getClientIp(request)}`, { limit: 30, windowMs: 60000 });
   if (!limited.ok) return limitResponse(limited.retryAfter);
@@ -232,10 +247,11 @@ export async function GET(request) {
   if (!canSettle) {
     const stored = await loadPublicLeagueSnapshot(PUBLIC_LEAGUE.id);
     if (stored) {
+      const clipped = clipStoredLeagueToCompetitionStart(stored);
       return jsonResponse({
         ok: true,
         data: {
-          ...stored,
+          ...clipped,
           competition: PUBLIC_LEAGUE,
           dataQuality: 'stored',
           dataSource: [],
@@ -266,7 +282,7 @@ export async function GET(request) {
 
   const barsBySymbol = Object.fromEntries(tradeResults.map((item) => [item.code, item.bars]));
   const latestDate = benchmark.bars[benchmark.bars.length - 1].date;
-  const dateList = benchmark.bars.map((bar) => bar.date);
+  const dateList = filterCompetitionDates(benchmark.bars.map((bar) => bar.date), PUBLIC_LEAGUE.startDate);
 
   // 有 AI 计划的大师走 AI 计划，其余大师继续用预置剧本兜底
   const aiByMaster = new Map();
@@ -276,7 +292,12 @@ export async function GET(request) {
   }
   const plansByMaster = Object.fromEntries(LEAGUE_MASTERS.map((master) => {
     const own = aiByMaster.get(master.id) || [];
-    return [master.id, own.length ? toEnginePlans(own, dateList) : (LEAGUE_PLANS[master.id] || [])];
+    const firstCompetitionDate = dateList[0] || PUBLIC_LEAGUE.startDate;
+    const relevantOwn = own.filter((plan) => {
+      const resolvedExecuteDate = plan.executeDate || dateList.find((date) => date > plan.planDate) || plan.planDate || '';
+      return String(resolvedExecuteDate) >= String(firstCompetitionDate);
+    });
+    return [master.id, relevantOwn.length ? toEnginePlans(relevantOwn, dateList) : (LEAGUE_PLANS[master.id] || [])];
   }));
 
   const league = settleMasterLeague({

@@ -8,6 +8,7 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import ModuleHero from './ModuleHero';
 import FinancialDiagnosisChecklist from './FinancialDiagnosisChecklist';
+import { readJsonCache, researchCacheTtlMs, writeJsonCache } from '../lib/browserCache.mjs';
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -176,6 +177,15 @@ export default function MungerFinance() {
   const runReport = useCallback(async () => {
     if (loading) return;
     if (!link.trim() && !fileData) return;
+    const cacheKey = !fileData ? `${link.trim()}::${note.trim()}` : '';
+    if (cacheKey) {
+      const cached = readJsonCache('munger-link', cacheKey);
+      if (cached?.value?.result) {
+        setResult(cached.value.result);
+        setError('');
+        return;
+      }
+    }
     if (!ensureAiReady()) return; // 免费次数用尽且未配置 Key → 弹设置
     consumeFree();
     setLoading(true);
@@ -197,6 +207,7 @@ export default function MungerFinance() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '生成失败，请重试');
       setResult(data.result);
+      if (cacheKey) writeJsonCache('munger-link', cacheKey, { result: data.result }, researchCacheTtlMs(7));
       markFeatureCompleted('财报解读');
     } catch (e) {
       setError(e.message || '生成失败，请重试');

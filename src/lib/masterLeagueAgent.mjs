@@ -88,6 +88,138 @@ export const DECISION_ACTIONS = ['买入', '加仓', '减仓', '卖出', '持有
 // 一天最多几个动作：一次调用生成，多了只会增加执行噪音，不增加成本
 export const MAX_ACTIONS_PER_DAY = Number(process.env.MASTER_LEAGUE_MAX_ACTIONS || 3);
 
+const SELL_ACTIONS = new Set(['卖出', '减仓']);
+const BUY_ACTIONS = new Set(['买入', '加仓']);
+
+function stableActionOrder(decisions = []) {
+  const priority = (action) => (SELL_ACTIONS.has(action) ? 0 : BUY_ACTIONS.has(action) ? 1 : 2);
+  return decisions
+    .map((decision, index) => ({ decision, index }))
+    .sort((a, b) => priority(a.decision.action) - priority(b.decision.action) || a.index - b.index)
+    .map((item) => item.decision);
+}
+
+export function extractPriceHints(trace = [], account = {}) {
+  const hints = {};
+  for (const position of account?.positions || []) {
+    const price = Number(position.marketPrice);
+    if (position.symbol && price > 0) hints[position.symbol] = price;
+  }
+  for (const item of trace || []) {
+    const result = item?.result;
+    const stock = result?.stock;
+    const stockPrice = Number(stock?.price);
+    if (stock?.code && stockPrice > 0) hints[stock.code] = stockPrice;
+    for (const row of result?.stocks || []) {
+      const rowPrice = Number(row?.price);
+      if (row?.code && rowPrice > 0) hints[row.code] = rowPrice;
+    }
+    const code = result?.code;
+    const bars = result?.bars;
+    if (code && Array.isArray(bars) && bars.length) {
+      const close = Number(bars[bars.length - 1]?.[2]);
+      if (close > 0) hints[code] = close;
+    }
+  }
+  return hints;
+}
+
+// 生成阶段就按账户现金与已排在前面的卖出所得约束买入计划：
+// 1) 卖出/减仓排在买入/加仓之前；2) 不能覆盖一手成本的买入会被移除；
+// 3) 买入过重时按可用现金和整手成本下调 targetPct；4) 最终无动作则明确持有。
+export function applyFundingConstraints(decisions = [], { account = {}, priceHints = {} } = {}) {
+  const notes = [];
+  const totalAsset = Math.max(0, Number(account?.totalAsset) || 0);
+  let cash = Math.max(0, Number(account?.cash) || 0);
+  const positions = new Map((account?.positions || []).map((position) => [position.symbol, position]));
+  const output = [];
+
+  for (const decision of stableActionOrder(decisions)) {
+    const action = String(decision?.action || '');
+    const symbol = String(decision?.symbol || '');
+
+    if (SELL_ACTIONS.has(action)) {
+      const position = positions.get(symbol);
+      if (position) {
+        const currentValue = Math.max(0, Number(position.marketValue) || 0);
+        const targetPct = Math.max(0, Math.min(100, Number(decision.targetPct) || 0));
+        const targetValue = action === '减仓' && totalAsset > 0 ? totalAsset * (targetPct / 100) : 0;
+        cash += Math.max(0, currentValue - targetValue);
+      }
+      output.push(decision);
+      continue;
+    }
+
+    if (BUY_ACTIONS.has(action)) {
+      const position = positions.get(symbol);
+      const currentValue = Math.max(0, Number(position?.marketValue) || 0);
+      const currentQuantity = Math.max(0, Number(position?.quantity) || 0);
+      const targetPct = Math.max(0, Math.min(100, Number(decision.targetPct) || 0));
+      const desiredValue = totalAsset * (targetPct / 100);
+      const requiredCash = Math.max(0, desiredValue - currentValue);
+      const price = Math.max(0, Number(priceHints?.[symbol]) || 0);
+
+      if (price > 0) {
+        const lotCost = price * 100;
+        const targetLots = Math.floor((desiredValue + 1e-6) / lotCost);
+        const currentLots = Math.floor((currentQuantity + 1e-6) / 100);
+        const deltaLots = Math.max(0, targetLots - currentLots);
+        const affordableLots = Math.floor((cash + 1e-6) / lotCost);
+
+        if (deltaLots <= 0) {
+          notes.push(`${symbol} 目标仓位不足一手或不增加仓位，已移除无效买入`);
+          continue;
+        }
+        if (affordableLots <= 0) {
+          notes.push(`${symbol} 现金不足一手（约需 ${Math.round(lotCost)} 元），已取消买入`);
+          continue;
+        }
+        if (deltaLots > affordableLots) {
+          const adjustedValue = currentValue + affordableLots * lotCost;
+          const adjustedPct = totalAsset > 0 ? Math.floor((adjustedValue / totalAsset) * 1000) / 10 : 0;
+          output.push({ ...decision, targetPct: adjustedPct });
+          cash = Math.max(0, cash - affordableLots * lotCost);
+          notes.push(`${symbol} 按可用现金将目标仓位下调至 ${adjustedPct}%`);
+          continue;
+        }
+        output.push(decision);
+        cash = Math.max(0, cash - deltaLots * lotCost);
+        continue;
+      }
+
+      if (requiredCash > cash + 0.01) {
+        if (cash <= 0 || totalAsset <= 0) {
+          notes.push(`${symbol} 现金不足，已取消买入`);
+          continue;
+        }
+        const adjustedValue = currentValue + cash;
+        const adjustedPct = Math.floor((adjustedValue / totalAsset) * 1000) / 10;
+        output.push({ ...decision, targetPct: adjustedPct });
+        notes.push(`${symbol} 缺少目标价格，已按可用现金将目标仓位下调至 ${adjustedPct}%`);
+        cash = 0;
+        continue;
+      }
+      output.push(decision);
+      cash = Math.max(0, cash - requiredCash);
+      continue;
+    }
+
+    output.push(decision);
+  }
+
+  if (!output.length) {
+    output.push({
+      action: '持有',
+      symbol: null,
+      targetPct: 0,
+      reason: '当前可用现金不足以买入符合条件的整手标的，保持现金等待机会。',
+      risk: '后续出现可负担标的或资金回笼后重新评估。',
+    });
+    notes.push('所有买入均不满足资金约束，已降级为持有');
+  }
+  return { decisions: output, notes };
+}
+
 export function validateAgentDecision(raw, { maxTargetPct = 100 } = {}) {
   const errors = [];
   const decision = { ...(raw || {}) };
@@ -184,6 +316,9 @@ export function buildSystemPrompt(master) {
     '',
     '决策要求：',
     '- 只做你有依据的操作。没有值得做的机会时，明确选择「持有」，不要为了交易而交易。',
+    '- 买入/加仓前必须先确认可用现金和目标价格，计算「一手成本 = 目标价 × 100」。现金不足一手时不得买入。',
+    '- 卖出/减仓用于腾挪资金时，必须把卖出/减仓放在买入/加仓之前；同日计划会按该顺序执行。',
+    '- targetPct 对应的新增市值必须能被可用现金覆盖，且目标市值至少达到一手成本；否则降低目标仓位或先卖出其他持仓。',
     '- 每次操作都要说明依据（引用你查到的具体数据）和判断失效的条件。',
     '- 最终必须只输出一个 JSON 数组（1~3 个动作），不要输出任何解释文字，格式：',
     '[{"action":"买入|加仓|减仓|卖出|持有","symbol":"6位代码或null","targetPct":目标仓位百分比数字,"reason":"依据","risk":"什么情况说明你判断错了"}]',
@@ -195,11 +330,15 @@ export function buildSystemPrompt(master) {
 }
 
 export function buildUserPrompt({ date, account, marketNote = '' }) {
-  const positions = (account?.positions || []).map((position) => `${position.name || ''}(${position.symbol}) ${position.quantity}股 成本${position.averagePrice} 现价${position.marketPrice} 盈亏${(Number(position.profitRate || 0) * 100).toFixed(2)}%`).join('；');
+  const positions = (account?.positions || []).map((position) => `${position.name || ''}(${position.symbol}) ${position.quantity}股 成本${position.averagePrice} 现价${position.marketPrice} 市值${position.marketValue} 盈亏${(Number(position.profitRate || 0) * 100).toFixed(2)}%`).join('；');
+  const cash = Math.max(0, Number(account?.cash) || 0);
+  const totalAsset = Math.max(0, Number(account?.totalAsset) || 0);
+  const cashPct = totalAsset > 0 ? ((cash / totalAsset) * 100).toFixed(1) : '0.0';
   return [
     `今天是 ${date}，收盘后的决策时间。`,
-    `你的账户：总资产 ${account?.totalAsset ?? '未知'} 元，可用现金 ${account?.cash ?? '未知'} 元，累计收益率 ${((Number(account?.profitRate) || 0) * 100).toFixed(2)}%。`,
+    `你的账户：总资产 ${totalAsset || '未知'} 元，可用现金 ${cash} 元（占总资产 ${cashPct}%），累计收益率 ${((Number(account?.profitRate) || 0) * 100).toFixed(2)}%。`,
     positions ? `当前持仓：${positions}` : '当前持仓：空仓。',
+    `资金检查：任何买入/加仓都必须先按目标股实时价格计算一手成本；新增仓位资金不得超过可用现金与同日卖出/减仓预计回笼资金之和。资金不足时，优先安排卖出/减仓，或只保留可负担的计划。`,
     marketNote ? `补充信息：${marketNote}` : '',
     '请先用工具了解市场和你关心的标的，再给出下一交易日的计划。',
   ].filter(Boolean).join('\n');
@@ -335,6 +474,19 @@ export async function runMasterAgent({
   const validation = parsed.ok
     ? validateAgentDecisions(parsed.value)
     : { ok: false, errors: [parsed.error], decisions: [], decision: null };
+  const funding = validation.ok
+    ? applyFundingConstraints(validation.decisions, {
+        account,
+        priceHints: extractPriceHints(trace, account),
+      })
+    : { decisions: [], notes: [] };
+  const decisions = funding.decisions;
+  const validationWithFunding = {
+    ...validation,
+    decision: decisions[0] || null,
+    decisions,
+    fundingNotes: funding.notes,
+  };
 
   return {
     masterId: master.id,
@@ -347,9 +499,9 @@ export async function runMasterAgent({
     toolCalls: toolCallCount,
     trace,
     rawFinal: finalContent.slice(0, 2000),
-    decision: validation.ok ? validation.decision : null,
-    decisions: validation.ok ? validation.decisions : [],
-    validation,
+    decision: decisions[0] || null,
+    decisions,
+    validation: validationWithFunding,
     usage: usageSummary,
     ledger: getAgentLedger(),
   };

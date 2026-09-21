@@ -30,6 +30,7 @@ import {
   buildReplyPrompt,
 } from '../lib/prompts';
 import { generatePoster } from '../lib/poster';
+import { marketAwareTtlMs, readJsonCache, writeJsonCache } from '../lib/browserCache.mjs';
 import './page.css';
 import './breakfast/page.css';
 import BreakfastRoundtable from '../components/BreakfastRoundtable';
@@ -41,10 +42,28 @@ import NavalAcademy from '../components/NavalAcademy';
 import CrocodileFundamental from '../components/CrocodileFundamental';
 import IndustryCycleAnalysis from '../components/IndustryCycleAnalysis';
 import MasterLeague from '../components/MasterLeague';
-import ToolboxTabs, { isToolboxTab } from '../components/ToolboxTabs';
+import ToolboxTabs from '../components/ToolboxTabs';
+import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
+
+async function fetchContextCached(query, force = false) {
+  const key = String(query || '').trim();
+  if (!key) return {};
+  if (!force) {
+    const cached = readJsonCache('context', key);
+    if (cached?.value) return cached.value;
+  }
+  const response = await fetch('/api/context', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: key }),
+  });
+  const data = await response.json();
+  if (response.ok && data) writeJsonCache('context', key, data, marketAwareTtlMs());
+  return data;
+}
 
 // 从发言的实际立场统计票数（不信任 AI 裁决里的数字，避免数错）
 function countVotes(items) {
@@ -249,7 +268,7 @@ export default function Home() {
   // 顶部 Tab：提问智囊团 / 早餐圆桌（同页切换，圆桌首次激活后常驻挂载以保留状态）
   const [tab, setTab] = useState('ask');
   const [showBreakfast, setShowBreakfast] = useState(false);
-  const [toolboxTab, setToolboxTab] = useState('munger');
+  const [toolboxTab, setToolboxTab] = useState(DEFAULT_TOOLBOX_TAB);
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -443,7 +462,7 @@ export default function Home() {
       let savedTool = '';
       try { savedTool = localStorage.getItem('thinktank_toolbox_tab') || ''; } catch (e) { /* ignore */ }
       if (t === 'toolbox' || isToolboxTab(t)) {
-        const nextTool = isToolboxTab(tool) ? tool : isToolboxTab(t) ? t : isToolboxTab(savedTool) ? savedTool : 'munger';
+        const nextTool = isToolboxTab(tool) ? tool : isToolboxTab(t) ? t : isToolboxTab(savedTool) ? savedTool : DEFAULT_TOOLBOX_TAB;
         setToolboxTab(nextTool);
         setTab('toolbox');
       } else if (t === 'breakfast') {
@@ -1196,12 +1215,7 @@ export default function Home() {
 
     // 信息层梳理：先解析公司并生成最新数据快照（失败不阻断辩论）
     try {
-      const ctxRes = await fetch('/api/context', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      const ctx = await ctxRes.json();
+      const ctx = await fetchContextCached(query, force);
       snapshotRef.current = ctx?.snapshot || '';
       if (ctx?.notice && !force) {
         // AI 判定这个问题需要具体公司数据：弹窗让用户补充，暂停发起（弹窗即提示，不显示行内提示）
@@ -1293,12 +1307,7 @@ export default function Home() {
       // 追问也可能提到新公司：再做一次信息层梳理并合并快照
       let mergedSnapshot = snapshotRef.current || '';
       try {
-        const ctxRes = await fetch('/api/context', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: msg }),
-        });
-        const ctx = await ctxRes.json();
+        const ctx = await fetchContextCached(msg);
         if (ctx?.snapshot) mergedSnapshot = [mergedSnapshot, ctx.snapshot].filter(Boolean).join('\n');
       } catch (e) { /* 忽略 */ }
       let parsedDiscussion;
@@ -1392,12 +1401,7 @@ export default function Home() {
       // 提问可能提到新公司：合并快照
       let mergedSnapshot = snapshotRef.current || '';
       try {
-        const ctxRes = await fetch('/api/context', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: msg }),
-        });
-        const ctx = await ctxRes.json();
+        const ctx = await fetchContextCached(msg);
         if (ctx?.snapshot) mergedSnapshot = [mergedSnapshot, ctx.snapshot].filter(Boolean).join('\n');
       } catch (e) { /* 忽略 */ }
       const lastSpeech = [...(result.discussion || [])].reverse().find((m) => m.investorId === master.id);
@@ -1934,7 +1938,7 @@ export default function Home() {
         <StockPools />
       </div>
 
-      <div className={`mg-workspace-wrap${tab === 'toolbox' ? '' : ' ws-hidden'}`}>
+      <div className={`mg-workspace-wrap toolbox-workspace${tab === 'toolbox' ? '' : ' ws-hidden'}`}>
         <ToolboxTabs active={toolboxTab} onChange={switchToolboxTab} t={t} />
         <div id="toolbox-panel-munger" role="tabpanel" aria-labelledby="toolbox-tab-munger" className={toolboxTab === 'munger' ? '' : 'ws-hidden'}>
           <MungerFinance />

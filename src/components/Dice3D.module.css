@@ -1,0 +1,99 @@
+.wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--dice-size);
+  height: var(--dice-size);
+  perspective: calc(var(--dice-size) * 8);
+  vertical-align: middle;
+}
+
+.die {
+  position: relative;
+  width: var(--dice-size);
+  height: var(--dice-size);
+  transform: rotateX(-18deg) rotateY(28deg) rotateZ(-8deg);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  box-sizing: border-box;
+  padding: calc(var(--dice-size) * 0.16);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, var(--accent-dim));
+  border-radius: calc(var(--dice-size) * 0.22);
+  background: linear-gradient(145deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-input) 86%, var(--accent-bg)) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38), inset -4px -5px 8px rgba(60, 46, 24, 0.08), 0 2px 5px rgba(60, 46, 24, 0.12);
+  backface-visibility: hidden;
+}
+
+.face::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--dice-size) * 0.18);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.42), transparent 46%, rgba(60, 46, 24, 0.08));
+  pointer-events: none;
+}
+
+.pip {
+  position: relative;
+  z-index: 1;
+  width: calc(var(--dice-size) * 0.12);
+  height: calc(var(--dice-size) * 0.12);
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  opacity: 0;
+}
+
+.face[data-face="1"] .pip:nth-child(5),
+.face[data-face="2"] .pip:nth-child(1),
+.face[data-face="2"] .pip:nth-child(9),
+.face[data-face="3"] .pip:nth-child(1),
+.face[data-face="3"] .pip:nth-child(5),
+.face[data-face="3"] .pip:nth-child(9),
+.face[data-face="4"] .pip:nth-child(1),
+.face[data-face="4"] .pip:nth-child(3),
+.face[data-face="4"] .pip:nth-child(7),
+.face[data-face="4"] .pip:nth-child(9),
+.face[data-face="5"] .pip:nth-child(1),
+.face[data-face="5"] .pip:nth-child(3),
+.face[data-face="5"] .pip:nth-child(5),
+.face[data-face="5"] .pip:nth-child(7),
+.face[data-face="5"] .pip:nth-child(9),
+.face[data-face="6"] .pip:nth-child(1),
+.face[data-face="6"] .pip:nth-child(3),
+.face[data-face="6"] .pip:nth-child(4),
+.face[data-face="6"] .pip:nth-child(6),
+.face[data-face="6"] .pip:nth-child(7),
+.face[data-face="6"] .pip:nth-child(9) { opacity: 1; }
+
+.face[data-face="1"] { transform: translateZ(calc(var(--dice-size) / 2)); }
+.face[data-face="6"] { transform: rotateY(180deg) translateZ(calc(var(--dice-size) / 2)); }
+.face[data-face="3"] { transform: rotateY(90deg) translateZ(calc(var(--dice-size) / 2)); }
+.face[data-face="4"] { transform: rotateY(-90deg) translateZ(calc(var(--dice-size) / 2)); }
+.face[data-face="5"] { transform: rotateX(90deg) translateZ(calc(var(--dice-size) / 2)); }
+.face[data-face="2"] { transform: rotateX(-90deg) translateZ(calc(var(--dice-size) / 2)); }
+
+.spinning { animation: dice3d-roll 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
+
+@keyframes dice3d-roll {
+  0%, 100% { transform: rotateX(-18deg) rotateY(28deg) rotateZ(-8deg); }
+  25% { transform: rotateX(130deg) rotateY(210deg) rotateZ(14deg); }
+  50% { transform: rotateX(270deg) rotateY(390deg) rotateZ(-8deg); }
+  75% { transform: rotateX(430deg) rotateY(570deg) rotateZ(12deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning { animation: none; }
+}

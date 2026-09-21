@@ -49,18 +49,19 @@ think-tank/
 - `src/app/api/chat/marketData.js`: 统一市场数据层（东方财富 + Yahoo 双源、TTL 缓存、失败降级）
 - `src/app/api/master-league/route.js`: 大师实盘联赛结算入口；东方财富 → 腾讯证券 → 新浪财经三级行情回退，5 分钟进程内缓存。
 - `src/lib/masterLeagueEngine.mjs`: 纯函数结算引擎；按 100 股交易单位、次日开盘价成交、当日收盘价计量净值，并生成收益曲线和排名。
+- `filterCompetitionDates` 按 `PUBLIC_LEAGUE.startDate` 截取比赛交易日；`dayCount` 使用截取后的日期数组长度，首日计 1。API 在生成计划映射前先过滤开赛日之前的旧计划，数据库快照降级读取时也会裁剪开赛日前曲线。
 - `src/lib/masterLeagueInvites.mjs`: 用户邀请大师参赛，统一赠送 10 万元初始额度；公开赛按累计收益率合并排名。
 - `src/lib/leagueInvites.js`: 读取、发布和删除 Supabase 公共邀请数据；所有访客可读，登录用户只能管理自己的邀请，管理员可删除任意邀请。
 - `src/lib/leagueInvitePolicy.mjs`: 邀请错误分类（底表缺失/缺字段/RLS 拒绝）与删除模式（真删/黑名单下架）纯函数。
 - `src/lib/marketSnapshot.mjs`: 全市场感知层（大师智能体数据底座）。新浪榜单/行业 + 东财指数/涨停池/单股 + 腾讯&新浪日线多源冗余，进程内缓存，纯函数可测。
 - `src/lib/masterLeagueTools.mjs`: 智能体工具层，5 个工具（概览/筛选/快照/日线/持仓）+ JSON Schema，可直接用于 function calling。
 - `src/app/api/master-league/tools/route.js`: 工具调试入口（零 LLM），`GET ?tool=&参数` 或 `POST {tool,args}`。
-- `src/lib/masterLeagueAgent.mjs`: 单大师决策循环（人设 prompt + 工具调用 + 结构化校验 + 强制收口 + 成本台账）。所有成本闸门集中在 `AGENT_LIMITS` / `PRICING`，可用环境变量覆盖。
+- `src/lib/masterLeagueAgent.mjs`: 单大师决策循环（人设 prompt + 工具调用 + 结构化校验 + 资金约束 + 强制收口 + 成本台账）。`applyFundingConstraints` 会按可用现金、一手成本和同日卖出回笼资金排序/校正买入；所有成本闸门集中在 `AGENT_LIMITS` / `PRICING`，可用环境变量覆盖。
 - `src/app/api/master-league/agent/route.js`: 单大师试跑入口 `POST /api/master-league/agent {masterId}`；生产需 `MASTER_LEAGUE_AGENT_TOKEN`。
 - LLM 只输出意图（action/symbol/targetPct/reason/risk），成交价、持仓、收益仍由 `masterLeagueEngine.mjs` 按真实行情计算——模型永远不能自己编造成交价或收益。
 - 服务端默认模型为 DeepSeek-V4.1-Flash（API ID `deepseek-flash`）；`src/lib/llm.js` 对 DeepSeek Flash/V4 系列显式发送 `thinking: { type: "disabled" }`，保持多轮工具调用上下文兼容并控制成本。
 - `src/lib/masterLeagueDb.js`: 公开赛公共底表读写；服务端 service role 独占写入，匿名/登录用户可读取公开快照。
-- 公开赛人物：利弗莫尔、威科夫、达瓦斯、勒布、科斯托拉尼、巴鲁克；每人包含时代、原始方法、A股映射和一句话简介。
+- 公开赛人物：利弗莫尔、理查德·D·威科夫、达瓦斯、勒布、安德烈·科斯托拉尼、巴鲁克；每人包含时代、原始方法、A股映射、短版 `intro`（供智能体）和长版 `biography`（供详情页）。
 - `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`；前端允许中文单字触发候选，6 位纯代码跳过候选请求。
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
@@ -133,15 +134,16 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 - **邀请参赛**：登录用户发布到 `master_league_invites` 公共底表，所有访客都能读取并留存；自定义大师同时通过 `onAddCustomMaster` 写回 `custom-masters-v1`，与大师 PK 共用人物库。
 - **管理员审核**：`profiles.is_admin` 控制管理员权限，邀请详情页对管理员展示邀请人、发布时间、提示词与 Skill；普通用户只能删除自己的邀请，管理员删除他人邀请时先写 `master_league_invite_blocks` 黑名单再删除数据，防止对方换浏览器重新发布。
 - **邀请降级**：`src/lib/leagueInvitePolicy.mjs` 把底表缺失（`PGRST205` / `42P01`）、缺字段（`42703`）、RLS 拒绝（`42501`）分类；缺表时联赛页静默显示官方大师，缺 `is_admin` 时按普通用户处理。
-- **加载动效**：`MasterLeague.js` 初次拉取公开赛数据时渲染两颗 CSS 3D 骰子（六个面 + 透视旋转），右上角读取胶囊使用迷你骰子图标；正文只显示同步提示，`prefers-reduced-motion` 下关闭骰子动画。
+- **加载动效**：`MasterLeague.js` 初次拉取公开赛数据时渲染两颗 CSS 3D 骰子（六个面 + 透视旋转），右上角读取胶囊使用迷你骰子图标；masthead 刷新按钮保持 lucide `RefreshCw`，刷新中仅旋转该图标，不复用骰子；正文只显示同步提示，`prefers-reduced-motion` 下关闭骰子动画。
 - **当前边界**：AI 决策、幂等计划落库、收盘评论任务已上线；进程内成本台账持久化、公共点赞总数和历史赛季归档仍待建设。
 
 ## 功能箱导航（2026-09-11）
 
-- `src/components/ToolboxTabs.js`：功能箱标题与四个 Tab，使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义。
-- 收纳模块：`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）、`fundamental`（鱼大基础面研究）。
+- `src/components/ToolboxTabs.js`：只渲染四个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
+- 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）。
 - 主导航顺序：功能箱位于行业周期分析之后；移动端底栏与功能大厅保持一致。
 - Tab 采用紧凑胶囊：仅保留图标与模块名，桌面宽度随内容收缩，移动端横向滚动。
+- 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和四个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
 - URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental` 自动进入功能箱并选中对应模块。
 - 本地记忆：`thinktank_toolbox_tab` 保存用户最后一次选择的 Tab。
 - 挂载策略：四个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
@@ -205,3 +207,39 @@ wx.setStorageSync（最多 30 条，仅本机）
 - 安全：小程序不直连 Vercel；云函数请求必须通过时间戳、nonce、OpenID 和请求体 HMAC 校验；重复/篡改/过期请求被拒绝。
 - 隐私：OpenID 仅短期用于限流，服务端哈希后存在进程内 Map；问题正文不写入业务数据库；历史记录只在设备本地。
 - 类目边界：个人主体选择教育信息展示/信息查询，不申请金融业类目；企业版若接入行情、财报或模拟交易，应独立部署和提审。
+
+## 股票池、联赛持仓历史与基础面历史（2026-09-21）
+
+### 股票池宽表
+
+- `StockPools.js` 根据列定义生成固定 `colgroup` 宽度、冻结偏移和表格总宽；冻结列使用 `position: sticky`，仅保留表格底部横向滚动容器；表格 `border-collapse: separate`，避免 collapse 布局导致 Windows/Chrome 粘性列失效。
+- `estimateTextWidth` 按中日韩全角字符、数字、字母和标点分别估算宽度；`adaptiveColumnWidth` 对表头与真实数据取最大值，再叠加排序箭头、单元格内边距和冗余，表头总冗余额外增加 6px。股票名称、机构评级、价位等列会随当前池内容自动变化。
+- 冻结数量存于 `thinktank_pool_freeze_cols`，限制 0-5 列；单股移除由 `stockPoolUi.mjs#removeSymbolFromPool` 处理，组件随后调用 Supabase `upsertPoolServer` 覆盖 `symbols`，本地 `thinktank_user_pools` 由既有 effect 持久化。
+- 移除股票时同步删除 `thinktank_costs` 中该池、该代码的成本，避免后续重新加入时继承旧成本。
+
+### 大师联赛
+
+- `masterLeagueEngine.mjs#buildPositionHistory` 仅依赖成交记录和最新持仓，按股票重建买入均价、已实现收益、未实现收益和最后一次完整清仓信息。`settleMasterLeague` 将结果挂到每个账户的 `positionHistory`。
+- 现金不足导致实际成交 0 股时，`applyTrade` 返回 `blocked: true`；决策状态落为 `skipped`，避免“已执行 0 股”的前端展示。
+- `settleMasterLeague` 对同一执行日的计划按“卖出/减仓 → 买入/加仓 → 持有”排序，卖出回笼资金可以在同一开盘批次内供后续买入使用；生成阶段的资金约束仍作为第一道防线。
+- `MasterLeague.js` 详情页使用「持仓与变动 / 投资策略历史」两个 Tab；`masterGrid` 改为单列堆叠，收益曲线独占第一行，整个持仓面板（含页签）在曲线下方占满后续整行。持仓 Tab 以 `positionHistory` 为统一数据源合并当前与历史记录，表格标题为「持仓记录」，状态列只映射为「持仓中 / 已清仓」。待执行计划仍在决策数组中，但明确标注“尚未计入当前持仓”，与真实成交状态分离。
+- 详情页 Tab 复用功能箱胶囊视觉；`StrategyMasterTabs` 通过头像点击命中检测进入详情，`StrategyBoard` 与 `RandomCommentFeed` 的头像使用 `onOpenMaster` 按钮进入同一详情视图。
+- 联赛大师资料以 `LEAGUE_MASTERS` 为单一数据源；详情页姓名字段旁渲染 `era` 年代/国籍标签，不再重复显示“参赛者档案”行；详情正文读取 `biography`，智能体读取精简 `intro`。三位新头像统一上传到 `public/头像` 并由 `sync-avatars.mjs` 同步到 `public/avatars`。
+- 详情页 `performanceGrid` 将收益曲线和四项收益指标放在同一卡片中，桌面使用 `1.55fr / 0.75fr` 左右分栏，曲线 SVG 高度固定 190px；`max-width: 980px` 时改为单列，收益指标仍保持 2×2。
+- `pagination.mjs#paginateItems` 为通用分页纯函数：验证页码越界夹取、总数、总页数和当前区间。`MasterLeague.js` 使用每页 10 条渲染投资策略历史。
+- 投资策略历史按决策展示显式状态标签：`pending → 待执行`、`executed → 已执行`、`skipped → 未执行`；执行日期与未执行原因始终可见。只有产生真实成交的标的才会进入 `positionHistory` 和「持仓记录」。
+- 公共底表的账户 `master` JSON 会保留 `positionHistory`；数据库降级读取时即使没有逐笔 `trades`，也能继续展示已保存的清仓记录。
+
+### 鱼大基础面历史
+
+- `fundamentalHistory.mjs` 提供历史归一化、追加、时间排序和按股票分组供筛选项使用；数据只存浏览器 `thinktank_crocodile_fundamental_history_v1`，最多 30 条。每次查询生成一条独立记录，同一股票重复查询会保留多条。
+- `CrocodileFundamental.js` 完成研究后同时写入最近状态和股票历史；点击历史记录直接恢复 `result / symbol / note`，不重复调用 AI。历史 UI 为「股票筛选下拉框 + 单层查询记录列表」，不再渲染股票分组卡片，因此每次查询只对应一条可见记录。
+- `CrocodileFundamental.js` 加载态复用 `Dice3D`（6 面、`spinning`），CSS `.fnd-loading` 使用 `min-height: 420px`、`align-items: center`、`justify-content: center` 和居中文本。
+- 基础面 `findRecentFundamentalHistory` 在每次发起研究前检查本地历史：同一股票 7 天内已有查询结果时，直接恢复该条历史记录并高亮，不消耗免费次数、不调用 `/api/fundamental`。
+
+## 本地查询缓存规则（2026-09-21）
+
+- `browserCache.mjs` 统一提供 `stableHash`、`readJsonCache`、`writeJsonCache`、`marketAwareTtlMs` 和 `researchCacheTtlMs`。缓存键带统一前缀与内容哈希，避免不同模块互相覆盖。
+- 行情类：盘中缓存 5 分钟；盘前缓存到当日 09:15；收盘后与周末缓存到下一个工作日 09:15。已接入 `/api/context`、股票联想搜索、行业周期分析和大师联赛公开赛数据（联赛额外封顶 30 分钟，避免收盘任务生成后长时间看不到新计划）。
+- 研究/分析类：财报链接结果按“链接 + 补充说明”缓存 7 天；基础面研究同股票 7 天内直接复用历史结果；缠论分析按问题缓存到行情窗口结束；早餐新闻、纳瓦尔期数、选股池评级/区间数据保留既有专用缓存。
+- 不缓存：登录态、免费额度、分享状态、用户池写入、邀请/删除等账户与写操作；实时快讯和雷达源仍按各自时效请求，避免把新闻流错误地长期缓存。

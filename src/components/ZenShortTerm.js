@@ -6,6 +6,7 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import AskDrawer from './AskDrawer';
 import ModuleHero from './ModuleHero';
+import { marketAwareTtlMs } from '../lib/browserCache.mjs';
 
 const ZEN_MASTER = {
   id: 'zen',
@@ -42,8 +43,8 @@ const ZEN_TTL = 30 * 60 * 1000; // 30 分钟（行情会变，短缓存）
 function loadZenMemory() {
   try {
     const raw = JSON.parse(localStorage.getItem(ZEN_KEY) || '{}') || {};
-    const cutoff = Date.now() - ZEN_TTL; const out = {};
-    for (const k in raw) { const e = raw[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const now = Date.now(); const out = {};
+    for (const k in raw) { const e = raw[k]; const expiresAt = Number(e?.expiresAt) || ((Number(e?.at) || 0) + ZEN_TTL); if (e && expiresAt > now) out[k] = e; }
     const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
     keys.slice(ZEN_MAX).forEach((k) => delete out[k]);
     return out;
@@ -51,8 +52,8 @@ function loadZenMemory() {
 }
 function saveZenMemory(map) {
   try {
-    const cutoff = Date.now() - ZEN_TTL; const out = {};
-    for (const k in map) { const e = map[k]; if (e && e.at >= cutoff) out[k] = e; }
+    const now = Date.now(); const out = {};
+    for (const k in map) { const e = map[k]; const expiresAt = Number(e?.expiresAt) || ((Number(e?.at) || 0) + ZEN_TTL); if (e && expiresAt > now) out[k] = e; }
     const keys = Object.keys(out).sort((a, b) => (out[b].at || 0) - (out[a].at || 0));
     keys.slice(ZEN_MAX).forEach((k) => delete out[k]);
     localStorage.setItem(ZEN_KEY, JSON.stringify(out));
@@ -91,7 +92,7 @@ export default function ZenShortTerm() {
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');
       setResult(data.result);
       const mem = loadZenMemory();
-      mem[memKey] = { result: data.result, at: Date.now() };
+      mem[memKey] = { result: data.result, at: Date.now(), expiresAt: Date.now() + marketAwareTtlMs() };
       saveZenMemory(mem);
       markFeatureCompleted('缠论短线');
     } catch (e) {

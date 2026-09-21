@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { __test__, buildPendingLeague, settleMasterLeague } from '../src/lib/masterLeagueEngine.mjs';
+import { __test__, buildPendingLeague, buildPositionHistory, filterCompetitionDates, settleMasterLeague } from '../src/lib/masterLeagueEngine.mjs';
 import { buildInvitedAccounts, mergeInvitedLeague, rankLeagueByReturnRate } from '../src/lib/masterLeagueInvites.mjs';
 import { classifyInviteError, inviteDeleteMode } from '../src/lib/leagueInvitePolicy.mjs';
-import { LEAGUE_MASTERS, LEAGUE_PLANS } from '../src/data/masterLeague.js';
+import { LEAGUE_MASTERS, LEAGUE_PLANS, PUBLIC_LEAGUE } from '../src/data/masterLeague.js';
 
 const masters = [
   { id: 'a', name: '大师甲', shortName: '甲', style: '趋势' },
@@ -15,6 +15,36 @@ test('公开赛配置为 6 位已故历史大师并包含简介', () => {
   assert.deepEqual(LEAGUE_MASTERS.map((master) => master.id), ['livermore', 'wyckoff', 'darvas', 'loeb', 'kostolany', 'baruch']);
   assert.ok(LEAGUE_MASTERS.every((master) => master.status === 'deceased' && master.intro && master.aShareAngle));
   assert.ok(LEAGUE_MASTERS.every((master) => LEAGUE_PLANS[master.id]?.length >= 2));
+});
+
+test('威科夫、科斯托拉尼和巴鲁克使用全名并配置头像与详细简介', () => {
+  const byId = Object.fromEntries(LEAGUE_MASTERS.map((master) => [master.id, master]));
+  assert.equal(byId.wyckoff.name, '理查德·D·威科夫');
+  assert.equal(byId.wyckoff.shortName, '理查德·D·威科夫');
+  assert.equal(byId.kostolany.shortName, '安德烈·科斯托拉尼');
+  assert.equal(byId.baruch.shortName, '伯纳德·巴鲁克');
+  for (const id of ['wyckoff', 'kostolany', 'baruch']) assert.match(byId[id].avatar, /^\/avatars\/.+\.jpg$/);
+  assert.match(byId.baruch.biography, /巴鲁克计划/);
+  assert.match(byId.baruch.biography, /华尔街孤狼/);
+  assert.ok(LEAGUE_MASTERS.every((master) => master.biography && master.biography.length >= 250));
+});
+
+test('比赛交易日从 2026-09-14 开赛日截取，首日计入且 curve 从开赛日开始', () => {
+  const allDates = ['2026-09-11', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21'];
+  const dateList = filterCompetitionDates(allDates, PUBLIC_LEAGUE.startDate);
+  assert.deepEqual(dateList, ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21']);
+  const result = settleMasterLeague({
+    masters: [masters[0]],
+    plansByMaster: { a: [] },
+    barsBySymbol: {},
+    symbolMeta: {},
+    latestDate: '2026-09-21',
+    dateList,
+  });
+  assert.equal(result.dayCount, 6);
+  assert.equal(result.accounts[0].curve.length, 6);
+  assert.equal(result.accounts[0].curve[0].date, '2026-09-14');
+  assert.equal(result.accounts[0].curve[5].date, '2026-09-21');
 });
 
 test('lotFloor 遵守 A 股 100 股买入单位', () => {
@@ -53,6 +83,33 @@ test('settleMasterLeague 按下一交易日开盘价执行、收盘价结算', (
   assert.equal(result.ranking[0].id, 'a');
 });
 
+test('同日计划先执行卖出再执行买入，卖出资金可覆盖后续买入', () => {
+  const bars = [
+    { date: '2026-09-01', open: 10, close: 10 },
+    { date: '2026-09-02', open: 10, close: 10 },
+    { date: '2026-09-03', open: 10, close: 10 },
+  ];
+  const result = settleMasterLeague({
+    masters: [masters[0]],
+    plansByMaster: {
+      a: [
+        { id: 'first-buy', offset: 2, action: '买入', symbol: '600000', targetPct: 99, reason: '先建立高仓位', risk: '资金不足', comments: [] },
+        { id: 'next-buy', offset: 1, action: '买入', symbol: '600001', targetPct: 50, reason: '换仓买入', risk: '资金不足', comments: [] },
+        { id: 'free-cash', offset: 1, action: '卖出', symbol: '600000', targetPct: 0, reason: '卖出腾挪资金', risk: '卖飞', comments: [] },
+      ],
+    },
+    barsBySymbol: { 600000: bars, 600001: bars },
+    symbolMeta: { 600000: { name: '测试股份甲' }, 600001: { name: '测试股份乙' } },
+    latestDate: '2026-09-03',
+  });
+  const account = result.accounts[0];
+  const nextBuy = account.decisions.find((item) => item.id === 'next-buy');
+  assert.equal(nextBuy.status, 'executed');
+  assert.equal(nextBuy.shares, 5000);
+  assert.equal(account.positions.some((position) => position.symbol === '600001' && position.quantity === 5000), true);
+  assert.equal(account.positions.some((position) => position.symbol === '600000'), false);
+});
+
 test('settleMasterLeague 的持有计划不产生虚假交易', () => {
   const bars = [
     { date: '2026-09-01', open: 10, close: 10 },
@@ -73,6 +130,34 @@ test('settleMasterLeague 的持有计划不产生虚假交易', () => {
   });
   assert.equal(result.accounts[0].trades.length, 0);
   assert.equal(result.accounts[0].totalAsset, 100000);
+});
+
+test('已清仓股票保留清仓时间、数量、价格、金额和已实现收益', () => {
+  const [record] = buildPositionHistory([
+    { date: '2026-09-01', action: '买入', symbol: '600000', name: '测试股份', quantity: 1000, price: 10, amount: 10000 },
+    { date: '2026-09-10', action: '清仓', symbol: '600000', name: '测试股份', quantity: 1000, price: 12, amount: 12000 },
+  ]);
+  assert.equal(record.status, 'closed');
+  assert.equal(record.clearDate, '2026-09-10');
+  assert.equal(record.clearQuantity, 1000);
+  assert.equal(record.clearPrice, 12);
+  assert.equal(record.clearAmount, 12000);
+  assert.equal(record.realizedProfit, 2000);
+  assert.equal(record.totalProfit, 2000);
+  assert.equal(record.returnRate, 0.2);
+});
+
+test('部分卖出后再清仓仍保留最终清仓记录', () => {
+  const [record] = buildPositionHistory([
+    { date: '2026-09-01', action: '买入', symbol: '600000', name: '测试股份', quantity: 1000, price: 10, amount: 10000 },
+    { date: '2026-09-08', action: '减仓', symbol: '600000', name: '测试股份', quantity: 400, price: 11, amount: 4400 },
+    { date: '2026-09-12', action: '清仓', symbol: '600000', name: '测试股份', quantity: 600, price: 12, amount: 7200 },
+  ]);
+  assert.equal(record.status, 'closed');
+  assert.equal(record.clearQuantity, 600);
+  assert.equal(record.clearPrice, 12);
+  assert.equal(record.clearAmount, 7200);
+  assert.equal(record.realizedProfit, 1600);
 });
 
 test('settleMasterLeague 不会伪造不足一手的买入', () => {
@@ -96,6 +181,31 @@ test('settleMasterLeague 不会伪造不足一手的买入', () => {
   assert.equal(result.accounts[0].trades.length, 0);
   assert.equal(result.accounts[0].decisions[0].status, 'skipped');
   assert.equal(result.accounts[0].decisions[0].note, '资金不足一手，未执行');
+});
+
+test('资金不足导致目标股数为正但无法买入时标记未执行，不生成 0 股成交', () => {
+  const bars = [
+    { date: '2026-09-01', open: 100, close: 100 },
+    { date: '2026-09-02', open: 100, close: 100 },
+    { date: '2026-09-03', open: 100, close: 100 },
+  ];
+  const result = settleMasterLeague({
+    masters: [masters[0]],
+    plansByMaster: {
+      a: [
+        { id: 'first-buy', offset: 1, action: '买入', symbol: '600000', targetPct: 90, reason: '先用掉大部分现金', risk: '现金不足', comments: [] },
+        { id: 'blocked-buy', offset: 1, action: '买入', symbol: '600001', targetPct: 25, reason: '第二笔计划', risk: '现金不足', comments: [] },
+      ],
+    },
+    barsBySymbol: { '600000': bars, '600001': [{ ...bars[0], open: 150, close: 150 }, { ...bars[1], open: 150, close: 150 }, { ...bars[2], open: 150, close: 150 }] },
+    symbolMeta: { '600000': { name: '测试股份甲' }, '600001': { name: '测试股份乙' } },
+    latestDate: '2026-09-03',
+  });
+  const blocked = result.accounts[0].decisions.find((item) => item.id === 'blocked-buy');
+  assert.equal(blocked.status, 'skipped');
+  assert.equal(blocked.shares, 0);
+  assert.equal(blocked.note, '资金不足一手，未执行');
+  assert.equal(result.accounts[0].trades.some((trade) => trade.id === 'trade-blocked-buy'), false);
 });
 
 test('行情不可用时只生成待执行计划，不伪造收益', () => {

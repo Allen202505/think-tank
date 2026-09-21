@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { MasterAvatar } from './ui';
 import AskDrawer from './AskDrawer';
 import ModuleHero from './ModuleHero';
+import Dice3D from './Dice3D';
 import { findMasterById } from '../lib/breakfast';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import { FUNDAMENTAL_MASTERS } from '../lib/fundamental';
+import {
+  addFundamentalHistoryEntry,
+  findRecentFundamentalHistory,
+  fundamentalHistoryKey,
+  groupFundamentalHistoryByStock,
+  normalizeFundamentalHistory,
+} from '../lib/fundamentalHistory.mjs';
 
 const LS_KEY = 'thinktank_crocodile_fundamental_state';
+const HISTORY_KEY = 'thinktank_crocodile_fundamental_history_v1';
 
 // 加载阶段提示（五位大师分工 + 鱼大打分）
 const LOADING_STEPS = [
@@ -476,6 +485,17 @@ function fmtPrice(v) {
   return /^[\d.~\-–—+至约]+$/.test(s) ? `${s}元` : s;
 }
 
+function fmtHistoryTime(value) {
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (number) => String(number).padStart(2, '0');
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  } catch (e) {
+    return '';
+  }
+}
+
 export default function CrocodileFundamental() {
   const master = findMasterById('crocodile');
   const [symbol, setSymbol] = useState('');
@@ -484,6 +504,10 @@ export default function CrocodileFundamental() {
   const [loadStep, setLoadStep] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const [activeHistoryId, setActiveHistoryId] = useState('');
   const hydratedRef = useRef(false);
 
   // 举手提问
@@ -500,7 +524,13 @@ export default function CrocodileFundamental() {
         if (s && typeof s.symbol === 'string') setSymbol(s.symbol);
         if (s && typeof s.note === 'string') setNote(s.note);
       }
+      const savedHistory = normalizeFundamentalHistory(JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'));
+      setHistory(savedHistory);
+      if (savedHistory.length) {
+        setActiveHistoryId(savedHistory[0].id);
+      }
     } catch (e) { /* 恢复失败不影响 */ }
+    setHistoryReady(true);
     const t = setTimeout(() => { hydratedRef.current = true; }, 0);
     return () => clearTimeout(t);
   }, []);
@@ -508,6 +538,21 @@ export default function CrocodileFundamental() {
     if (!hydratedRef.current) return;
     try { localStorage.setItem(LS_KEY, JSON.stringify({ result, symbol, note })); } catch (e) { /* ignore */ }
   }, [result, symbol, note]);
+  useEffect(() => {
+    if (!historyReady) return;
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) { /* ignore */ }
+  }, [history, historyReady]);
+
+  const historyGroups = useMemo(() => groupFundamentalHistoryByStock(history), [history]);
+  const historyItems = useMemo(
+    () => historyFilter === 'all' ? history : history.filter((entry) => fundamentalHistoryKey(entry) === historyFilter),
+    [history, historyFilter],
+  );
+
+  useEffect(() => {
+    if (historyFilter === 'all') return;
+    if (!historyGroups.some((group) => group.key === historyFilter)) setHistoryFilter('all');
+  }, [historyGroups, historyFilter]);
 
   // 加载阶段轮播
   useEffect(() => {
@@ -519,6 +564,15 @@ export default function CrocodileFundamental() {
   const run = useCallback(async () => {
     if (loading) return;
     if (!symbol.trim()) return;
+    const recent = findRecentFundamentalHistory(history, symbol.trim());
+    if (recent) {
+      setResult(recent.result);
+      setSymbol(recent.symbol || recent.result?.stock?.symbol || recent.stockName || '');
+      setNote(recent.note || '');
+      setActiveHistoryId(recent.id);
+      setError('');
+      return;
+    }
     if (!ensureAiReady()) return;
     consumeFree();
     setLoading(true);
@@ -532,7 +586,18 @@ export default function CrocodileFundamental() {
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || '研究失败，请重试');
-      setResult(data.result);
+      const nextResult = data.result;
+      const entry = {
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        at: new Date().toISOString(),
+        symbol: symbol.trim(),
+        stockName: nextResult?.stockName || nextResult?.stock?.name || symbol.trim(),
+        note: note.trim(),
+        result: nextResult,
+      };
+      setResult(nextResult);
+      setHistory((previous) => addFundamentalHistoryEntry(previous, entry));
+      setActiveHistoryId(entry.id);
       markFeatureCompleted('基础面研究');
     } catch (e) {
       const m = String((e && e.message) || e || '');
@@ -540,7 +605,16 @@ export default function CrocodileFundamental() {
     } finally {
       setLoading(false);
     }
-  }, [loading, symbol, note]);
+  }, [history, loading, symbol, note]);
+
+  const openHistoryEntry = useCallback((entry) => {
+    if (!entry?.result) return;
+    setResult(entry.result);
+    setSymbol(entry.symbol || entry.result?.stock?.symbol || entry.stockName || '');
+    setNote(entry.note || '');
+    setActiveHistoryId(entry.id);
+    setError('');
+  }, []);
 
   const askContext = useCallback(() => {
     if (!result) return '';
@@ -577,6 +651,52 @@ export default function CrocodileFundamental() {
         description="五位大师从生意本质、护城河、逆向排雷到长期趋势分工深挖，再由鱼大按「选股10条」给出评分与买卖点。"
       />
 
+      <div className="fnd-layout">
+        <aside className="fnd-history">
+          <div className="fnd-history-head">
+            <span className="fnd-history-title">🕘 历史分析</span>
+            <span className="fnd-history-count">{history.length} 条</span>
+          </div>
+          {!historyGroups.length ? (
+            <div className="fnd-history-empty">完成一次股票研究后，每次查询生成一条记录，自动保存在本机。</div>
+          ) : (
+            <>
+              <label className="fnd-history-filter-wrap">
+                <span>按股票筛选</span>
+                <select
+                  className="fnd-history-filter"
+                  value={historyFilter}
+                  onChange={(event) => setHistoryFilter(event.target.value)}
+                  aria-label="按股票筛选历史分析"
+                >
+                  <option value="all">全部股票（{history.length}）</option>
+                  {historyGroups.map((group) => (
+                    <option key={group.key} value={group.key}>
+                      {group.label}（{group.records.length} 次）
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="fnd-history-list">
+                {historyItems.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`fnd-history-item${activeHistoryId === entry.id ? ' active' : ''}`}
+                    onClick={() => openHistoryEntry(entry)}
+                  >
+                    <span className="fnd-history-time">{fmtHistoryTime(entry.at)}</span>
+                    <span className="fnd-history-name">{entry.stockName || entry.symbol}</span>
+                    <span className="fnd-history-score">{entry.result?.total != null ? `${entry.result.total} 分` : '深度研究'}</span>
+                    {entry.note ? <span className="fnd-history-note">{entry.note}</span> : null}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </aside>
+
+        <div className="fnd-main">
       {/* 五位大师研究小组：诚实披露协作方式 */}
       <div className="fnd-team">
         <div className="fnd-team-label">本模块基本面研究由 <strong>5 位大师协作完成</strong>，最后由鱼大按「选股10条」打分</div>
@@ -621,7 +741,8 @@ export default function CrocodileFundamental() {
       {error && <div className="mg-error">⚠ {error}</div>}
 
       {loading && (
-        <div className="mg-loading fnd-loading">
+        <div className="mg-loading fnd-loading" role="status" aria-live="polite">
+          <Dice3D size={54} spinning className="fnd-loading-dice" />
           <div className="fnd-loading-avatars">
             {FUNDAMENTAL_MASTERS.map((m) => {
               const mm = findMasterById(m.id) || { name: m.name, color: '#8a8a8a' };
@@ -775,6 +896,8 @@ export default function CrocodileFundamental() {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {askOpen && result && !renderFallback && (
         <AskDrawer

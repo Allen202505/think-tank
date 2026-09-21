@@ -5,10 +5,12 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Award,
+  BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
   Crown,
   Equal,
+  History,
   Medal,
   MessageCircle,
   RefreshCw,
@@ -24,26 +26,16 @@ import { deleteLeagueInvite, fetchCurrentProfile, fetchLeagueInvites, publishLea
 import { inviteDeleteMode } from '../lib/leagueInvitePolicy.mjs';
 import { mergeInvitedLeague } from '../lib/masterLeagueInvites.mjs';
 import { readApiResponse } from '../lib/apiResponse.mjs';
+import { paginateItems } from '../lib/pagination.mjs';
+import { marketAwareTtlMs, readJsonCache, writeJsonCache } from '../lib/browserCache.mjs';
 import MasterLeagueInviteDrawer from './MasterLeagueInviteDrawer';
 import { MasterAvatar } from './ui';
+import Dice3D from './Dice3D';
 import styles from './MasterLeague.module.css';
 
 const LIKES_KEY = 'thinktank_master_league_likes_v1';
 const INVITED_KEY = 'thinktank_master_league_invited_v1';
-
-const DICE_FACES = [1, 2, 3, 4, 5, 6];
-
-function Die({ className = '' }) {
-  return (
-    <span className={`${styles.die3d} ${className}`} aria-hidden="true">
-      {DICE_FACES.map((face) => (
-        <span className={styles.dieFace} data-face={face} key={face}>
-          {Array.from({ length: 9 }).map((_, index) => <i key={index} />)}
-        </span>
-      ))}
-    </span>
-  );
-}
+const HISTORY_PAGE_SIZE = 10;
 
 const money = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -123,7 +115,7 @@ function RankBadge({ rank, compact = false }) {
   const Icon = meta.Icon;
   return (
     <span className={`${styles.rankBadge} ${meta.tone} ${compact ? styles.rankBadgeCompact : ''}`}>
-      {Icon ? <Icon size={compact ? 14 : 16} /> : <strong>{rank}</strong>}
+      {Icon ? <Icon size={compact ? 14 : 16} /> : null}
       <span>{meta.label}</span>
     </span>
   );
@@ -167,22 +159,97 @@ function rankingAccounts(ranking) {
   return (ranking || []).map((row) => row.account || row);
 }
 
-function PositionTable({ positions, compact = false }) {
-  if (!positions?.length) return <div className={styles.emptyLine}>当前空仓，等待下一交易日执行计划。</div>;
+function buildPositionRecords(account) {
+  const positions = Array.isArray(account?.positions) ? account.positions : [];
+  const currentBySymbol = new Map(positions.map((position) => [position.symbol, position]));
+  const history = Array.isArray(account?.positionHistory) ? account.positionHistory : [];
+  const source = history.length
+    ? history
+    : positions.map((position) => ({ ...position, status: 'holding' }));
+
+  return source.map((item) => {
+    const current = currentBySymbol.get(item.symbol);
+    const status = item.status === 'closed' ? 'closed' : 'holding';
+    return {
+      ...item,
+      status,
+      quantity: Number(item.quantity ?? current?.quantity ?? 0),
+      averagePrice: Number(item.averagePrice ?? current?.averagePrice ?? 0),
+      latestPrice: Number(item.latestPrice ?? current?.marketPrice ?? 0),
+      marketValue: Number(item.marketValue ?? current?.marketValue ?? 0),
+      weight: Number(current?.weight ?? item.weight ?? 0),
+      realizedProfit: Number(item.realizedProfit ?? 0),
+      totalProfit: Number(item.totalProfit ?? current?.profit ?? 0),
+      returnRate: Number(item.returnRate ?? current?.profitRate ?? 0),
+    };
+  });
+}
+
+function PendingPlanList({ decisions, account }) {
+  const pending = (decisions || []).filter((decision) => decision.status === 'pending');
+  if (!pending.length) return <div className={styles.emptyLine}>没有待执行计划，当前持仓与最新策略一致。</div>;
+  return (
+    <div className={styles.pendingPlans}>
+      {pending.map((decision) => (
+        <div className={styles.pendingPlan} key={decision.id}>
+          <span className={`${styles.actionBadge} ${toneForAction(decision.action)}`}>{decision.action}</span>
+          <span className={styles.pendingPlanStock}>
+            <strong>{decisionInstrument(decision, account)}</strong>
+            <small>{decisionPlanText(decision, account)} · {decision.executionDate || '下一交易日'}</small>
+          </span>
+          <span className={styles.pendingPlanReason}>{decision.reason}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PositionRecordsTable({ records }) {
+  if (!records?.length) return <div className={styles.emptyLine}>还没有持仓记录，等待策略执行后生成。</div>;
   return (
     <div className={styles.tableWrap}>
-      <table className={`${styles.dataTable} ${compact ? styles.compactTable : ''}`}>
+      <table className={`${styles.dataTable} ${styles.positionRecordsTable}`}>
         <thead>
-          <tr><th>持仓</th><th>数量</th><th>市值</th><th>仓位</th><th>浮动盈亏</th></tr>
+          <tr><th>标的</th><th>持仓状态</th><th>数量</th><th>成本 / 现价</th><th>市值 / 仓位</th><th>累计收益</th><th>清仓记录</th></tr>
         </thead>
         <tbody>
-          {positions.map((position) => (
-            <tr key={position.symbol}>
-              <td><strong>{position.name}</strong><small>{position.symbol}</small></td>
-              <td>{Number(position.quantity || 0).toLocaleString('zh-CN')}</td>
-              <td>{formatMoney(position.marketValue)}</td>
-              <td>{formatRate(position.weight, 1)}</td>
-              <td className={toneForNumber(position.profitRate)}>{formatRate(position.profitRate)}</td>
+          {records.map((item) => (
+            <tr key={item.symbol}>
+              <td><strong>{item.name || item.symbol}</strong><small>{item.symbol}</small></td>
+              <td>
+                <span className={`${styles.positionStatus} ${item.status === 'holding' ? styles.positionHolding : styles.positionClosed}`}>
+                  {item.status === 'holding' ? '持仓中' : '已清仓'}
+                </span>
+              </td>
+              <td>
+                <strong>{Number(item.status === 'holding' ? item.quantity : item.clearQuantity || 0).toLocaleString('zh-CN')} 股</strong>
+                <small>{item.status === 'holding' ? '当前持仓' : '清仓数量'}</small>
+              </td>
+              <td>
+                <strong>{formatMoney(item.status === 'holding' ? item.averagePrice : item.clearPrice)}</strong>
+                <small>{item.status === 'holding' ? `现价 ${formatMoney(item.latestPrice)}` : '清仓价格'}</small>
+              </td>
+              <td>
+                {item.status === 'holding' ? (
+                  <><strong>{formatMoney(item.marketValue)}</strong><small>{formatRate(item.weight, 1)} 仓位</small></>
+                ) : (
+                  <span className={styles.flat}>—</span>
+                )}
+              </td>
+              <td className={toneForNumber(item.totalProfit)}>
+                <strong>{formatSignedMoney(item.totalProfit)}</strong>
+                <small>{formatRate(item.returnRate)} · 已实现 {formatSignedMoney(item.realizedProfit)}</small>
+              </td>
+              <td>
+                {item.status === 'closed' ? (
+                  <div className={styles.clearRecord}>
+                    <strong>清仓时间 {item.clearDate || '—'}</strong>
+                    <small>清仓数量 {Number(item.clearQuantity || 0).toLocaleString('zh-CN')} 股 · 价格 {formatMoney(item.clearPrice)} · 金额 {formatMoney(item.clearAmount)}</small>
+                  </div>
+                ) : (
+                  <span className={styles.flat}>—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -249,7 +316,7 @@ function groupTodayStrategies(accounts) {
   }).filter((group) => group.decisions.length);
 }
 
-function StrategyMasterTabs({ groups, selectedMasterId, onSelectMaster }) {
+function StrategyMasterTabs({ groups, selectedMasterId, onSelectMaster, onOpenMaster }) {
   return (
     <div className={styles.strategyMasterTabs} role="tablist" aria-label="选择大师策略">
       {groups.map(({ account }) => (
@@ -259,9 +326,12 @@ function StrategyMasterTabs({ groups, selectedMasterId, onSelectMaster }) {
           aria-selected={selectedMasterId === account.id}
           className={`${styles.strategyMasterTab}${selectedMasterId === account.id ? ` ${styles.strategyMasterTabActive}` : ''}`}
           key={account.id}
-          onClick={() => onSelectMaster(account.id)}
+          onClick={(event) => {
+            onSelectMaster(account.id);
+            if (event.target.closest('[data-master-avatar]')) onOpenMaster(account.id);
+          }}
         >
-          <MasterAvatar master={account} size={54} keepColor />
+          <span data-master-avatar className={styles.strategyTabAvatar}><MasterAvatar master={account} size={54} keepColor /></span>
           <strong>{account.shortName || account.name}</strong>
           <small>{rankMeta(account.rank).label}</small>
         </button>
@@ -270,7 +340,7 @@ function StrategyMasterTabs({ groups, selectedMasterId, onSelectMaster }) {
   );
 }
 
-function StrategyBoard({ group }) {
+function StrategyBoard({ group, onOpenMaster }) {
   if (!group) return <div className={styles.emptyLine}>今天还没有可展示的大师策略。</div>;
   const { account, decisions } = group;
   return (
@@ -278,7 +348,9 @@ function StrategyBoard({ group }) {
         <article className={`${styles.strategyGroup} ${styles.strategyGroupActive}`}>
           <div className={styles.strategyGroupHead}>
             <div className={styles.strategyMaster}>
-              <MasterAvatar master={account} size={38} keepColor />
+              <button type="button" className={styles.avatarLink} aria-label={`查看${account.shortName || account.name}详情`} onClick={() => onOpenMaster(account.id)}>
+                <MasterAvatar master={account} size={38} keepColor />
+              </button>
               <span><strong>{account.shortName || account.name}</strong><small>{account.style || account.title}</small></span>
             </div>
             <div className={styles.strategyReturn}>
@@ -301,7 +373,7 @@ function StrategyBoard({ group }) {
   );
 }
 
-function RandomCommentFeed({ comments, likes, onToggleLike }) {
+function RandomCommentFeed({ comments, likes, onToggleLike, onOpenMaster }) {
   if (!comments.length) return <div className={styles.emptyLine}>这期策略还没有大师点评。</div>;
   return (
     <div className={styles.randomComments}>
@@ -310,7 +382,9 @@ function RandomCommentFeed({ comments, likes, onToggleLike }) {
         return (
           <article className={styles.randomComment} key={`${item.decision.id}:${item.comment.id}`}>
             <div className={styles.randomCommentHead}>
-              <MasterAvatar master={item.commenter} size={30} keepColor />
+              <button type="button" className={styles.avatarLink} aria-label={`查看${item.commenter.shortName || item.commenter.name}详情`} onClick={() => onOpenMaster(item.commenter.id)}>
+                <MasterAvatar master={item.commenter} size={30} keepColor />
+              </button>
               <span><strong>{item.commenter.shortName || item.commenter.name}</strong><small>点评 {item.owner.shortName || item.owner.name} 的 {item.decision.action} {item.decision.stockName}</small></span>
             </div>
             <p>{item.comment.text}</p>
@@ -388,6 +462,8 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   const [view, setView] = useState('league');
   const [selectedMasterId, setSelectedMasterId] = useState('');
   const [selectedStrategyMasterId, setSelectedStrategyMasterId] = useState('');
+  const [detailTab, setDetailTab] = useState('positions');
+  const [historyPage, setHistoryPage] = useState(1);
   const [likes, setLikes] = useState({ comments: {}, decisions: {} });
   const [likesReady, setLikesReady] = useState(false);
   const [invitedIds, setInvitedIds] = useState([]);
@@ -423,6 +499,15 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   }, [likes, likesReady]);
 
   const loadLeague = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) {
+      const cached = readJsonCache('master-league', PUBLIC_LEAGUE.id);
+      if (cached?.value) {
+        setLeague(cached.value);
+        setLoading(false);
+        setError('');
+        return;
+      }
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError('');
@@ -431,6 +516,7 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
       const payload = await readApiResponse(response);
       if (!response.ok || !payload?.ok || !payload?.data) throw new Error(payload?.error || '公开赛数据暂时不可用');
       setLeague(payload.data);
+      writeJsonCache('master-league', PUBLIC_LEAGUE.id, payload.data, Math.min(marketAwareTtlMs(), 30 * 60 * 1000));
     } catch (err) {
       setError(err?.message || '公开赛数据暂时不可用');
     } finally {
@@ -531,6 +617,11 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   const selectedMasterComments = useMemo(() => allComments.filter((item) => item.owner.id === selectedStrategyAccount?.id), [allComments, selectedStrategyAccount?.id]);
   const randomComments = useMemo(() => shuffle(selectedMasterComments, commentSeed).slice(0, 10), [selectedMasterComments, commentSeed]);
   const selectedMaster = accounts.find((account) => account.id === selectedMasterId) || accounts[0];
+  const positionRecords = buildPositionRecords(selectedMaster);
+  const historyPagination = useMemo(
+    () => paginateItems(selectedMaster?.decisions || [], historyPage, HISTORY_PAGE_SIZE),
+    [selectedMaster?.decisions, historyPage],
+  );
   const selectedStrategyGroup = strategyGroups.find((group) => group.account.id === selectedStrategyAccount?.id) || strategyGroups[0];
   const selectedStrategyDate = selectedStrategyGroup?.decisions?.[0]?.decisionDate || activeLeague?.latestDate || '';
   // AI 现场生成的互评优先展示；没有就回退到预置点评，页面永远有内容
@@ -543,6 +634,10 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
   useEffect(() => {
     setCommentSeed(Math.floor(Math.random() * 100000) + 1);
   }, [activeLeague?.latestDate, invitedIds.length, selectedStrategyMasterId]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedMaster?.id, detailTab]);
 
   // 只读当日已生成的 AI 互评（服务端缓存），没有就继续用预置点评
   useEffect(() => {
@@ -598,6 +693,8 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
 
   const openMaster = (masterId) => {
     setSelectedMasterId(masterId);
+    setDetailTab('positions');
+    setHistoryPage(1);
     setView('master');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -656,12 +753,11 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
       <main className={styles.league}>
         <header className={styles.masthead}>
           <div><h2>大师实盘公开赛</h2><p>官方组织 · 10 万元初始资金 · 仅限 A 股</p></div>
-          <span className={styles.qualityPill}><span className={styles.qualityDie} aria-hidden="true"><i /><i /><i /></span> 读取公开赛数据</span>
+          <span className={styles.qualityPill}><Dice3D size={14} /> 读取公开赛数据</span>
         </header>
         <section className={styles.loadingState} aria-live="polite" role="status">
           <span className={styles.loadingDice} aria-hidden="true">
-            <Die className={styles.dieA} />
-            <Die className={styles.dieB} />
+            <Dice3D size={54} spinning />
           </span>
           <p>正在同步真实行情与大师账户，请稍候…</p>
         </section>
@@ -713,16 +809,16 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
               <div className={styles.strategyShell}>
                 <div className={styles.strategyLayout}>
                   <div className={styles.strategyTabsRow}>
-                    <StrategyMasterTabs groups={strategyGroups} selectedMasterId={selectedStrategyAccount?.id} onSelectMaster={setSelectedStrategyMasterId} />
+                    <StrategyMasterTabs groups={strategyGroups} selectedMasterId={selectedStrategyAccount?.id} onSelectMaster={setSelectedStrategyMasterId} onOpenMaster={openMaster} />
                   </div>
                   <section className={styles.strategyMain}>
                     <SectionTitle>今日大师策略</SectionTitle>
-                    <StrategyBoard group={selectedStrategyGroup} />
+                    <StrategyBoard group={selectedStrategyGroup} onOpenMaster={openMaster} />
                   </section>
                   <span className={styles.strategyDivider} aria-hidden="true" />
                   <aside className={styles.commentPanel}>
                     <SectionTitle>大师互评策略</SectionTitle>
-                    <RandomCommentFeed comments={displayComments} likes={likes} onToggleLike={toggleLike} />
+                    <RandomCommentFeed comments={displayComments} likes={likes} onToggleLike={toggleLike} onOpenMaster={openMaster} />
                   </aside>
                 </div>
               </div>
@@ -735,14 +831,23 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
         <section className={styles.detailPage}>
           <button type="button" className={styles.backBtn} onClick={() => setView('league')}><ChevronLeft size={20} /> 返回排名</button>
           <header className={styles.masterHero}>
-            <div className={styles.masterHeroIdentity}><MasterAvatar master={selectedMaster} size={78} keepColor /><div><h2>{selectedMaster.shortName || selectedMaster.name}</h2><p>{selectedMaster.title} · {selectedMaster.styleDetail || selectedMaster.style}</p><span>{selectedMaster.personality}</span></div></div>
+            <div className={styles.masterHeroIdentity}>
+              <MasterAvatar master={selectedMaster} size={78} keepColor />
+              <div>
+                <div className={styles.masterHeroNameRow}>
+                  <h2>{selectedMaster.shortName || selectedMaster.name}</h2>
+                  {selectedMaster.era ? <span className={styles.masterHeroEra}>{selectedMaster.era}</span> : null}
+                </div>
+                <p>{selectedMaster.title} · {selectedMaster.styleDetail || selectedMaster.style}</p>
+                <span>{selectedMaster.personality}</span>
+              </div>
+            </div>
             <div className={styles.masterRankBlock}><RankBadge rank={selectedMaster.rank} /><strong>{formatRate(selectedMaster.profitRate)}</strong><small>{selectedMaster.rankChange > 0 ? `上升 ${selectedMaster.rankChange} 位` : selectedMaster.rankChange < 0 ? `下降 ${Math.abs(selectedMaster.rankChange)} 位` : '排名未变'}</small></div>
           </header>
           <section className={styles.masterProfile}>
             <div className={styles.masterProfileLead}>
-              <span>参赛者档案 · {selectedMaster.era || '公开赛选手'}</span>
               <h3>谁是{selectedMaster.shortName || selectedMaster.name}？</h3>
-              <p>{selectedMaster.intro || selectedMaster.personality || selectedMaster.biography}</p>
+              <p>{selectedMaster.biography || selectedMaster.intro || selectedMaster.personality}</p>
             </div>
             <div className={styles.masterProfileFacts}>
               <div><span>原始方法</span><strong>{selectedMaster.styleDetail || selectedMaster.style || '独立策略'}</strong></div>
@@ -771,29 +876,92 @@ export default function MasterLeague({ customMasters = [], onAddCustomMaster }) 
               </div>
             ) : null}
           </section>
-          <div className={styles.statStrip}>
-            <div><span>总资产</span><strong>{formatMoney(selectedMaster.totalAsset)}</strong></div>
-            <div><span>累计收益</span><strong className={toneForNumber(selectedMaster.profit)}>{formatSignedMoney(selectedMaster.profit)}</strong></div>
-            <div><span>累计收益率</span><strong className={toneForNumber(selectedMaster.profitRate)}>{formatRate(selectedMaster.profitRate)}</strong></div>
-            <div><span>可用现金</span><strong>{formatMoney(selectedMaster.cash)}</strong></div>
+          <div className={styles.performanceGrid}>
+            <section className={styles.performanceCurve}>
+              <SectionTitle aside={selectedMaster.curve?.length ? `${selectedMaster.curve.length} 个交易日` : '等待数据'}>收益曲线</SectionTitle>
+              <EquityCurve curve={selectedMaster.curve} />
+            </section>
+            <div className={styles.performanceStats}>
+              <div><span>总资产</span><strong>{formatMoney(selectedMaster.totalAsset)}</strong></div>
+              <div><span>累计收益</span><strong className={toneForNumber(selectedMaster.profit)}>{formatSignedMoney(selectedMaster.profit)}</strong></div>
+              <div><span>累计收益率</span><strong className={toneForNumber(selectedMaster.profitRate)}>{formatRate(selectedMaster.profitRate)}</strong></div>
+              <div><span>可用现金</span><strong>{formatMoney(selectedMaster.cash)}</strong></div>
+            </div>
           </div>
           <div className={styles.masterGrid}>
-            <section className={styles.accountPanel}><SectionTitle aside={selectedMaster.curve?.length ? `${selectedMaster.curve.length} 个交易日` : '等待数据'}>收益曲线</SectionTitle><EquityCurve curve={selectedMaster.curve} /></section>
-            <section className={styles.accountPanel}><SectionTitle aside={`现金 ${formatMoney(selectedMaster.cash)}`}>当前持仓</SectionTitle><PositionTable positions={selectedMaster.positions} compact /></section>
+            <section className={`${styles.accountPanel} ${styles.portfolioPanel}`}>
+              <div className={styles.portfolioTabs} role="tablist" aria-label="持仓与策略">
+                <button type="button" role="tab" aria-selected={detailTab === 'positions'} className={detailTab === 'positions' ? styles.portfolioTabActive : ''} onClick={() => setDetailTab('positions')}>
+                  <span className={styles.portfolioTabIcon}><BriefcaseBusiness size={14} /></span>
+                  <strong>持仓与变动</strong>
+                </button>
+                <button type="button" role="tab" aria-selected={detailTab === 'history'} className={detailTab === 'history' ? styles.portfolioTabActive : ''} onClick={() => setDetailTab('history')}>
+                  <span className={styles.portfolioTabIcon}><History size={14} /></span>
+                  <strong>投资策略历史</strong>
+                </button>
+              </div>
+              {detailTab === 'positions' ? (
+                <>
+                  <SectionTitle aside={`${positionRecords.length} 条 · 仅含实际成交 · 现金 ${formatMoney(selectedMaster.cash)}`}>持仓记录</SectionTitle>
+                  <PositionRecordsTable records={positionRecords} />
+                  <div className={styles.portfolioSubsection}>
+                    <SectionTitle aside="尚未计入当前持仓">下一交易日计划变动</SectionTitle>
+                    <PendingPlanList decisions={selectedMaster.decisions} account={selectedMaster} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SectionTitle aside={`按时间倒序 · 每页 ${HISTORY_PAGE_SIZE} 条`}>投资策略历史</SectionTitle>
+                  <div className={styles.historyList}>
+                    {historyPagination.items.map((decision) => (
+                      <div className={styles.historyItem} key={decision.id}>
+                        <span className={styles.historyDate}>{decision.status === 'pending' ? '下一交易日' : `计划 ${decision.decisionDate}`}</span>
+                        <span className={`${styles.historyStatus} ${
+                          decision.status === 'skipped'
+                            ? styles.historyStatusSkipped
+                            : decision.status === 'pending'
+                              ? styles.historyStatusPending
+                              : styles.historyStatusExecuted
+                        }`}>
+                          {decision.status === 'skipped' ? '未执行' : decision.status === 'pending' ? '待执行' : '已执行'}
+                        </span>
+                        <span className={styles.historyTrade}>
+                          <strong>{decisionInstrument(decision, selectedMaster)}</strong>
+                          <small>{decision.action} · {decisionPlanText(decision, selectedMaster)}</small>
+                        </span>
+                        <span className={styles.historyReason}>
+                          <span className={styles.historyReasonText}>{decision.reason}</span>
+                          <small className={styles.historyExecution}>
+                            {decision.status === 'pending'
+                              ? `执行日 ${decision.executionDate || '下一交易日'} · 等待开盘执行`
+                              : decision.status === 'skipped'
+                                ? `执行日 ${decision.executionDate || '—'} · 未执行：${decision.note || '行情或资金不足'}`
+                                : decision.executionPrice != null
+                                  ? `执行日 ${decision.executionDate || '—'} · 已执行 ¥${Number(decision.executionPrice).toFixed(2)} · ${Number(decision.shares || 0).toLocaleString('zh-CN')} 股`
+                                  : `执行日 ${decision.executionDate || '—'} · 已执行：${decision.note || '无交易'}`}
+                          </small>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <nav className={styles.historyPagination} aria-label="投资策略历史分页">
+                    <span className={styles.historyPaginationInfo}>
+                      共 {historyPagination.total} 条 · 第 {historyPagination.page} / {historyPagination.totalPages} 页
+                    </span>
+                    {historyPagination.totalPages > 1 ? (
+                      <div className={styles.historyPaginationControls}>
+                        <button type="button" className={styles.historyPageBtn} disabled={historyPagination.page <= 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}>上一页</button>
+                        {Array.from({ length: historyPagination.totalPages }, (_, index) => index + 1).map((page) => (
+                          <button type="button" key={page} className={`${styles.historyPageBtn}${page === historyPagination.page ? ` ${styles.historyPageActive}` : ''}`} aria-current={page === historyPagination.page ? 'page' : undefined} onClick={() => setHistoryPage(page)}>{page}</button>
+                        ))}
+                        <button type="button" className={styles.historyPageBtn} disabled={historyPagination.page >= historyPagination.totalPages} onClick={() => setHistoryPage((page) => Math.min(historyPagination.totalPages, page + 1))}>下一页</button>
+                      </div>
+                    ) : null}
+                  </nav>
+                </>
+              )}
+            </section>
           </div>
-          <section className={styles.historySection}>
-            <SectionTitle aside="按时间倒序">投资策略历史</SectionTitle>
-            <div className={styles.historyList}>
-              {(selectedMaster.decisions || []).map((decision) => (
-                <div className={styles.historyItem} key={decision.id}>
-                  <span className={styles.historyDate}>{decision.status === 'pending' ? '下一交易日' : decision.decisionDate}</span>
-                  <span className={`${styles.actionBadge} ${toneForAction(decision.action)}`}>{decision.action}</span>
-                  <span className={styles.historyTrade}><strong>{decisionInstrument(decision, selectedMaster)}</strong><small>{decisionPlanText(decision, selectedMaster)}</small></span>
-                  <span className={styles.historyReason}>{decision.reason}</span>
-                </div>
-              ))}
-            </div>
-          </section>
         </section>
       ) : null}
 

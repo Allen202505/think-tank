@@ -1,43 +1,9 @@
 .toolbox {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--toolbox-content-width, 1180px);
   margin: 0 auto 22px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
-}
-
-.heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 15px;
-}
-
-.heading h2 {
-  margin: 0;
-  /* 模块主标题统一黑色，与「行业周期分析」一致 */
-  color: var(--text);
-  font-family: var(--font-serif);
-  font-size: clamp(26px, 4vw, 38px);
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.heading p {
-  max-width: 780px;
-  margin: 7px 0 0;
-  color: var(--text-muted);
-  font-size: 12.5px;
-  line-height: 1.75;
-}
-
-.heading > span {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
 }
 
 .tabs {
@@ -118,9 +84,4 @@
   .tab {
     min-width: 0;
   }
-}
-
-@media (max-width: 560px) {
-  .heading { align-items: flex-start; flex-direction: column; gap: 6px; }
-  .heading > span { display: none; }
 }

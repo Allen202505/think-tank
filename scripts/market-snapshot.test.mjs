@@ -20,7 +20,11 @@ import { buildProviderBody } from '../src/lib/llm.js';
 import {
   AGENT_LIMITS,
   MAX_TOOL_RESULT_CHARS,
+  applyFundingConstraints,
+  buildSystemPrompt,
+  buildUserPrompt,
   estimateCost,
+  extractPriceHints,
   parseDecisionPayload,
   runMasterAgent,
   stringifyToolResult,
@@ -181,6 +185,65 @@ test('决策校验：拦住非法动作、缺代码、超仓位与过短理由',
   assert.equal(hold.decision.targetPct, 0);
 });
 
+test('生成决策按账户现金与整手成本约束买入', () => {
+  const expensive = applyFundingConstraints([
+    { action: '买入', symbol: '300308', targetPct: 20, reason: '突破确认，计划买入', risk: '跌破平台' },
+  ], {
+    account: { cash: 7040, totalAsset: 108250, positions: [] },
+    priceHints: { 300308: 939.5 },
+  });
+  assert.equal(expensive.decisions[0].action, '持有');
+  assert.match(expensive.notes.join('；'), /不足一手|已取消买入/);
+
+  const resized = applyFundingConstraints([
+    { action: '买入', symbol: '600000', targetPct: 50, reason: '突破确认，计划买入', risk: '跌破平台' },
+  ], {
+    account: { cash: 20000, totalAsset: 100000, positions: [] },
+    priceHints: { 600000: 10 },
+  });
+  assert.equal(resized.decisions[0].action, '买入');
+  assert.equal(resized.decisions[0].targetPct, 20);
+});
+
+test('同日先卖后买，卖出回笼资金可用于后续买入', () => {
+  const result = applyFundingConstraints([
+    { action: '买入', symbol: '600000', targetPct: 50, reason: '突破确认，计划买入', risk: '跌破平台' },
+    { action: '卖出', symbol: '600487', targetPct: 0, reason: '趋势转弱，腾出资金', risk: '重新走强' },
+  ], {
+    account: {
+      cash: 0,
+      totalAsset: 100000,
+      positions: [{ symbol: '600487', name: '亨通光电', quantity: 1000, marketPrice: 60, marketValue: 60000 }],
+    },
+    priceHints: { 600000: 10, 600487: 60 },
+  });
+  assert.deepEqual(result.decisions.map((item) => item.action), ['卖出', '买入']);
+});
+
+test('资金约束提示词包含现金、一手成本与先卖后买规则', () => {
+  const master = { name: '杰西·利弗莫尔', title: '趋势投机之王', styleDetail: '关键点', intro: '', personality: '' };
+  const system = buildSystemPrompt(master);
+  assert.match(system, /现金不足一手时不得买入/);
+  assert.match(system, /卖出\/减仓放在买入\/加仓之前/);
+  const user = buildUserPrompt({
+    date: '2026-09-18',
+    account: { cash: 7040, totalAsset: 108250, profitRate: 0.0825, positions: [] },
+  });
+  assert.match(user, /可用现金 7040 元/);
+  assert.match(user, /资金检查/);
+});
+
+test('从工具轨迹提取目标价格用于资金校验', () => {
+  const hints = extractPriceHints([
+    { result: { stock: { code: '300308', price: 939.5 } } },
+    { result: { stocks: [{ code: '600276', price: 42.67 }] } },
+    { result: { code: '600000', bars: [['2026-09-18', 10, 11, 12, 9, 1000]] } },
+  ], {
+    positions: [{ symbol: '600487', marketPrice: 71.75 }],
+  });
+  assert.deepEqual(hints, { 600487: 71.75, 300308: 939.5, 600276: 42.67, 600000: 11 });
+});
+
 test('决策 JSON 解析能处理代码块与前后解释文字', () => {
   assert.equal(parseDecisionPayload('```json\n{"action":"持有"}\n```').value.action, '持有');
   assert.equal(parseDecisionPayload('我的判断是：{"action":"卖出","symbol":"300059"}，以上就是结论。').value.symbol, '300059');
@@ -235,6 +298,35 @@ test('智能体循环：调工具 → 校验 → 产出决策，且不越过 tok
   assert.ok(result.usage.cost > 0);
   assert.equal(calls.length, 2, '两次模型调用：一次调工具，一次给结论');
   assert.ok(calls[0] > 0, '第一轮应带上工具');
+});
+
+test('智能体运行会拦截现金不足一手的买入并降级持有', async () => {
+  const master = { id: 'livermore', name: '杰西·利弗莫尔', title: '趋势投机之王', styleDetail: '关键点', intro: '', personality: '' };
+  let calls = 0;
+  const result = await runMasterAgent({
+    master,
+    account: { cash: 7040, totalAsset: 108250, profitRate: 0.0825, positions: [] },
+    date: '2026-09-18',
+    aiConfig: { apiKey: 'test', baseUrl: 'https://example.com/v1', model: 'deepseek-flash' },
+    deps: {
+      callLlm: async () => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            message: { content: '', tool_calls: [{ id: 'quote', function: { name: 'get_stock_quote', arguments: '{"code":"300308"}' } }] },
+            usage: { prompt_tokens: 100, completion_tokens: 10 },
+          };
+        }
+        return {
+          message: { content: '[{"action":"买入","symbol":"300308","targetPct":20,"reason":"放量突破关键点，量价配合","risk":"跌破平台"}]', tool_calls: [] },
+          usage: { prompt_tokens: 120, completion_tokens: 20 },
+        };
+      },
+      runTool: async () => ({ stock: { code: '300308', name: '中际旭创', price: 939.5 } }),
+    },
+  });
+  assert.equal(result.decision.action, '持有');
+  assert.match(result.validation.fundingNotes.join('；'), /不足一手|已取消买入/);
 });
 
 test('智能体循环：轮次用尽时强制收口，不会烧着钱没有决策', async () => {

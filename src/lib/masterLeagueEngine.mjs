@@ -68,6 +68,122 @@ function holdingNames(positions) {
     .filter(Boolean);
 }
 
+export function filterCompetitionDates(dateList = [], startDate = '') {
+  if (!startDate) return [...dateList];
+  return (dateList || []).filter((date) => String(date || '') >= String(startDate));
+}
+
+function executionPriority(action) {
+  if (action === '清仓' || action === '卖出' || action === '减仓') return 0;
+  if (action === '持有') return 2;
+  return 1;
+}
+
+// 从成交记录重建每只股票的生命周期。即使已经清仓，也保留最后一次清仓的
+// 数量、价格、金额和已实现收益，供前端持仓历史持续展示。
+export function buildPositionHistory(trades, positions = []) {
+  const latestPositions = new Map((positions || []).map((position) => [position.symbol, position]));
+  const histories = new Map();
+  const ordered = (trades || []).map((trade, index) => ({ trade, index })).sort((a, b) => {
+    const byDate = String(a.trade?.date || '').localeCompare(String(b.trade?.date || ''));
+    return byDate || a.index - b.index;
+  });
+
+  for (const { trade } of ordered) {
+    const symbol = String(trade?.symbol || '').trim();
+    if (!symbol) continue;
+    const action = String(trade?.action || '');
+    const isBuy = action === '买入' || action === '加仓';
+    const quantity = Math.abs(Number(trade.quantity) || 0);
+    const price = Math.max(0, Number(trade.price) || 0);
+    const amount = Math.max(0, Number(trade.amount) || quantity * price);
+    if (!quantity || !price) continue;
+
+    if (!histories.has(symbol)) {
+      histories.set(symbol, {
+        symbol,
+        name: trade.name || symbol,
+        quantity: 0,
+        averagePrice: 0,
+        latestPrice: price,
+        firstBuyDate: '',
+        lastTradeDate: '',
+        buyCount: 0,
+        sellCount: 0,
+        totalBuyAmount: 0,
+        totalSellAmount: 0,
+        realizedProfit: 0,
+        clearDate: '',
+        clearQuantity: 0,
+        clearPrice: 0,
+        clearAmount: 0,
+      });
+    }
+
+    const item = histories.get(symbol);
+    item.name = trade.name || item.name;
+    item.lastTradeDate = trade.date || item.lastTradeDate;
+    item.latestPrice = price;
+
+    if (isBuy) {
+      const nextQuantity = item.quantity + quantity;
+      item.averagePrice = nextQuantity > 0
+        ? ((item.quantity * item.averagePrice) + (quantity * price)) / nextQuantity
+        : price;
+      item.quantity = nextQuantity;
+      item.totalBuyAmount += amount;
+      item.buyCount += 1;
+      if (!item.firstBuyDate) item.firstBuyDate = trade.date || '';
+      continue;
+    }
+
+    const soldQuantity = Math.min(quantity, item.quantity);
+    if (soldQuantity <= 0) continue;
+    const soldAmount = amount || soldQuantity * price;
+    item.realizedProfit += (price - item.averagePrice) * soldQuantity;
+    item.totalSellAmount += soldAmount;
+    item.sellCount += 1;
+    item.quantity -= soldQuantity;
+    if (item.quantity <= 0) {
+      item.quantity = 0;
+      item.averagePrice = 0;
+      item.clearDate = trade.date || item.clearDate;
+      item.clearQuantity = soldQuantity;
+      item.clearPrice = price;
+      item.clearAmount = soldAmount;
+    }
+  }
+
+  return [...histories.values()].map((item) => {
+    const current = latestPositions.get(item.symbol);
+    const isHolding = item.quantity > 0;
+    const latestPrice = isHolding && current?.marketPrice != null ? Number(current.marketPrice) : Number(item.latestPrice) || 0;
+    const averagePrice = isHolding && current?.averagePrice != null ? Number(current.averagePrice) : Number(item.averagePrice) || 0;
+    const marketValue = isHolding ? item.quantity * latestPrice : 0;
+    const unrealizedProfit = isHolding ? (latestPrice - averagePrice) * item.quantity : 0;
+    const realizedProfit = Number(item.realizedProfit) || 0;
+    const totalProfit = realizedProfit + unrealizedProfit;
+    return {
+      ...item,
+      name: current?.name || item.name,
+      status: isHolding ? 'holding' : 'closed',
+      quantity: item.quantity,
+      averagePrice: roundMoney(averagePrice),
+      latestPrice: roundMoney(latestPrice),
+      marketValue: roundMoney(marketValue),
+      realizedProfit: roundMoney(realizedProfit),
+      unrealizedProfit: roundMoney(unrealizedProfit),
+      totalProfit: roundMoney(totalProfit),
+      returnRate: item.totalBuyAmount > 0 ? roundRate(totalProfit / item.totalBuyAmount) : 0,
+      clearPrice: roundMoney(item.clearPrice),
+      clearAmount: roundMoney(item.clearAmount),
+    };
+  }).sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'holding' ? -1 : 1;
+    return String(b.lastTradeDate).localeCompare(String(a.lastTradeDate));
+  });
+}
+
 function applyTrade({ cash, positions, plan, price, symbolName, date, masterId, equityBeforeOpen }) {
   const current = positions.get(plan.symbol) || {
     symbol: plan.symbol,
@@ -92,15 +208,19 @@ function applyTrade({ cash, positions, plan, price, symbolName, date, masterId, 
   }
 
   if (!delta) {
+    const wantsIncrease = plan.action !== '持有' && desiredValue > 0 && (
+      targetQuantity > current.quantity || (!current.quantity && targetQuantity === 0)
+    );
+    const blocked = wantsIncrease;
     return {
       cash,
       positions,
       trade: null,
       actualQuantity: current.quantity,
-      blocked: !current.quantity && targetQuantity === 0 && desiredValue > 0,
+      blocked,
       note: plan.action === '持有'
         ? '按计划持有'
-        : !current.quantity && targetQuantity === 0 && desiredValue > 0
+        : blocked
           ? '资金不足一手，未执行'
           : '目标仓位已在开盘前满足',
     };
@@ -216,7 +336,9 @@ export function settleMasterLeague({
       const date = dateList[index];
       const previousDate = dateList[index - 1] || date;
       const openingHoldingNames = holdingNames(positions);
-      const openingPlans = plans.filter((plan) => dateList.length - plan.offset === index);
+      const openingPlans = plans
+        .filter((plan) => dateList.length - plan.offset === index)
+        .sort((a, b) => executionPriority(a.action) - executionPriority(b.action));
       for (const plan of openingPlans) {
         // 「持有」且不指定个股 = 明确的「今天不动」，不需要行情也不产生交易
         if (plan.action === '持有' && !plan.symbol) {
@@ -296,6 +418,7 @@ export function settleMasterLeague({
     const totalProfit = totalAsset - initialCapital;
     const positionRows = serializePositions(positions, lookup, finalDate);
     for (const row of positionRows) row.weight = totalAsset > 0 ? roundRate(row.marketValue / totalAsset) : 0;
+    const positionHistory = buildPositionHistory(trades, positionRows);
 
     return {
       ...master,
@@ -307,6 +430,7 @@ export function settleMasterLeague({
       todayProfit: roundMoney(totalAsset - previousAsset),
       todayProfitRate: previousAsset > 0 ? roundRate((totalAsset - previousAsset) / previousAsset) : 0,
       positions: positionRows,
+      positionHistory,
       trades: trades.reverse(),
       decisions: decisions.reverse(),
       curve,
@@ -340,7 +464,7 @@ export function settleMasterLeague({
       ...row,
       account: accounts.find((account) => account.id === row.id),
     })),
-    dayCount: Math.max(0, dateList.length - 1),
+    dayCount: Math.max(0, dateList.length),
     latestDate: finalDate,
     headline: buildHeadline(ranking, previousRanking, masterMap),
   };
@@ -357,6 +481,7 @@ export function buildPendingLeague({ masters, plansByMaster, symbolMeta, initial
     todayProfit: 0,
     todayProfitRate: 0,
     positions: [],
+    positionHistory: [],
     trades: [],
     decisions: (plansByMaster?.[master.id] || [])
       .filter((plan) => plan.offset === 0)

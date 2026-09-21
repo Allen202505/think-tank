@@ -7,6 +7,7 @@ import { MasterAvatar } from './ui';
 import ModuleHero from './ModuleHero';
 import { ensureAiReady, getAiConfig } from '../lib/aiGate';
 import { compareSortValues } from '../lib/tableSort.mjs';
+import { normalizePoolFreezeCount, removeSymbolFromPool, STOCK_POOL_FREEZE_OPTIONS } from '../lib/stockPoolUi.mjs';
 
 import { loadUserPoolsLocal as loadUserPools, saveUserPoolsLocal as saveUserPools, fetchPoolsServer, syncPoolsOnLogin, upsertPoolServer, deletePoolServer } from '../lib/userPools';
 import { useAuth } from '../lib/authProvider';
@@ -26,6 +27,14 @@ function loadPoolTab() {
 }
 function savePoolTab(t) {
   try { localStorage.setItem(POOL_TAB_KEY, t); } catch (e) { /* ignore */ }
+}
+
+const FREEZE_COUNT_KEY = 'thinktank_pool_freeze_cols';
+function loadFreezeCount() {
+  try { return normalizePoolFreezeCount(localStorage.getItem(FREEZE_COUNT_KEY)); } catch (e) { return 2; }
+}
+function saveFreezeCount(value) {
+  try { localStorage.setItem(FREEZE_COUNT_KEY, String(normalizePoolFreezeCount(value))); } catch (e) { /* ignore */ }
 }
 
 const DICE_FACES = [1, 2, 3, 4, 5, 6];
@@ -248,6 +257,37 @@ const LEVEL_COLS = [
   { key: 'lvTp1', label: '第一次止盈价格' },
   { key: 'lvTp2', label: '第二次止盈价格' },
 ];
+const COLUMN_MIN_WIDTHS = {
+  code: 80,
+  name: 100,
+  price: 76,
+  ret: 92,
+  lvEntry: 112,
+  lvHeavy: 112,
+  lvTp1: 112,
+  lvTp2: 112,
+  histPct: 96,
+  yPct: 96,
+  rating: 100,
+  upDays: 100,
+  cost: 84,
+  pnl: 88,
+  actions: 68,
+};
+
+function estimateTextWidth(value, fontSize = 13) {
+  const text = String(value ?? '');
+  let units = 0;
+  for (const char of text) {
+    if (/[\u2e80-\u9fff\u3000-\u303f\uff00-\uffef]/.test(char)) units += 1;
+    else if (/\s/.test(char)) units += 0.35;
+    else if (/[A-Z]/.test(char)) units += 0.72;
+    else if (/[0-9]/.test(char)) units += 0.64;
+    else if (/[a-z]/.test(char)) units += 0.58;
+    else units += 0.55;
+  }
+  return Math.ceil(units * fontSize);
+}
 function fmtLevel(v) {
   if (v == null || !Number.isFinite(Number(v))) return '—';
   return String(Math.round(Number(v) * 100) / 100);
@@ -283,6 +323,8 @@ export default function StockPools() {
   const [error, setError] = useState('');
   const [hiddenPresetIds, setHiddenPresetIds] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, isPreset }
+  const [confirmRemoveStock, setConfirmRemoveStock] = useState(null); // { poolId, code, name }
+  const [freezeCount, setFreezeCount] = useState(2);
   const [flowerOpen, setFlowerOpen] = useState(false);      // 小红花公益弹窗
   const flowerAutoRef = useRef(false);                      // 每天最多自动弹一次
   const [ratings, setRatings] = useState({});   // code -> { ok, summary, items }
@@ -325,6 +367,7 @@ export default function StockPools() {
     setHiddenPresetIds(loadHiddenPresets());
     setCosts(loadCosts());
     setPoolTab(loadPoolTab());
+    setFreezeCount(loadFreezeCount());
     setReviewCache(loadReviewCache());
     setHydrated(true);
   }, []);
@@ -349,6 +392,15 @@ export default function StockPools() {
   useEffect(() => {
     if (hydrated) savePoolTab(poolTab);
   }, [poolTab, hydrated]);
+  useEffect(() => {
+    if (hydrated) saveFreezeCount(freezeCount);
+  }, [freezeCount, hydrated]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = setTimeout(() => setNotice(''), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   // 默认选中列表第一项；当前选中项被删除/隐藏时，也自动落到列表第一项
   useEffect(() => {
@@ -615,6 +667,28 @@ export default function StockPools() {
     if (activeId === id) { setActiveId(null); setDetail(null); }
   };
 
+  const removeStockFromPool = (poolId, code, name) => {
+    const currentPool = userPools.find((pool) => pool.id === poolId);
+    if (!currentPool) return;
+    const nextPool = removeSymbolFromPool(currentPool, code);
+    if (nextPool === currentPool) return;
+    setUserPools((prev) => prev.map((pool) => (pool.id === poolId ? nextPool : pool)));
+    if (user?.id) upsertPoolServer(nextPool, user.id);
+    setCosts((prev) => {
+      const nextCosts = { ...(prev[poolId] || {}) };
+      delete nextCosts[code];
+      const next = { ...prev, [poolId]: nextCosts };
+      saveCosts(next);
+      return next;
+    });
+    setDetail(null);
+    if (nextPool.symbols.length) setDetailVersion((version) => version + 1);
+    setStockDetail(null);
+    setConfirmRemoveStock(null);
+    setNotice(`已从「${currentPool.name}」移除 ${name || code}`);
+    setError('');
+  };
+
   // 持仓价：手动填入，保存到本地，用于校验/计算持仓盈亏
   const setCost = (poolId, code, val) => {
     const num = parseFloat(val);
@@ -661,10 +735,66 @@ export default function StockPools() {
   const thermoName = isUserPool ? '我的持仓温度计' : isCambrian ? '鱼池温度计' : (active ? `${active.name}的温度计` : '温度计');
   const dayBase = isCambrian ? '鱼池' : ''; // 周期标签：鱼池池子保留「今日鱼池」，其余只显示「今日/昨日/本周」
   // 鱼池四档价位列仅寒武纪显示：插在【区间涨幅】之后
-  const headers = isCambrian
+  const baseHeaders = isCambrian
     ? [...HEADER_COLS.slice(0, 4), ...LEVEL_COLS, ...HEADER_COLS.slice(4)]
     : HEADER_COLS;
-
+  const canEditActive = !!active && userPools.some((pool) => pool.id === active.id);
+  const headers = canEditActive ? [...baseHeaders, { key: 'actions', label: '操作' }] : baseHeaders;
+  const effectiveFreezeCount = Math.min(freezeCount, headers.length);
+  const stocksForWidth = detail?.stocks || [];
+  const columnValues = (key) => stocksForWidth.map((stock) => {
+    const range = ranges[stock.code] || {};
+    const level = (active?.levels && active.levels[stock.code]) || {};
+    const savedCost = active?.id && costs[active.id] ? costs[active.id][stock.code] : null;
+    const effectiveCost = savedCost != null ? savedCost : (active?.costs?.[stock.code] ?? null);
+    const pnl = effectiveCost != null && Number(effectiveCost) > 0 && stock.price != null
+      ? ((stock.price - Number(effectiveCost)) / Number(effectiveCost)) * 100
+      : null;
+    switch (key) {
+      case 'code': return stock.code || '';
+      case 'name': return stock.name || '';
+      case 'price': return stock.price != null ? stock.price.toFixed(2) : '—';
+      case 'ret': return stock.ret != null ? fmtPct(stock.ret) : '—';
+      case 'lvEntry': return fmtLevel(level.entry);
+      case 'lvHeavy': return fmtLevel(level.heavy);
+      case 'lvTp1': return fmtLevel(level.tp1);
+      case 'lvTp2': return fmtLevel(level.tp2);
+      case 'histPct': return range.histPct != null ? `${Math.round(Number(range.histPct))}%` : '—';
+      case 'yPct': return range.yPct != null ? `${Math.round(Number(range.yPct))}%` : '—';
+      case 'rating': {
+        const rating = ratings[stock.code];
+        return rating?.ok && rating?.summary && hasRating(rating.summary) ? fmtRatingCompact(rating.summary) : '—';
+      }
+      case 'upDays': return stock.totalDays ? `${stock.upDays} / ${stock.totalDays}（${((stock.upDays / stock.totalDays) * 100).toFixed(0)}%）` : '—';
+      case 'cost': return effectiveCost != null ? String(effectiveCost) : '—';
+      case 'pnl': return pnl != null ? fmtPct(pnl) : '—';
+      case 'actions': return '移除';
+      default: return '';
+    }
+  });
+  const adaptiveColumnWidth = (column) => {
+    const headerWidth = estimateTextWidth(column.label, 12) + (column.key === 'actions' ? 0 : 12) + 30;
+    const contentWidth = Math.max(0, ...columnValues(column.key).map((value) => estimateTextWidth(value, 13) + 24));
+    const width = Math.max(COLUMN_MIN_WIDTHS[column.key] || 88, headerWidth, contentWidth);
+    return Math.ceil(width / 2) * 2;
+  };
+  const columnLayout = headers.map((column, index) => ({
+    column,
+    index,
+    width: adaptiveColumnWidth(column),
+    left: headers.slice(0, index).reduce((sum, item) => sum + adaptiveColumnWidth(item), 0),
+  }));
+  const tableMinWidth = Math.max(1080, columnLayout.reduce((sum, item) => sum + item.width, 0));
+  const columnMeta = (key) => {
+    const item = columnLayout.find((entry) => entry.column.key === key);
+    if (!item) return {};
+    const sticky = item.index < effectiveFreezeCount;
+    const lastSticky = sticky && item.index === effectiveFreezeCount - 1;
+    return {
+      className: `${sticky ? ' sp-sticky-col' : ''}${lastSticky ? ' sp-sticky-last' : ''}`.trim(),
+      style: sticky ? { left: `${item.left}px` } : undefined,
+    };
+  };
   // 温度计条目：短周期同时给 今日/昨日/本周；区间模式给当前所选周期
   const tempItems = (() => {
     const items = [];
@@ -975,14 +1105,32 @@ export default function StockPools() {
                     </div>
                   )}
 
+                  <div className="sp-table-toolbar">
+                    <span className="sp-table-toolbar-hint">← 拖动下方滚动条查看全部指标；可自定义冻结列 →</span>
+                    <label className="sp-freeze-control">
+                      <span>冻结前</span>
+                      <select
+                        value={freezeCount}
+                        onChange={(e) => setFreezeCount(normalizePoolFreezeCount(e.target.value))}
+                        aria-label="设置冻结列数量"
+                      >
+                        {STOCK_POOL_FREEZE_OPTIONS.map((count) => <option key={count} value={count}>{count} 列</option>)}
+                      </select>
+                    </label>
+                  </div>
                   <div className="sp-table-scroll">
-                  <table className="sp-table">
+                  <table className="sp-table" style={{ minWidth: `${tableMinWidth}px` }}>
+                    <colgroup>
+                      {columnLayout.map(({ column, width }) => <col key={column.key} style={{ width: `${width}px` }} />)}
+                    </colgroup>
                     <thead>
                       <tr>
-                        {headers.map((c) => (
-                          <th key={c.key}>
+                        {headers.map((c) => {
+                          const meta = columnMeta(c.key);
+                          return (
+                          <th key={c.key} className={meta.className} style={meta.style}>
                             <span className="sp-th-label">{c.label}</span>
-                            <span className="sp-sort">
+                            {c.key !== 'actions' && <span className="sp-sort">
                               <button
                                 type="button"
                                 className={`sp-sort-btn${sort.key === c.key && sort.dir === 'asc' ? ' active' : ''}`}
@@ -995,9 +1143,10 @@ export default function StockPools() {
                                 onClick={() => setSort(sort.key === c.key && sort.dir === 'desc' ? { key: null, dir: 'asc' } : { key: c.key, dir: 'desc' })}
                                 aria-label={`${c.label}降序`}
                               >▼</button>
-                            </span>
+                            </span>}
                           </th>
-                        ))}
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
@@ -1010,24 +1159,24 @@ export default function StockPools() {
                         const mineHas = poolTab === 'master' && (myHeld.has(s.code) || (s.name && myHeld.has(String(s.name).trim())));
                         return (
                           <tr key={s.code || s.name} className={mineHas ? 'sp-row-mine' : ''}>
-                            <td className="mono" data-label="代码">{s.code}</td>
-                            <td data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
-                            <td data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
-                            <td data-label="区间涨幅" className={s.ret >= 0 ? 'up' : 'down'}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
+                            <td {...columnMeta('code')} className={`mono ${columnMeta('code').className || ''}`.trim()} data-label="代码">{s.code}</td>
+                            <td {...columnMeta('name')} data-label="名称"><span className="sp-name">{s.name || '—'}</span></td>
+                            <td {...columnMeta('price')} data-label="现价">{s.price != null ? s.price.toFixed(2) : '—'}</td>
+                            <td {...columnMeta('ret')} data-label="区间涨幅" className={`${columnMeta('ret').className || ''} ${s.ret >= 0 ? 'up' : 'down'}`.trim()}>{s.ret != null ? fmtPct(s.ret) : '—'}</td>
                             {isCambrian && (() => {
                               const lv = (active.levels && active.levels[s.code]) || {};
                               return (
                                 <>
-                                  <td className="mono" data-label="入场价格">{fmtLevel(lv.entry)}</td>
-                                  <td className="mono" data-label="重仓价格">{fmtLevel(lv.heavy)}</td>
-                                  <td className="mono" data-label="第一次止盈价格">{fmtLevel(lv.tp1)}</td>
-                                  <td className="mono" data-label="第二次止盈价格">{fmtLevel(lv.tp2)}</td>
+                                  <td {...columnMeta('lvEntry')} className={`mono ${columnMeta('lvEntry').className || ''}`.trim()} data-label="入场价格">{fmtLevel(lv.entry)}</td>
+                                  <td {...columnMeta('lvHeavy')} className={`mono ${columnMeta('lvHeavy').className || ''}`.trim()} data-label="重仓价格">{fmtLevel(lv.heavy)}</td>
+                                  <td {...columnMeta('lvTp1')} className={`mono ${columnMeta('lvTp1').className || ''}`.trim()} data-label="第一次止盈价格">{fmtLevel(lv.tp1)}</td>
+                                  <td {...columnMeta('lvTp2')} className={`mono ${columnMeta('lvTp2').className || ''}`.trim()} data-label="第二次止盈价格">{fmtLevel(lv.tp2)}</td>
                                 </>
                               );
                             })()}
-                            <td data-label="历史分位">{rangeChipCell(ranges[s.code], 'hist', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'hist' }))}</td>
-                            <td data-label="近一年分位">{rangeChipCell(ranges[s.code], 'year', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'year' }))}</td>
-                            <td data-label="机构评级">
+                            <td {...columnMeta('histPct')} data-label="历史分位">{rangeChipCell(ranges[s.code], 'hist', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'hist' }))}</td>
+                            <td {...columnMeta('yPct')} data-label="近一年分位">{rangeChipCell(ranges[s.code], 'year', () => setRangeDrawer({ code: s.code, name: s.name, r: ranges[s.code], type: 'year' }))}</td>
+                            <td {...columnMeta('rating')} data-label="机构评级">
   {s.code && isACode(s.code) ? (
     ratings[s.code] === undefined ? (
       <span className="sp-rating-loading">…</span>
@@ -1047,8 +1196,8 @@ export default function StockPools() {
     <span className="sp-rating-na">—</span>
   )}
 </td>
-                            <td data-label="上涨天数">{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
-                            <td data-label="持仓价">
+                            <td {...columnMeta('upDays')} data-label="上涨天数">{s.totalDays ? `${s.upDays} / ${s.totalDays}（${((s.upDays / s.totalDays) * 100).toFixed(0)}%）` : '—'}</td>
+                            <td {...columnMeta('cost')} data-label="持仓价">
                               <input
                                 className="sp-cost-input"
                                 type="number"
@@ -1059,7 +1208,19 @@ export default function StockPools() {
                                 title="填入你的持仓成本价"
                               />
                             </td>
-                            <td data-label="持仓盈亏" className={pnl != null ? (pnl >= 0 ? 'up' : 'down') : ''}>{pnl != null ? fmtPct(pnl) : '—'}</td>
+                            <td {...columnMeta('pnl')} data-label="持仓盈亏" className={`${columnMeta('pnl').className || ''} ${pnl != null ? (pnl >= 0 ? 'up' : 'down') : ''}`.trim()}>{pnl != null ? fmtPct(pnl) : '—'}</td>
+                            {canEditActive && (
+                              <td {...columnMeta('actions')} data-label="操作">
+                                <button
+                                  type="button"
+                                  className="sp-stock-remove"
+                                  onClick={() => setConfirmRemoveStock({ poolId: active.id, code: s.code, name: s.name })}
+                                  title={`从「${active.name}」移除 ${s.name || s.code}`}
+                                >
+                                  移除
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -1089,6 +1250,14 @@ export default function StockPools() {
                             {pnlM != null && <span className={`sp-mitem-pnl ${pnlM >= 0 ? 'up' : 'down'}`}>{fmtPct(pnlM)}</span>}
                             <span className="sp-mitem-chevron" aria-hidden="true">›</span>
                           </button>
+                          {canEditActive && (
+                            <button
+                              type="button"
+                              className="sp-mitem-remove"
+                              onClick={() => setConfirmRemoveStock({ poolId: active.id, code: s.code, name: s.name })}
+                              aria-label={`从${active.name}移除${s.name || s.code}`}
+                            >移除</button>
+                          )}
                         </li>
                       );
                     })}
@@ -1184,6 +1353,13 @@ export default function StockPools() {
                   <span className={`sp-mdetail-ret ${sd.ret >= 0 ? 'up' : 'down'}`}>{sd.ret != null ? fmtPct(sd.ret) : '—'}</span>
                   <span className="sp-mdetail-hero-label">区间涨幅</span>
                 </div>
+                {canEditActive && (
+                  <button
+                    type="button"
+                    className="sp-detail-remove"
+                    onClick={() => setConfirmRemoveStock({ poolId: active.id, code: sd.code, name: sd.name })}
+                  >从「{active.name}」移除</button>
+                )}
                 <dl className="sp-mdetail-grid">
                   {isCambrian && (
                     <>
@@ -1294,6 +1470,27 @@ export default function StockPools() {
             <div className="mg-foot sp-del-modal-foot">
               <button type="button" className="mg-btn sp-del-cancel" onClick={() => setConfirmDelete(null)}>取消</button>
               <button type="button" className="mg-btn sp-del-confirm" onClick={() => { deletePool(confirmDelete.id); setConfirmDelete(null); }}>确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmRemoveStock && (
+        <div className="modal-overlay" onMouseDown={() => setConfirmRemoveStock(null)}>
+          <div className="modal-content sp-del-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setConfirmRemoveStock(null)} aria-label="关闭">✕</button>
+            <div className="sp-del-modal-title">⚠ 移除股票</div>
+            <div className="sp-del-modal-text">
+              <p>确定从「{userPools.find((pool) => pool.id === confirmRemoveStock.poolId)?.name || '我的股票池'}」移除 <strong>{confirmRemoveStock.name || confirmRemoveStock.code}</strong> 吗？</p>
+              <p>移除后该股票不再参与本池统计，持仓成本也会一并删除。</p>
+            </div>
+            <div className="mg-foot sp-del-modal-foot">
+              <button type="button" className="mg-btn sp-del-cancel" onClick={() => setConfirmRemoveStock(null)}>取消</button>
+              <button
+                type="button"
+                className="mg-btn sp-del-confirm"
+                onClick={() => removeStockFromPool(confirmRemoveStock.poolId, confirmRemoveStock.code, confirmRemoveStock.name)}
+              >确认移除</button>
             </div>
           </div>
         </div>
