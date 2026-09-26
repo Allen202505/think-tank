@@ -223,7 +223,7 @@
 
 
 /* 分享海报（#10） */
-.poster-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.poster-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .btn-poster { padding: 8px 18px; background: transparent; border: 1px solid var(--accent-dim); color: var(--accent); border-radius: 6px; font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
 .btn-poster:hover { background: var(--accent-bg); }
 .btn-poster:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1019,6 +1019,7 @@
 .mg-speech { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .mg-speech-head { display: flex; align-items: center; gap: 10px; }
 .mg-speech-name { font-size: 14px; font-weight: 700; color: var(--accent-strong); }
+.mg-share-result-inline { margin-left: auto; }
 .mg-speech-tag { font-size: 10px; color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .mg-speech-body { font-size: 14px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
 .mg-followups { border-top: 1px dashed var(--border-subtle); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
@@ -1135,6 +1136,8 @@
 .mg-forensic-questions-title { font-size: 12px; font-weight: 800; color: var(--accent-strong); margin-bottom: 1px; }
 .mg-forensic-questions button { display: flex; align-items: flex-start; gap: 9px; width: 100%; box-sizing: border-box; border: 1px solid var(--border-subtle); border-radius: 9px; background: transparent; color: var(--text); text-align: left; padding: 9px 10px; font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; cursor: pointer; }
 .mg-forensic-questions button:hover { border-color: var(--accent-dim); background: var(--accent-bg); }
+.mg-forensic-questions .mg-forensic-question-static { display: flex; align-items: flex-start; gap: 9px; width: 100%; box-sizing: border-box; border: 1px solid var(--border-subtle); border-radius: 9px; background: transparent; color: var(--text); text-align: left; padding: 9px 10px; font-size: 12.5px; line-height: 1.55; }
+.mg-forensic-questions .mg-forensic-question-static span { flex-shrink: 0; color: var(--accent); font-weight: 800; font-size: 11px; }
 .mg-forensic-questions button span { flex-shrink: 0; color: var(--accent); font-weight: 800; font-size: 11px; }
 
 .mg-forensic-supplement { display: flex; flex-direction: column; gap: 7px; }

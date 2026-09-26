@@ -254,3 +254,25 @@ wx.setStorageSync（最多 30 条，仅本机）
 - 提取降级：公开链接抓取失败时，用户可粘贴正文继续；无正文或正文过短会返回 422，不伪造策略。AI 只允许引用给定页面/粘贴正文，输出再次归一化并限制字段长度。
 - 成本与安全：提取复用 `generateJson` 与 BYOK/免费额度/按 IP 限流；用户 Key 不落库。AI 结构化数据固定保留用户输入链接，用户可在保存前编辑核对。
 - 自动化测试：`scripts/strategy-extraction.test.mjs` 覆盖 HTML 清洗、私网地址拦截、字段归一化和 18 条预置数据完整性；请求命令 `npm test`。
+
+## 分析结果分享链接（2026-09-26）
+
+```text
+大师PK / 巴菲特早餐 / 芒格财报结果
+    ↓ 前端序列化为类型化快照
+POST /api/share-results
+    ↓ 递归移除敏感字段 + 类型/大小校验
+Supabase share_results（service_role 写入）
+    ↓ 随机 24 位不可枚举 ID
+/share/[id]（服务端读取，公开只读）
+    ↓
+大师PK原发言 / 早餐原步骤 / 财报原诊断
+```
+
+- `src/lib/shareResults.mjs`：类型白名单、递归脱敏、大小限制、三类结果快照构建函数和纯函数测试入口。
+- `src/app/api/share-results/route.js`：生成分享链接；按 IP 每小时 30 次限流，错误区分参数错误、服务未初始化和数据库异常。
+- `src/lib/shareResultsDb.js`：生产使用 `SUPABASE_SERVICE_ROLE_KEY` 读写 `share_results`；本地开发使用进程内 Map，避免本机网络不可达时阻塞，不用于生产持久化。
+- `src/app/share/[id]/page.js`：公开动态只读页；服务端按随机 ID 查询，设置 `noindex`，不要求登录。
+- `ShareResultButton` 只提交当前结果快照；分享页不暴露原应用状态、用户股票池、API Key 或上传文件 Base64。
+- `supabase/share_results.sql` / `supabase/schema.sql`：创建 `share_results`，RLS 开启但不向 anon/authenticated 授权；仅 service_role 有 select/insert 权限，避免通过公开 anon key 枚举分享数据。
+- 分享链接是不可变快照：原分析重新生成不会回写旧链接；当前不做撤回、过期、浏览计数和跨设备管理。

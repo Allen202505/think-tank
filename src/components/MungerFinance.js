@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { MasterAvatar } from './ui';
 import { findMasterById } from '../lib/breakfast';
 import { useDrawerResize } from '../lib/drawerResize';
@@ -9,6 +9,8 @@ import { markFeatureCompleted } from '../lib/shareInvite';
 import ModuleHero from './ModuleHero';
 import FinancialDiagnosisChecklist from './FinancialDiagnosisChecklist';
 import { readJsonCache, researchCacheTtlMs, writeJsonCache } from '../lib/browserCache.mjs';
+import ShareResultButton from './ShareResultButton';
+import { buildMungerSharePayload, mungerShareTitle } from '../lib/shareResults.mjs';
 
 function renderInline(text, keyBase) {
   const normalized = String(text || '').replace(/\*\*\*/g, '**');
@@ -70,6 +72,9 @@ export default function MungerFinance() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [fileName, setFileName] = useState('');
+  const mungerSharePayload = useMemo(() => buildMungerSharePayload({ link, fileName, note, result }), [link, fileName, note, result]);
+  const mungerShareResetKey = `${fileName}:${link}:${result?.content?.length || 0}`;
+
   const fileRef = useRef(null);
   const hydratedRef = useRef(false); // 恢复完成后再允许保存，避免挂载时把待恢复数据覆盖成 null
 
@@ -277,6 +282,13 @@ export default function MungerFinance() {
                 <MasterAvatar master={munger} size={40} />
                 <span className="mg-speech-name">{munger.name}</span>
                 <span className="mg-speech-tag">财报解读</span>
+                <ShareResultButton
+                  kind="munger"
+                  title={mungerShareTitle({ fileName, link, result })}
+                  payload={mungerSharePayload}
+                  resetKey={mungerShareResetKey}
+                  className="mg-share-result-inline"
+                />
               </div>
               <div className="mg-speech-body">{renderRich(result.content)}</div>
               {Array.isArray(result.followUps) && result.followUps.length > 0 && (

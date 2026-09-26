@@ -180,7 +180,7 @@ function EmptyChecklist() {
   );
 }
 
-export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk }) {
+export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk, readOnly = false }) {
   if (!diagnosis) return <EmptyChecklist />;
 
   const rows = Array.isArray(diagnosis.rows) ? diagnosis.rows.slice(0, 10) : [];
@@ -324,9 +324,11 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                       <td><p className="mg-forensic-judgment">{rowJudgment(row)}</p></td>
                       <td>
                         <NextCheck row={row} />
-                        <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
-                          让芒格继续查 <span aria-hidden="true">›</span>
-                        </button>
+                        {!readOnly ? (
+                          <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
+                            让芒格继续查 <span aria-hidden="true">›</span>
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -364,9 +366,11 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
                     <b>下一步核查</b>
                     <NextCheck row={row} />
                   </div>
-                  <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
-                    让芒格继续查 <span aria-hidden="true">›</span>
-                  </button>
+                  {!readOnly ? (
+                    <button type="button" className="mg-forensic-row-ask" onClick={() => onAsk && onAsk(rowAskPrompt(row))}>
+                      让芒格继续查 <span aria-hidden="true">›</span>
+                    </button>
+                  ) : null}
                 </article>
               );
             })}
@@ -390,10 +394,17 @@ export default function FinancialDiagnosisChecklist({ diagnosis, dataCard, onAsk
         <div className="mg-forensic-questions">
           <div className="mg-forensic-questions-title">下一步最值得追问的 3 个问题</div>
           {topQuestions.map((question, index) => (
-            <button key={`${question}-${index}`} type="button" onClick={() => onAsk && onAsk(question)} title="举手提问芒格">
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              {question}
-            </button>
+            readOnly ? (
+              <div key={`${question}-${index}`} className="mg-forensic-question-static">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                {question}
+              </div>
+            ) : (
+              <button key={`${question}-${index}`} type="button" onClick={() => onAsk && onAsk(question)} title="举手提问芒格">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                {question}
+              </button>
+            )
           ))}
         </div>
       )}

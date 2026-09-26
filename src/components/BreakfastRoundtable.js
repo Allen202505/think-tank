@@ -12,6 +12,8 @@ import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
 import { markFeatureCompleted } from '../lib/shareInvite';
 import { useAuth } from '../lib/authProvider';
 import { syncPoolsOnLogin } from '../lib/userPools';
+import ShareResultButton from './ShareResultButton';
+import { breakfastShareTitle, buildBreakfastSharePayload } from '../lib/shareResults.mjs';
 
 // 轻量渲染：AI 输出里的 **加粗** 转成 <strong>（避免露出裸 **）
 function renderInline(text, keyBase) {
@@ -290,6 +292,15 @@ export default function BreakfastRoundtable({ active = true }) {
   // 缓存 key = 内容哈希::模式（不含随机嘉宾；快速/深度分开，避免串缓存）
   const cacheKey = currentKey ? `${currentKey}::${mode}` : '';
   const entry = cacheKey ? (cache[cacheKey] || { status: 'idle', steps: [] }) : { status: 'idle', steps: [] };
+  const breakfastSharePayload = useMemo(() => buildBreakfastSharePayload({
+    news,
+    mode,
+    guests,
+    steps: entry.steps,
+    followups: entry.followups,
+  }), [news, mode, guests, entry.steps, entry.followups]);
+  const breakfastShareResetKey = `${cacheKey}:${(entry.steps || []).length}:${(entry.followups || []).length}`;
+
 
   const abortRefs = useRef({});
   // 详情步骤折叠状态（结论卡始终展开；生成中步骤展开，完成后默认折叠）
@@ -746,6 +757,14 @@ export default function BreakfastRoundtable({ active = true }) {
           >←</button>
           <span className="bk-roundtable-title">巴菲特带你读新闻</span>
           <div className="bk-roundtable-actions">
+            {entry.status === 'done' && (entry.steps || []).length > 0 && (
+              <ShareResultButton
+                kind="breakfast"
+                title={breakfastShareTitle(news)}
+                payload={breakfastSharePayload}
+                resetKey={breakfastShareResetKey}
+              />
+            )}
             {(news || entry.status !== 'idle') && (
               <button type="button" className={`bk-mini bk-start-mini${entry.status === 'loading' ? ' is-loading' : ''}`} onClick={onBtnClick} title={news ? '开始解读 / 停止 / 再来一轮' : '输入新闻链接或文本'}>
                 {btnLabel}

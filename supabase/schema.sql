@@ -143,3 +143,23 @@ create policy "user_terms_update_own" on public.user_terms
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 grant select, insert, update on public.user_terms to anon, authenticated;
+
+-- ============================================================
+-- 分析结果分享链接（share_results）
+-- 公共分享页面按随机 ID 读取；只允许服务端 service_role 读写，
+-- 不向 anon/authenticated 开放直读，避免分享内容被枚举。
+-- ============================================================
+create table if not exists public.share_results (
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{20,64}$'),
+  kind text not null check (kind in ('master_pk', 'breakfast', 'munger')),
+  title text not null check (char_length(title) between 1 and 180),
+  payload jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_share_results_created_at
+  on public.share_results (created_at desc);
+
+alter table public.share_results enable row level security;
+revoke all on public.share_results from anon, authenticated;
+grant select, insert on public.share_results to service_role;

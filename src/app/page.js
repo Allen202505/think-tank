@@ -46,6 +46,8 @@ import StrategyGallery from '../components/StrategyGallery';
 import ToolboxTabs from '../components/ToolboxTabs';
 import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
+import ShareResultButton from '../components/ShareResultButton';
+import { buildMasterPkSharePayload, masterPkShareTitle } from '../lib/shareResults.mjs';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
 
@@ -847,6 +849,13 @@ export default function Home() {
     setPosterBusy(false);
   }, [result, query, selected, allMasters, posterBusy]);
 
+
+  const masterPkSharePayload = useMemo(() => {
+    const roster = [...(result?.investors || []), ...allMasters.filter((master) => selected.has(master.id))];
+    const masters = Array.from(new Map(roster.map((master) => [master.id, master])).values());
+    return buildMasterPkSharePayload({ question: query, result, rounds, masters });
+  }, [query, result, rounds, selected, allMasters]);
+  const masterPkShareResetKey = `${query}:${rounds.length}:${(result?.discussion || []).length}`;
 
   const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
 
@@ -1881,6 +1890,13 @@ export default function Home() {
                 <div className="followup-section">
                   {result && result.discussion && result.discussion.length > 0 && (
                     <div className="poster-toolbar">
+                      <ShareResultButton
+                        kind="master_pk"
+                        title={masterPkShareTitle(query)}
+                        payload={masterPkSharePayload}
+                        resetKey={masterPkShareResetKey}
+                        disabled={loadingFollowUp || !masterPkSharePayload.rounds.length}
+                      />
                       <button type="button" className="btn-poster" onClick={handlePoster} disabled={posterBusy}>
                         {posterBusy ? t('posterSaving') : t('sharePoster')}
                       </button>
