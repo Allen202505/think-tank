@@ -259,8 +259,6 @@ export default function Home() {
   const [theme, setTheme] = useState('white'); // 默认纯白；SSR 与首帧一致，挂载后 effect 再读 localStorage
   const [qrOpen, setQrOpen] = useState(false);
   const [qrImgError, setQrImgError] = useState(false);
-  const [groupQrOpen, setGroupQrOpen] = useState(false);
-  const [groupQrImgError, setGroupQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
   // 默认 5 位（SSR 固定，避免水合不一致；挂载后再随机/恢复）
@@ -850,16 +848,15 @@ export default function Home() {
 
 
   const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
-  const groupQrSrc = process.env.NEXT_PUBLIC_GROUP_QR_URL || '/group-qr.png?v=20260927';
 
   useEffect(() => {
-    if (!qrOpen && !groupQrOpen) return undefined;
+    if (!qrOpen) return undefined;
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') { setQrOpen(false); setGroupQrOpen(false); }
+      if (e.key === 'Escape') setQrOpen(false);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [qrOpen, groupQrOpen]);
+  }, [qrOpen]);
 
   const dict = messages[locale] || messages.zh;
   const t = (key, ...args) => {
@@ -1451,7 +1448,6 @@ export default function Home() {
         theme={theme}
         onToggleTheme={() => setTheme((th) => (th === 'dark' ? 'light' : th === 'light' ? 'white' : 'dark'))}
         onOpenHistory={() => setHistoryOpen(true)}
-        onToggleQr={() => { setQrImgError(false); setGroupQrOpen(false); setQrOpen((v) => !v); }}
         onOpenHall={() => setHallOpen(true)}
         onOpenAiSettings={() => setAiSettingsOpen(true)}
         onOpenAuth={() => setAuthOpen(true)}
@@ -1474,8 +1470,8 @@ export default function Home() {
         <button
           type="button"
           className="sb-group-entry"
-          onClick={() => { setGroupQrImgError(false); setGroupQrOpen(true); setQrOpen(false); }}
-          title="扫码加入「大师吵股」用户交流群"
+          onClick={() => { setQrImgError(false); setQrOpen(true); }}
+          title="扫码添加我的个人微信"
         >
           <span className="sb-group-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1534,18 +1530,6 @@ export default function Home() {
             )}
           </button>
 
-          <button
-            type="button"
-            className="icon-btn qr-toggle"
-            onClick={() => { setQrImgError(false); setGroupQrOpen(false); setQrOpen(v => !v); }}
-            title="微信二维码"
-            aria-label="打开微信二维码"
-            aria-expanded={qrOpen ? 'true' : 'false'}
-          >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-5.972 2.932-7.715 1.386-.87 3.052-1.306 4.71-1.306.527 0 1.054.047 1.572.132-.616-3.461-4.11-5.743-8.027-5.743zm-2.23 3.817a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zm4.466 0a1.026 1.026 0 1 1 0 2.053 1.026 1.026 0 0 1 0-2.053zM24 14.876c0-3.374-3.178-6.115-7.098-6.115-3.92 0-7.098 2.74-7.098 6.115 0 3.374 3.178 6.115 7.098 6.115.836 0 1.643-.12 2.393-.335a.7.7 0 0 1 .589.08l1.566.916a.268.268 0 0 0 .137.044.243.243 0 0 0 .239-.243c0-.06-.024-.117-.04-.176l-.322-1.218a.485.485 0 0 1 .176-.549C23.076 18.658 24 16.853 24 14.876zm-9.753-1.044a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686zm5.31 0a.843.843 0 1 1 0-1.686.843.843 0 0 1 0 1.686z"/>
-            </svg>
-          </button>
         </div>
         </div>
         </aside>
@@ -1967,58 +1951,30 @@ export default function Home() {
         </div>
       </div>
 
-      {groupQrOpen && (
-        <>
-          <div className="qr-backdrop" onClick={() => setGroupQrOpen(false)} />
-          <div
-            className="qr-popover qr-popover-group"
-            role="dialog"
-            aria-label="用户交流群二维码"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="qr-title">大师吵股 · 用户交流群</div>
-            {!groupQrImgError ? (
-              <img
-                className="qr-img"
-                src={groupQrSrc}
-                alt="大师吵股用户交流群二维码"
-                onError={() => setGroupQrImgError(true)}
-              />
-            ) : (
-              <div className="qr-fallback">
-                <div>未找到群二维码图片。</div>
-                <div className="qr-fallback-hint">把二维码放到 `public/group-qr.png`，或设置 `NEXT_PUBLIC_GROUP_QR_URL`。</div>
-              </div>
-            )}
-            <div className="qr-group-hint">微信扫码加入「大师吵股」用户交流群</div>
-            <a className="qr-open" href={groupQrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
-          </div>
-        </>
-      )}
-
       {qrOpen && (
         <>
           <div className="qr-backdrop" onClick={() => setQrOpen(false)} />
           <div
-            className="qr-popover"
+            className="qr-popover qr-popover-personal"
             role="dialog"
-            aria-label="二维码"
+            aria-label="我的个人微信二维码"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="qr-title">微信二维码</div>
+            <div className="qr-title">添加我的微信</div>
             {!qrImgError ? (
               <img
                 className="qr-img"
                 src={qrSrc}
-                alt="我的二维码"
+                alt="我的个人微信二维码"
                 onError={() => setQrImgError(true)}
               />
             ) : (
               <div className="qr-fallback">
-                <div>未找到二维码图片。</div>
+                <div>未找到个人微信二维码图片。</div>
                 <div className="qr-fallback-hint">把二维码放到 `public/my-qr.jpg`，或设置 `NEXT_PUBLIC_QR_CODE_URL`。</div>
               </div>
             )}
+            <div className="qr-personal-hint">微信扫码添加我的个人微信</div>
             <a className="qr-open" href={qrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
           </div>
         </>

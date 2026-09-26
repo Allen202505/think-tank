@@ -9,7 +9,6 @@
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); font-size: 16px; cursor: pointer; border-radius: 50%; transition: color 0.2s, border-color 0.2s, background 0.2s; }
 .icon-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
-.qr-toggle { font-size: 18px; }
 .qr-backdrop { position: fixed; inset: 0; background: transparent; z-index: 1100; }
 .qr-popover { position: absolute; top: 44px; right: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 12px; z-index: 1200; text-align: left; }
 .qr-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 10px; }
@@ -895,7 +894,7 @@
   align-items: center;
   gap: 4px;
 }
-/* 左下角：加入用户交流群入口 */
+/* 左下角：联系我入口（个人微信） */
 .sb-group-entry {
   display: flex;
   align-items: center;
@@ -925,12 +924,12 @@
   right: auto;
   z-index: 2100;
 }
-/* 群二维码弹层：抬高一点，避免盖住下方入口按钮 */
-.qr-popover-group {
+/* 个人微信二维码弹层：抬高一点，避免盖住下方入口按钮 */
+.qr-popover-personal {
   width: 268px;
   bottom: 132px;
 }
-.qr-group-hint { margin-top: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+.qr-personal-hint { margin-top: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
 
 /* 移动端：导航摊平成横向可滚动条 */
 @media (max-width: 900px) {
