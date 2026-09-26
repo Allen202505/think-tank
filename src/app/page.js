@@ -42,6 +42,7 @@ import NavalAcademy from '../components/NavalAcademy';
 import CrocodileFundamental from '../components/CrocodileFundamental';
 import IndustryCycleAnalysis from '../components/IndustryCycleAnalysis';
 import MasterLeague from '../components/MasterLeague';
+import StrategyGallery from '../components/StrategyGallery';
 import ToolboxTabs from '../components/ToolboxTabs';
 import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
@@ -1437,7 +1438,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.png' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
@@ -1936,6 +1937,9 @@ export default function Home() {
         <div id="toolbox-panel-fundamental" role="tabpanel" aria-labelledby="toolbox-tab-fundamental" className={toolboxTab === 'fundamental' ? '' : 'ws-hidden'}>
           <CrocodileFundamental />
         </div>
+        <div id="toolbox-panel-strategy-gallery" role="tabpanel" aria-labelledby="toolbox-tab-strategy-gallery" className={toolboxTab === 'strategy-gallery' ? '' : 'ws-hidden'}>
+          <StrategyGallery />
+        </div>
       </div>
 
       <div className={`mg-workspace-wrap${tab === 'industry-cycle' ? '' : ' ws-hidden'}`}>
@@ -1945,6 +1949,7 @@ export default function Home() {
       <div className={`mg-workspace-wrap${tab === 'master-league' ? '' : ' ws-hidden'}`}>
         <MasterLeague customMasters={customMasters} onAddCustomMaster={registerCustomMaster} />
       </div>
+
 
 
       <footer className="page-disclaimer">{t('disclaimer')}</footer>

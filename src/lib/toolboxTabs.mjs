@@ -5,6 +5,7 @@ export const TOOLBOX_TAB_IDS = [
   'munger',
   'zen',
   'naval',
+  'strategy-gallery',
 ];
 
 export function isToolboxTab(id) {

@@ -3,7 +3,7 @@
 ## 已完成的优化
 
 ### 1. 元数据优化（layout.js）
-- ✅ 完整的 title 和 description，包含"大师吵股"关键词
+- ✅ 完整的 title 和 description，包含"大师吵股"与"选股策略大赏"关键词
 - ✅ Open Graph 标签（用于社交媒体分享）
 - ✅ Twitter Card 标签
 - ✅ 关键词标签
@@ -12,7 +12,7 @@
 ### 2. 结构化数据（JSON-LD）
 - ✅ 在 page.js 中添加了 Schema.org 结构化数据
 - ✅ 标记为 WebApplication 类型
-- ✅ 包含应用名称、描述、分类等信息
+- ✅ 包含应用名称、描述、分类等信息，核心能力 ItemList 已加入选股策略大赏
 
 ### 3. SEO 文件
 - ✅ robots.js - 告诉搜索引擎可以抓取哪些页面

@@ -14,6 +14,7 @@ import {
   Gauge,          // 行业周期分析：周期仪表盘
   Trophy,         // 大师实盘联赛：冠军榜
   BriefcaseBusiness, // 功能箱：多能力集合
+  LibraryBig,    // 选股策略大赏：策略档案
 } from 'lucide-react';
 
 const MAP = {
@@ -28,6 +29,7 @@ const MAP = {
   'industry-cycle': Gauge,
   'master-league': Trophy,
   toolbox: BriefcaseBusiness,
+  'strategy-gallery': LibraryBig,
 };
 
 export default function NavIcon({ id, size = 18, className = '' }) {

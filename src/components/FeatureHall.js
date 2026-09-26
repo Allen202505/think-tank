@@ -2,7 +2,7 @@
 
 import NavIcon from './Icons';
 
-// 功能大厅（移动端）：全屏浮层，5 大模块入口大卡，点卡片直达对应能力
+// 功能大厅（移动端）：全屏浮层，核心模块入口大卡，点卡片直达对应能力
 export default function FeatureHall({ open, onClose, onSwitch, t }) {
   if (!open) return null;
 

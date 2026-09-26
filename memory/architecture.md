@@ -139,14 +139,14 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 
 ## 功能箱导航（2026-09-11）
 
-- `src/components/ToolboxTabs.js`：只渲染四个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
-- 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）。
+- `src/components/ToolboxTabs.js`：渲染五个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
+- 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）、`strategy-gallery`（选股策略大赏）。
 - 主导航顺序：功能箱位于行业周期分析之后；移动端底栏与功能大厅保持一致。
 - Tab 采用紧凑胶囊：仅保留图标与模块名，桌面宽度随内容收缩，移动端横向滚动。
-- 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和四个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
-- URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental` 自动进入功能箱并选中对应模块。
+- 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和五个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
+- URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental|strategy-gallery` 自动进入功能箱并选中对应模块。
 - 本地记忆：`thinktank_toolbox_tab` 保存用户最后一次选择的 Tab。
-- 挂载策略：四个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
+- 挂载策略：五个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
 
 ## 芒格财报侦查诊断数据流（2026-09-16）
 
@@ -243,3 +243,14 @@ wx.setStorageSync（最多 30 条，仅本机）
 - 行情类：盘中缓存 5 分钟；盘前缓存到当日 09:15；收盘后与周末缓存到下一个工作日 09:15。已接入 `/api/context`、股票联想搜索、行业周期分析和大师联赛公开赛数据（联赛额外封顶 30 分钟，避免收盘任务生成后长时间看不到新计划）。
 - 研究/分析类：财报链接结果按“链接 + 补充说明”缓存 7 天；基础面研究同股票 7 天内直接复用历史结果；缠论分析按问题缓存到行情窗口结束；早餐新闻、纳瓦尔期数、选股池评级/区间数据保留既有专用缓存。
 - 不缓存：登录态、免费额度、分享状态、用户池写入、邀请/删除等账户与写操作；实时快讯和雷达源仍按各自时效请求，避免把新闻流错误地长期缓存。
+
+
+## 选股策略大赏（2026-09-26）
+
+- 预置数据：`src/data/strategyGallery.js` 收录 18 条方法型策略，站点不展示“名单股票池”栏目；保留答主、赞数、问题浏览量、原始链接、可执行要点和风险备注。`src/data/strategyDetails.js` 从源汇编提取 119 条详细拆解，按核心逻辑、执行步骤、买卖条件、止损、案例和时效限制分节展示；2 条神回复与 1 条纯观点回答不进入正式榜单。
+- 页面：`src/components/StrategyGallery.js` + `StrategyGallery.module.css`，提供热度/最近添加/标题排序、三类筛选、关键词搜索、策略详情抽屉和用户添加流程；作为功能箱第五个 Tab，入口为 `?tab=toolbox&tool=strategy-gallery`。
+- 用户策略：`thinktank_strategy_gallery_user_v1` 仅存当前浏览器 localStorage，最多 100 条，不写入公共数据库，删除也在本机完成。
+- 提取接口：`POST /api/strategy-extract`。链接必须先通过 http(s)、内网/本机地址和 DNS 校验；抓取最多 4 次跳转、1.5MB 页面、12 秒超时，并限制正文长度，避免 SSRF、超时和大页面拖垮服务。
+- 提取降级：公开链接抓取失败时，用户可粘贴正文继续；无正文或正文过短会返回 422，不伪造策略。AI 只允许引用给定页面/粘贴正文，输出再次归一化并限制字段长度。
+- 成本与安全：提取复用 `generateJson` 与 BYOK/免费额度/按 IP 限流；用户 Key 不落库。AI 结构化数据固定保留用户输入链接，用户可在保存前编辑核对。
+- 自动化测试：`scripts/strategy-extraction.test.mjs` 覆盖 HTML 清洗、私网地址拦截、字段归一化和 18 条预置数据完整性；请求命令 `npm test`。

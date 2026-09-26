@@ -3,7 +3,7 @@
 import NavIcon from './Icons';
 
 // 移动端壳层：顶部极简 header + 底部固定 Tab（桌面端隐藏）
-// 默认进入大师PK；header 提供「功能大厅」入口；底部 Tab 一键切换 5 大模块。
+// 默认进入大师PK；header 提供「功能大厅」入口；底部 Tab 一键切换 核心模块。
 export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, onOpenHistory, onOpenHall, onOpenAiSettings, onOpenAuth }) {
   const items = [
     { id: 'ask', label: t('tabAskShort') },
