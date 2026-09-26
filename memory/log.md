@@ -27,6 +27,7 @@
 - `npm test`：88/88 通过，新增 4 个分享快照安全与构建断言。
 - `npm run build`：通过，新增 `/api/share-results` 与 `/share/[id]` 动态路由。
 - 本地端到端：分别创建大师PK、巴菲特早餐、芒格财报三条分享快照，未登录打开 `/share/<id>` 均返回 200，页面可检索到原始正文、早餐步骤、裁决与财报诊断清单。
+- 生产端到端：Vercel 部署后三类结果均成功生成生产分享 ID；`https://yieldglide.com/share/<id>` 均返回 200，原文、早餐步骤/结论与财报诊断清单可检索，页面保持 `noindex`。
 - 浏览器实测：大师PK分享页桌面 1280px、芒格分享页 500px 视口显示正常，无白屏或横向截断。
 - 生产数据库：已通过 Supabase SQL Editor 执行 `supabase/share_results.sql`，复核 `public.share_results` 存在且初始为 0 行；未执行迁移的新环境仍会在分享接口明确返回服务未初始化，不会伪成功。
 
