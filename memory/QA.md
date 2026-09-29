@@ -50,7 +50,8 @@
 - [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
 - [x] Cloudflare 静态缓存已配置：图片/字体边缘 30 天、浏览器 1 天；新 URL 二次请求返回 `cf-cache-status: HIT`，JS/CSS 保持 HIT。
 - [x] 头像懒加载：首页 86 个图片标签中 85 个带 `loading="lazy"` / `decoding="async"` 和固定宽高；头像最长边统一压缩到 192px，缓存版本为 `v=12`。
-- [x] 非默认模块按需加载：首屏 JS 从 362KB 降到 252KB；真实浏览器 HAR 请求数 146→14、传输 3.3MB→345KB，隐藏模块 JSON 请求 88→0。
+- [x] 非默认模块按需加载：首屏 JS 从 362KB 降到 252KB；生产 HAR 请求数 146→47、传输 3.3MB→648.7KB、图片 2.8MB→339KB，隐藏模块 JSON 请求 88→0。
+- [x] 当前测试网络浏览器导航计时：TTFB 362ms、DOMContentLoaded 749ms、Load 782ms。
 - [x] 带 `?tab=master-league`、`?tab=pools`、`?tab=breakfast`、`?tab=toolbox&tool=fundamental` 的直达页面均能正常渲染。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
 - [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
