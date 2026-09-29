@@ -29,6 +29,8 @@
 - 公开 3000 端口不可访问，只有 Nginx 的 80/443 对外提供入口。
 - Cloudflare Cache Rule `Static images and fonts` 已部署：头像、二维码、favicon、图片和字体边缘缓存 30 天、浏览器缓存 1 天；`_next/static` 继续使用一年 immutable 缓存。
 - 缓存验证：新图片 URL 首次请求 `MISS`，第二次请求 `HIT`，`Cache-Control: max-age=86400`；JS/CSS 保持 `cf-cache-status: HIT`。
+- 性能优化：`MasterAvatar` 统一增加 `loading="lazy"`、`decoding="async"` 和固定宽高；首页 86 个图片标签中 85 个头像改为懒加载，避免首屏并发下载全部约 6.8MB 头像资源。
+- 验证：`npm test` 88/88、`npm run build` 通过；本地生产 HTML 中 `loading="lazy"` 85 个。
 
 ## 2026-09-27 · 微信入口文案改为“入群反馈问题或建议”
 

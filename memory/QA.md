@@ -49,6 +49,7 @@
 - [x] 代码版本 `1.0.0` 已上传，隐私保护指引已提交，提审已正式提交。
 - [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
 - [x] Cloudflare 静态缓存已配置：图片/字体边缘 30 天、浏览器 1 天；新 URL 二次请求返回 `cf-cache-status: HIT`，JS/CSS 保持 HIT。
+- [x] 头像懒加载：首页 86 个图片标签中 85 个带 `loading="lazy"` / `decoding="async"` 和固定宽高，避免首屏一次性下载全部头像。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
 - [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
 - [x] 服务器自动拉取部署：推送 `2338957` 后 1 分钟内 `deploy.log` 显示 `Deployment healthy`，站点保持 HTTP 200。

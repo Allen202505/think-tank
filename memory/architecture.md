@@ -99,6 +99,7 @@ think-tank/
 - Cloudflare Cache Rule `Static images and fonts`：头像、二维码、favicon、图片和字体边缘缓存 30 天、浏览器缓存 1 天。
 - `_next/static/*`：Nginx 返回 `Cache-Control: public, max-age=31536000, immutable`，Cloudflare 命中后长期缓存。
 - HTML 与业务 API 默认不设置长缓存，避免用户数据和实时分析被旧响应覆盖。
+- 头像等列表图片使用浏览器原生 `loading="lazy"` 和 `decoding="async"`，首屏只加载视口附近图片，避免一次性请求全部大师头像。
 
 1. 用户请求 → Cloudflare CDN
 2. CDN 检查缓存

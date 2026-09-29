@@ -31,7 +31,7 @@ export function MasterAvatar({ master, size = 44, className = '', keepColor = fa
   if (useImg) {
     return (
       <span className={className} style={{ ...wrapperStyle, display: 'inline-block', width: size, height: size, flexShrink: 0, lineHeight: 0 }}>
-        <img src={src} alt="" style={style} onError={() => setImgErr(true)} />
+        <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" style={style} onError={() => setImgErr(true)} />
       </span>
     );
   }
