@@ -264,7 +264,7 @@ flowchart TB
 - **打字机**：逐字渲染 + 正在输入指示（TYPING_INDICATOR_MS=100、逐字 16ms、停顿 120ms）
 - **持久化**：主题/语言/聊天方式/讨论状态 localStorage
 - **分享海报**：`src/lib/poster.js` 客户端生成 1080×1920 海报（含二维码）
-- **微信联系二维码**：侧栏底部「入群反馈问题或建议」是 Web 端唯一微信联系入口，打开个人微信二维码弹层；默认读取 `public/my-qr.jpg`，可通过 `NEXT_PUBLIC_QR_CODE_URL` 覆盖；原桌面侧栏和移动端顶部的独立微信图标不再展示
+- **微信联系二维码**：侧栏底部「入群反馈问题建议」是 Web 端唯一微信联系入口，打开个人微信二维码弹层；默认读取 `public/my-qr.jpg`，可通过 `NEXT_PUBLIC_QR_CODE_URL` 覆盖；原桌面侧栏和移动端顶部的独立微信图标不再展示
 - **虚拟大师构建**：`/api/virtual-master` 联网搜集资料生成画像；`recipes.js` 为难点人物定制检索策略
 - **快照传递**：`/api/context` 结果存 snapshotRef，随每条发言请求发给 `/api/chat`
 - **免责声明**：页面底部固定展示「本站内容由 AI 生成，仅供学习交流与娱乐参考，不构成任何投资建议或意见」（i18n disclaimer，中英文）
