@@ -34,11 +34,11 @@ for _ in $(seq 1 30); do
   if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null; then
     cron_line="35 15 * * 1-5 $DEPLOY_PATH/scripts/run-daily-cron.sh >> $DEPLOY_PATH/cron.log 2>&1"
     auto_line="* * * * * $DEPLOY_PATH/scripts/auto-deploy-tencent.sh >> $DEPLOY_PATH/deploy.log 2>&1"
-    for required_line in "$cron_line" "$auto_line"; do
-      if ! crontab -l 2>/dev/null | grep -Fqx "$required_line"; then
-        { crontab -l 2>/dev/null || true; printf '%s\n' "$required_line"; } | crontab -
-      fi
-    done
+    {
+      crontab -l 2>/dev/null | grep -vF "$DEPLOY_PATH/scripts/run-daily-cron.sh" | grep -vF "$DEPLOY_PATH/scripts/auto-deploy-tencent.sh" || true
+      printf '%s\n' "$cron_line"
+      printf '%s\n' "$auto_line"
+    } | crontab -
     docker compose ps
     echo "Deployment healthy: $HEALTH_URL"
     exit 0
