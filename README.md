@@ -165,7 +165,7 @@ curl -sS 'http://127.0.0.1:3000/api/master-league/commentary?master=loeb'
 
 生产服务器为腾讯云香港 Lighthouse，使用 Docker Compose 运行 Next.js standalone，Nginx 负责 HTTPS 入口。`main` 分支推送后由服务器定时检查更新并自动拉取、构建、重启容器和执行健康检查，通常在 1 分钟内上线。
 
-服务器不需要 GitHub 保存任何服务器私钥；自动部署由服务器自身的 crontab 完成。
+服务器不需要 GitHub 保存任何服务器私钥；自动部署由服务器自身的 crontab 完成。Cloudflare Cache Rule 对图片、字体和 favicon 设置 30 天边缘缓存、1 天浏览器缓存，`_next/static` 使用一年 immutable 缓存。
 
 服务器上的 `/opt/think-tank/.env.production` 保存真实运行密钥，不进入 Git 和 Docker 构建上下文。`NEXT_PUBLIC_*` 变量会在构建时作为 Docker build args 注入。
 

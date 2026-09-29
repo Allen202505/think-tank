@@ -27,6 +27,8 @@
 - `npm audit --omit=dev` 仍报告 3 个依赖问题（Next/PostCSS/nanoid），完整修复需要升级到 Next.js 16 主版本；当前先使用 Next 14.2.35 并记录为后续安全升级项。
 - 推送 `2338957` 后服务器自动拉取部署成功；`deploy.log` 输出 `Deployment healthy: http://127.0.0.1:3000/robots.txt`。
 - 公开 3000 端口不可访问，只有 Nginx 的 80/443 对外提供入口。
+- Cloudflare Cache Rule `Static images and fonts` 已部署：头像、二维码、favicon、图片和字体边缘缓存 30 天、浏览器缓存 1 天；`_next/static` 继续使用一年 immutable 缓存。
+- 缓存验证：新图片 URL 首次请求 `MISS`，第二次请求 `HIT`，`Cache-Control: max-age=86400`；JS/CSS 保持 `cf-cache-status: HIT`。
 
 ## 2026-09-27 · 微信入口文案改为“入群反馈问题或建议”
 

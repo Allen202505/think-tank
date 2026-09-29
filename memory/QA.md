@@ -48,6 +48,7 @@
 - [x] Web 生产环境已配置同一 `MINI_PROXY_SECRET`；无签名请求返回 401，签名请求返回 200。
 - [x] 代码版本 `1.0.0` 已上传，隐私保护指引已提交，提审已正式提交。
 - [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
+- [x] Cloudflare 静态缓存已配置：图片/字体边缘 30 天、浏览器 1 天；新 URL 二次请求返回 `cf-cache-status: HIT`，JS/CSS 保持 HIT。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
 - [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
 - [x] 服务器自动拉取部署：推送 `2338957` 后 1 分钟内 `deploy.log` 显示 `Deployment healthy`，站点保持 HTTP 200。
@@ -112,6 +113,7 @@ npm test
 - Docker Compose 运行 `think-tank` 容器，监听 `127.0.0.1:3000` 对应的本机端口。
 - Nginx 监听 80/443，并将域名流量反代到容器。
 - Cloudflare SSL/TLS 模式：Full (strict)，源站使用 Cloudflare Origin Certificate。
+- Cloudflare Cache Rule `Static images and fonts`：图片/字体边缘 30 天、浏览器 1 天；HTML 和业务 API 不进入长缓存。
 - 真实密钥只保存在 `/opt/think-tank/.env.production`，权限 600。
 
 默认自动部署：

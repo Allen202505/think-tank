@@ -94,7 +94,11 @@ think-tank/
 - 国内用户主要通过香港、台湾、日本、新加坡节点访问
 - 自动选择最近节点，降低延迟
 
-## 数据流
+## 数据流与缓存
+
+- Cloudflare Cache Rule `Static images and fonts`：头像、二维码、favicon、图片和字体边缘缓存 30 天、浏览器缓存 1 天。
+- `_next/static/*`：Nginx 返回 `Cache-Control: public, max-age=31536000, immutable`，Cloudflare 命中后长期缓存。
+- HTML 与业务 API 默认不设置长缓存，避免用户数据和实时分析被旧响应覆盖。
 
 1. 用户请求 → Cloudflare CDN
 2. CDN 检查缓存
