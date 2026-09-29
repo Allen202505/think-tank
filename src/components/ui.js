@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const AVATAR_CACHE_VERSION = '11';
+const AVATAR_CACHE_VERSION = '12';
 
 // 基础 UI 组件（从 page.js 拆出）
 

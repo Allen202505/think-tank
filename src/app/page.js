@@ -1468,7 +1468,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.jpg' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.webp' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.webp' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.jpg' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg?v=12' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg?v=12' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.webp' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.webp' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
