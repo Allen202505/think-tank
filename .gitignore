@@ -19,3 +19,6 @@ project.private.config.json
 cloudfunctions/**/node_modules
 miniprogram/**/node_modules
 submission/review-screenshots
+.env*
+deploy.log
+cron.log
