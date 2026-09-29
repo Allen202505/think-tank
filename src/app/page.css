@@ -756,6 +756,14 @@
 /* 同页 Tab 切换：隐藏非激活工作台（保持挂载以保留状态） */
 .ws-hidden { display: none !important; }
 
+.module-loading {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .bk-workspace {
   position: relative;
   min-width: 0;

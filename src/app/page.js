@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { PRESET_MASTERS, snapColorToPalette } from '../data/masters';
 import { MASTER_GROUP_ORDER, normalizeGroup } from '../data/masterGroups';
 import { QUICK_PICK_GROUPS } from '../data/quickPicks';
@@ -33,17 +34,19 @@ import { generatePoster } from '../lib/poster';
 import { marketAwareTtlMs, readJsonCache, writeJsonCache } from '../lib/browserCache.mjs';
 import './page.css';
 import './breakfast/page.css';
-import BreakfastRoundtable from '../components/BreakfastRoundtable';
 import SidebarNav from '../components/SidebarNav';
-import MungerFinance from '../components/MungerFinance';
-import ZenShortTerm from '../components/ZenShortTerm';
-import StockPools from '../components/StockPools';
-import NavalAcademy from '../components/NavalAcademy';
-import CrocodileFundamental from '../components/CrocodileFundamental';
-import IndustryCycleAnalysis from '../components/IndustryCycleAnalysis';
-import MasterLeague from '../components/MasterLeague';
-import StrategyGallery from '../components/StrategyGallery';
 import ToolboxTabs from '../components/ToolboxTabs';
+
+const ModuleLoading = () => <div className="module-loading" role="status">正在加载模块…</div>;
+const BreakfastRoundtable = dynamic(() => import('../components/BreakfastRoundtable'), { loading: ModuleLoading });
+const MungerFinance = dynamic(() => import('../components/MungerFinance'), { loading: ModuleLoading });
+const ZenShortTerm = dynamic(() => import('../components/ZenShortTerm'), { loading: ModuleLoading });
+const StockPools = dynamic(() => import('../components/StockPools'), { loading: ModuleLoading });
+const NavalAcademy = dynamic(() => import('../components/NavalAcademy'), { loading: ModuleLoading });
+const CrocodileFundamental = dynamic(() => import('../components/CrocodileFundamental'), { loading: ModuleLoading });
+const IndustryCycleAnalysis = dynamic(() => import('../components/IndustryCycleAnalysis'), { loading: ModuleLoading });
+const MasterLeague = dynamic(() => import('../components/MasterLeague'), { loading: ModuleLoading });
+const StrategyGallery = dynamic(() => import('../components/StrategyGallery'), { loading: ModuleLoading });
 import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
 import ShareResultButton from '../components/ShareResultButton';
@@ -268,8 +271,17 @@ export default function Home() {
   const [selected, setSelected] = useState(() => new Set(['buffett', 'munger', 'soros', 'lynch', 'dalio']));
   // 顶部 Tab：提问智囊团 / 早餐圆桌（同页切换，圆桌首次激活后常驻挂载以保留状态）
   const [tab, setTab] = useState('ask');
-  const [showBreakfast, setShowBreakfast] = useState(false);
   const [toolboxTab, setToolboxTab] = useState(DEFAULT_TOOLBOX_TAB);
+  const [mountedTabs, setMountedTabs] = useState(() => new Set(['ask']));
+  const [mountedToolboxTabs, setMountedToolboxTabs] = useState(() => new Set());
+  const markTabMounted = useCallback((nextTab) => {
+    if (!nextTab) return;
+    setMountedTabs((prev) => (prev.has(nextTab) ? prev : new Set(prev).add(nextTab)));
+  }, []);
+  const markToolboxMounted = useCallback((nextTool) => {
+    if (!isToolboxTab(nextTool)) return;
+    setMountedToolboxTabs((prev) => (prev.has(nextTool) ? prev : new Set(prev).add(nextTool)));
+  }, []);
 
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -465,19 +477,24 @@ export default function Home() {
       if (t === 'toolbox' || isToolboxTab(t)) {
         const nextTool = isToolboxTab(tool) ? tool : isToolboxTab(t) ? t : isToolboxTab(savedTool) ? savedTool : DEFAULT_TOOLBOX_TAB;
         setToolboxTab(nextTool);
+        markTabMounted('toolbox');
+        markToolboxMounted(nextTool);
         setTab('toolbox');
       } else if (t === 'breakfast') {
+        markTabMounted('breakfast');
         setTab('breakfast');
-        setShowBreakfast(true);
       } else if (t === 'pools') {
+        markTabMounted('pools');
         setTab('pools');
       } else if (t === 'industry-cycle') {
+        markTabMounted('industry-cycle');
         setTab('industry-cycle');
       } else if (t === 'master-league') {
+        markTabMounted('master-league');
         setTab('master-league');
       }
     } catch (e) { /* ignore */ }
-  }, []);
+  }, [markTabMounted, markToolboxMounted]);
   // BYOK：注册全局"需要配置 Key"回调（各功能组件触发）
   useEffect(() => {
     setOnNeedConfig(() => setAiSettingsOpen(true));
@@ -493,6 +510,8 @@ export default function Home() {
   const switchToolboxTab = (nextTool) => {
     if (!isToolboxTab(nextTool)) return;
     setToolboxTab(nextTool);
+    markTabMounted('toolbox');
+    markToolboxMounted(nextTool);
     setTab('toolbox');
     try { localStorage.setItem('thinktank_toolbox_tab', nextTool); } catch (e) { /* ignore */ }
     try {
@@ -508,8 +527,9 @@ export default function Home() {
     const resolvedNext = legacyToolboxTab ? 'toolbox' : next;
     const nextToolboxTab = legacyToolboxTab || toolboxTab;
     if (legacyToolboxTab) setToolboxTab(legacyToolboxTab);
+    markTabMounted(resolvedNext);
+    if (resolvedNext === 'toolbox') markToolboxMounted(nextToolboxTab);
     setTab(resolvedNext);
-    if (resolvedNext === 'breakfast') setShowBreakfast(true);
     try {
       const url = new URL(window.location.href);
       if (resolvedNext === 'toolbox') {
@@ -528,6 +548,7 @@ export default function Home() {
   };
 
   const drawerResize = useDrawerResize();
+
   const STORAGE_KEY = 'master-debate-state-v1';
 
   // 恢复上次讨论（仅首次挂载）：URL 指定大师 > 本地历史 > 随机 5 位
@@ -1447,7 +1468,7 @@ export default function Home() {
 
 
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
-        <img src={tab === 'breakfast' ? '/bg-breakfast.png' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.png' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.png' : '/bg-argue.jpg'} alt="" />
+        <img src={tab === 'breakfast' ? '/bg-breakfast.jpg' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.webp' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.webp' : '/bg-argue.jpg'} alt="" />
       </div>
 
       {/* 移动端壳层：顶部 header + 底部 Tab（桌面端隐藏） */}
@@ -1929,42 +1950,40 @@ export default function Home() {
         </main>
       </div>
 
-      {showBreakfast && (
+      {mountedTabs.has('breakfast') && (
         <div className={`bk-workspace${tab === 'breakfast' ? '' : ' ws-hidden'}`}>
           <BreakfastRoundtable active={tab === 'breakfast'} />
         </div>
       )}
 
-      <div className={`mg-workspace-wrap${tab === 'pools' ? '' : ' ws-hidden'}`}>
-        <StockPools />
-      </div>
+      {mountedTabs.has('pools') && (
+        <div className={`mg-workspace-wrap${tab === 'pools' ? '' : ' ws-hidden'}`}>
+          <StockPools />
+        </div>
+      )}
 
-      <div className={`mg-workspace-wrap toolbox-workspace${tab === 'toolbox' ? '' : ' ws-hidden'}`}>
-        <ToolboxTabs active={toolboxTab} onChange={switchToolboxTab} t={t} />
-        <div id="toolbox-panel-munger" role="tabpanel" aria-labelledby="toolbox-tab-munger" className={toolboxTab === 'munger' ? '' : 'ws-hidden'}>
-          <MungerFinance />
+      {mountedTabs.has('toolbox') && (
+        <div className={`mg-workspace-wrap toolbox-workspace${tab === 'toolbox' ? '' : ' ws-hidden'}`}>
+          <ToolboxTabs active={toolboxTab} onChange={switchToolboxTab} t={t} />
+          {mountedToolboxTabs.has('munger') && <div id="toolbox-panel-munger" role="tabpanel" aria-labelledby="toolbox-tab-munger" className={toolboxTab === 'munger' ? '' : 'ws-hidden'}><MungerFinance /></div>}
+          {mountedToolboxTabs.has('zen') && <div id="toolbox-panel-zen" role="tabpanel" aria-labelledby="toolbox-tab-zen" className={toolboxTab === 'zen' ? '' : 'ws-hidden'}><ZenShortTerm /></div>}
+          {mountedToolboxTabs.has('naval') && <div id="toolbox-panel-naval" role="tabpanel" aria-labelledby="toolbox-tab-naval" className={toolboxTab === 'naval' ? '' : 'ws-hidden'}><NavalAcademy /></div>}
+          {mountedToolboxTabs.has('fundamental') && <div id="toolbox-panel-fundamental" role="tabpanel" aria-labelledby="toolbox-tab-fundamental" className={toolboxTab === 'fundamental' ? '' : 'ws-hidden'}><CrocodileFundamental /></div>}
+          {mountedToolboxTabs.has('strategy-gallery') && <div id="toolbox-panel-strategy-gallery" role="tabpanel" aria-labelledby="toolbox-tab-strategy-gallery" className={toolboxTab === 'strategy-gallery' ? '' : 'ws-hidden'}><StrategyGallery /></div>}
         </div>
-        <div id="toolbox-panel-zen" role="tabpanel" aria-labelledby="toolbox-tab-zen" className={toolboxTab === 'zen' ? '' : 'ws-hidden'}>
-          <ZenShortTerm />
-        </div>
-        <div id="toolbox-panel-naval" role="tabpanel" aria-labelledby="toolbox-tab-naval" className={toolboxTab === 'naval' ? '' : 'ws-hidden'}>
-          <NavalAcademy />
-        </div>
-        <div id="toolbox-panel-fundamental" role="tabpanel" aria-labelledby="toolbox-tab-fundamental" className={toolboxTab === 'fundamental' ? '' : 'ws-hidden'}>
-          <CrocodileFundamental />
-        </div>
-        <div id="toolbox-panel-strategy-gallery" role="tabpanel" aria-labelledby="toolbox-tab-strategy-gallery" className={toolboxTab === 'strategy-gallery' ? '' : 'ws-hidden'}>
-          <StrategyGallery />
-        </div>
-      </div>
+      )}
 
-      <div className={`mg-workspace-wrap${tab === 'industry-cycle' ? '' : ' ws-hidden'}`}>
-        <IndustryCycleAnalysis />
-      </div>
+      {mountedTabs.has('industry-cycle') && (
+        <div className={`mg-workspace-wrap${tab === 'industry-cycle' ? '' : ' ws-hidden'}`}>
+          <IndustryCycleAnalysis />
+        </div>
+      )}
 
-      <div className={`mg-workspace-wrap${tab === 'master-league' ? '' : ' ws-hidden'}`}>
-        <MasterLeague customMasters={customMasters} onAddCustomMaster={registerCustomMaster} />
-      </div>
+      {mountedTabs.has('master-league') && (
+        <div className={`mg-workspace-wrap${tab === 'master-league' ? '' : ' ws-hidden'}`}>
+          <MasterLeague customMasters={customMasters} onAddCustomMaster={registerCustomMaster} />
+        </div>
+      )}
 
 
 

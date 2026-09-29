@@ -167,6 +167,8 @@ curl -sS 'http://127.0.0.1:3000/api/master-league/commentary?master=loeb'
 
 服务器不需要 GitHub 保存任何服务器私钥；自动部署由服务器自身的 crontab 完成。Cloudflare Cache Rule 对图片、字体和 favicon 设置 30 天边缘缓存、1 天浏览器缓存，`_next/static` 使用一年 immutable 缓存。
 
+首屏采用静态资源懒加载和非默认模块按需挂载；未打开的模块不会在后台加载代码或请求接口，完整回归数据见 `memory/QA.md`。
+
 服务器上的 `/opt/think-tank/.env.production` 保存真实运行密钥，不进入 Git 和 Docker 构建上下文。`NEXT_PUBLIC_*` 变量会在构建时作为 Docker build args 注入。
 
 服务器初始化、Cloudflare 源站证书、DNS 与防火墙步骤见 [`DEPLOY.md`](./DEPLOY.md)。
