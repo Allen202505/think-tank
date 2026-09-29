@@ -25,6 +25,8 @@
 - 生产接口回归：首页、robots、sitemap、股票搜索均返回预期结果；`/breakfast` 返回带 `Location: /?tab=breakfast` 的 307。
 - Docker 容器 `Restarts=0`，服务器 crontab 已安装。
 - `npm audit --omit=dev` 仍报告 3 个依赖问题（Next/PostCSS/nanoid），完整修复需要升级到 Next.js 16 主版本；当前先使用 Next 14.2.35 并记录为后续安全升级项。
+- 推送 `2338957` 后服务器自动拉取部署成功；`deploy.log` 输出 `Deployment healthy: http://127.0.0.1:3000/robots.txt`。
+- 公开 3000 端口不可访问，只有 Nginx 的 80/443 对外提供入口。
 
 ## 2026-09-27 · 微信入口文案改为“入群反馈问题或建议”
 

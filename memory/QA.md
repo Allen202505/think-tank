@@ -50,7 +50,7 @@
 - [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
 - [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
-- [ ] 服务器自动拉取部署：推送 `main` 后 1 分钟内 `deploy.log` 显示部署成功且站点保持健康。
+- [x] 服务器自动拉取部署：推送 `2338957` 后 1 分钟内 `deploy.log` 显示 `Deployment healthy`，站点保持 HTTP 200。
 
 ### P1：完整回归（约 1–2 小时）
 
