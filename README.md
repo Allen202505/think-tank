@@ -141,7 +141,7 @@ curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/agent' \
 curl -sS 'http://127.0.0.1:3000/api/cron/master-league-daily' -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-- 定时：服务器 crontab 在 `35 7 * * 1-5`（UTC）= 北京时间 15:35 周一至周五执行；周末与节假日自动跳过。
+- 定时：服务器 crontab 在 `35 15 * * 1-5`（UTC）= 北京时间 15:35 周一至周五执行；周末与节假日自动跳过。
 - 成本：六位决策约 ¥0.13~0.20/天，互评约 ¥0.01/天，合计 **约 ¥4/月**。
 - 兜底：某位大师当天没有 AI 计划时，自动回退到 `src/data/masterLeague.js` 的预置剧本，比赛不会中断。
 

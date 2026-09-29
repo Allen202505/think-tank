@@ -32,7 +32,7 @@ docker compose up -d --remove-orphans
 
 for _ in $(seq 1 30); do
   if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null; then
-    cron_line="35 7 * * 1-5 $DEPLOY_PATH/scripts/run-daily-cron.sh >> $DEPLOY_PATH/cron.log 2>&1"
+    cron_line="35 15 * * 1-5 $DEPLOY_PATH/scripts/run-daily-cron.sh >> $DEPLOY_PATH/cron.log 2>&1"
     auto_line="* * * * * $DEPLOY_PATH/scripts/auto-deploy-tencent.sh >> $DEPLOY_PATH/deploy.log 2>&1"
     for required_line in "$cron_line" "$auto_line"; do
       if ! crontab -l 2>/dev/null | grep -Fqx "$required_line"; then
