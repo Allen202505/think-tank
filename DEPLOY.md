@@ -1,6 +1,6 @@
 # 自建服务器部署 + 百度 SEO 操作指南
 
-> 账户类操作（买服务器、登录百度站长、DNS）需要你本人完成；代码/脚本已全部备好，按下面步骤走即可。
+> 账户类操作（买服务器、登录百度站长、DNS）需要你本人完成；当前生产已迁移到腾讯云香港 Lighthouse，代码、服务器自动拉取和部署脚本已备好。
 
 ## 一、买服务器（选一个方向）
 
@@ -14,22 +14,12 @@
 
 ## 二、服务器上部署（Docker 一条龙）
 
-1. 服务器装 Docker：`curl -fsSL https://get.docker.com | sh`
-2. 把项目代码传到服务器（git clone 或 scp）。
-3. 服务器上准备环境变量：
-   ```
-   cp .env.local .env.production   # 填好 DEEPSEEK_API_KEY、NEXT_PUBLIC_SITE_URL 等
-   ```
-4. 启动：
-   ```
-   docker compose up -d --build
-   ```
-5. 安装 Nginx 反代 + HTTPS（示例配置见 deploy/nginx.conf.example）：
-   ```
-   apt install nginx certbot python3-certbot-nginx
-   # 把 nginx 配置里的 your-domain.com 换成真实域名，放入 /etc/nginx/conf.d/
-   certbot --nginx -d your-domain.com   # 自动申请证书并开启 443
-   ```
+1. 服务器装 Docker：`curl -fsSL https://get.docker.com | sh`。
+2. 克隆仓库到 `/opt/think-tank`。
+3. 服务器上准备环境变量：`cp .env.local .env.production`，并确认 `NEXT_PUBLIC_SITE_URL=https://yieldglide.com`。
+4. 执行 `set -a && source .env.production && set +a`，再运行 `docker compose up -d --build`。
+5. 安装 Nginx，使用 Cloudflare Origin Certificate 配置 443；Cloudflare SSL/TLS 设为 Full (strict)。
+6. 服务器 crontab 每分钟运行 `scripts/auto-deploy-tencent.sh`；push `main` 后检测到新提交即自动执行 `scripts/deploy-tencent.sh`。
 
 ## 三、百度搜索资源平台（ziyuan.baidu.com）提交 sitemap
 
@@ -67,7 +57,7 @@
 
 小程序提审版使用“微信云函数代理 + 现有 Next.js API”，不依赖小程序 request 合法域名。完整步骤见 [`miniprogram/README.md`](./miniprogram/README.md)。
 
-1. 在 Vercel Production 增加随机 `MINI_PROXY_SECRET`，重新部署 Web 端。
+1. 在腾讯云服务器 `/opt/think-tank/.env.production` 增加随机 `MINI_PROXY_SECRET`，重新部署 Web 端。
 2. 在微信开发者工具创建云开发环境，把环境 ID 写入 `miniprogram/config.js`。
 3. 在 `cloudfunctions/mini-api` 配置相同的 `MINI_PROXY_SECRET`，选择“上传并部署：云端安装依赖”。
 4. 把根目录 `project.config.json` 的 `appid` 替换为真实个人小程序 AppID。

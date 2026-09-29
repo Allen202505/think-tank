@@ -31,7 +31,7 @@
 - Next.js 14（App Router）+ React 18
 - DeepSeek / 任意 OpenAI 兼容模型（BYOK）
 - 数据源：东方财富 / 财联社 / Yahoo（行情与新闻）
-- 部署：Vercel 或 Docker 自建
+- 部署：腾讯云 Lighthouse（Docker + 服务器自动拉取）；Vercel 作为历史备用方案
 
 ## 快速开始
 
@@ -85,7 +85,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 启用步骤：
 
 1. 在 Supabase SQL Editor 执行 [`supabase/share_results.sql`](./supabase/share_results.sql)，或重新执行包含该段的 [`supabase/schema.sql`](./supabase/schema.sql)。
-2. 在 Vercel / `.env.local` 配置服务端专用 `SUPABASE_SERVICE_ROLE_KEY`（不要暴露到浏览器）。
+2. 在生产服务器 / `.env.local` 配置服务端专用 `SUPABASE_SERVICE_ROLE_KEY`（不要暴露到浏览器）。
 3. 重新部署后，三类结果卡会出现「分享链接」按钮；未配置底表或 service role 时接口明确返回 503，不会生成本机假链接。
 
 > 本地开发为方便调试会回退到进程内快照，重启 dev server 后旧链接失效；生产环境始终使用 Supabase 持久化。
@@ -95,7 +95,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 公开赛账户、用户邀请大师、持仓、决策和评论使用 Supabase 公共底表。执行以下步骤启用：
 
 1. 在 Supabase SQL Editor 运行 [`supabase/master_league.sql`](./supabase/master_league.sql)。
-2. 在 Vercel / `.env.local` 添加服务端专用 `SUPABASE_SERVICE_ROLE_KEY`（不要提交到 Git 或暴露给浏览器）。
+2. 在生产服务器 / `.env.local` 添加服务端专用 `SUPABASE_SERVICE_ROLE_KEY`（不要提交到 Git 或暴露给浏览器）。
 3. 用户邀请大师需要先登录，写入后会立即对所有访客可见并持久保存。
 4. 站长账号设为管理员后，可在任意邀请大师详情中查看邀请人、提示词与 Skill，并「下架并删除」广告内容（被下架的大师 id 会进入黑名单，对方无法重新发布）：
 
@@ -141,7 +141,7 @@ curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/agent' \
 curl -sS 'http://127.0.0.1:3000/api/cron/master-league-daily' -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-- 定时：`vercel.json` 里 `35 7 * * 1-5`（UTC）= 北京时间 15:35 周一至周五；周末与节假日自动跳过。
+- 定时：服务器 crontab 在 `35 7 * * 1-5`（UTC）= 北京时间 15:35 周一至周五执行；周末与节假日自动跳过。
 - 成本：六位决策约 ¥0.13~0.20/天，互评约 ¥0.01/天，合计 **约 ¥4/月**。
 - 兜底：某位大师当天没有 AI 计划时，自动回退到 `src/data/masterLeague.js` 的预置剧本，比赛不会中断。
 
@@ -161,14 +161,21 @@ curl -sS 'http://127.0.0.1:3000/api/master-league/commentary?master=loeb'
 
 ## 部署
 
-### Vercel
+### 腾讯云 Lighthouse（当前生产）
 
-导入本仓库，填好环境变量即可。
+生产服务器为腾讯云香港 Lighthouse，使用 Docker Compose 运行 Next.js standalone，Nginx 负责 HTTPS 入口。`main` 分支推送后由服务器定时检查更新并自动拉取、构建、重启容器和执行健康检查，通常在 1 分钟内上线。
+
+服务器不需要 GitHub 保存任何服务器私钥；自动部署由服务器自身的 crontab 完成。
+
+服务器上的 `/opt/think-tank/.env.production` 保存真实运行密钥，不进入 Git 和 Docker 构建上下文。`NEXT_PUBLIC_*` 变量会在构建时作为 Docker build args 注入。
+
+服务器初始化、Cloudflare 源站证书、DNS 与防火墙步骤见 [`DEPLOY.md`](./DEPLOY.md)。
 
 ### Docker 自建
 
 ```bash
 cp .env.example .env.production
+set -a && source .env.production && set +a
 docker compose up -d --build
 ```
 

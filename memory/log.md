@@ -1,5 +1,31 @@
 # 决策记录
 
+## 2026-09-29 · 生产迁移到腾讯云香港 Lighthouse
+
+**背景**：Vercel Hobby 因 Active CPU 等超出公平使用额度暂停生产部署；用户购买腾讯云香港 Lighthouse（2核2G，20Mbps，512GB/月）后，要求恢复线上访问并支持 GitHub 推送自动部署。
+
+**改动**：
+
+- 在腾讯云 Ubuntu 24.04 上安装 Docker、Nginx，部署 Next.js standalone 容器。
+- 使用 Cloudflare Origin Certificate + Full (strict)，将 `yieldglide.com` 根域和 `www` 切换到新服务器。
+- 新增服务器定时拉取部署与部署脚本 `scripts/auto-deploy-tencent.sh`、`scripts/deploy-tencent.sh`；GitHub 不需要保存服务器私钥。
+- Dockerfile 改用 Node 22，并在构建阶段注入 `NEXT_PUBLIC_*`；`.dockerignore` 排除全部 `.env*`，避免密钥进入构建上下文。
+- Next.js 从 14.2.5 升级到 14.2.35，修复已知 14.x 安全漏洞；新增服务器交易日 15:35 的 crontab 调用脚本。
+- 同步 README、DEPLOY、项目、架构、PRD 和 QA 文档。
+
+**影响范围**：生产入口由 Vercel 改为腾讯云香港 Lighthouse；域名、HTTPS 和定时任务继续使用同一业务接口，小程序云函数的 API base 保持 `https://yieldglide.com`。
+
+**验证**：
+
+- 服务器本机 `http://127.0.0.1:3000/` 与 `/robots.txt` 返回 200，Docker 容器运行中。
+- `https://yieldglide.com/` 返回 200，Cloudflare 响应头不再包含 `DEPLOYMENT_DISABLED`。
+- `https://www.yieldglide.com/` 301 到 `https://yieldglide.com/`，最终返回 200。
+- 腾讯云安全组已放行 22/80/443，443 公网连通。
+- `npm test` 88/88 通过；`npm run build` 通过，生成 33 个页面。
+- 生产接口回归：首页、robots、sitemap、股票搜索均返回预期结果；`/breakfast` 返回带 `Location: /?tab=breakfast` 的 307。
+- Docker 容器 `Restarts=0`，服务器 crontab 已安装。
+- `npm audit --omit=dev` 仍报告 3 个依赖问题（Next/PostCSS/nanoid），完整修复需要升级到 Next.js 16 主版本；当前先使用 Next 14.2.35 并记录为后续安全升级项。
+
 ## 2026-09-27 · 微信入口文案改为“入群反馈问题或建议”
 
 **背景**：用户希望将侧栏底部微信入口从「入群聊一聊」调整为更明确的「入群反馈问题或建议」。

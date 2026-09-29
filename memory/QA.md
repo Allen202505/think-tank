@@ -1,7 +1,7 @@
 # 大师吵股 · 功能说明与回归测试手册
 
 > 适用版本：`main` 分支  
-> 最近更新：2026-09-27
+> 最近更新：2026-09-29
 > 用途：功能交接、发布前检查、线上问题复现、后续优化后的快速回归。
 
 ---
@@ -45,8 +45,12 @@
 - [x] 签名联调通过：无签名返回 401，股票代码请求返回 400，合法圆桌和资讯请求均返回 200。
 - [x] 微信开发者工具已导入真实 AppID `wx5c9e2626c351217f`，绑定云环境并完成模拟器编译。
 - [x] 云函数 `mini-api` 已部署到 `cloudbase-d0govchp716d4e94d`，环境变量已配置。
-- [x] Vercel Production 已配置同一 `MINI_PROXY_SECRET`；无签名请求返回 401，签名请求返回 200。
+- [x] Web 生产环境已配置同一 `MINI_PROXY_SECRET`；无签名请求返回 401，签名请求返回 200。
 - [x] 代码版本 `1.0.0` 已上传，隐私保护指引已提交，提审已正式提交。
+- [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
+- [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
+- [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
+- [ ] 服务器自动拉取部署：推送 `main` 后 1 分钟内 `deploy.log` 显示部署成功且站点保持健康。
 
 ### P1：完整回归（约 1–2 小时）
 
@@ -98,7 +102,34 @@ npm test
 
 当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序、联赛/市场快照、财报侦查诊断，以及小程序输入/输出拦截、结构化归一化和云函数签名校验，共 79 个用例。
 
-### 2.2 建议环境变量
+### 2.2 腾讯云 Lighthouse 自动部署
+
+生产服务器目录：`/opt/think-tank`。
+
+运行环境：
+
+- 腾讯云香港 Lighthouse，Ubuntu 24.04。
+- Docker Compose 运行 `think-tank` 容器，监听 `127.0.0.1:3000` 对应的本机端口。
+- Nginx 监听 80/443，并将域名流量反代到容器。
+- Cloudflare SSL/TLS 模式：Full (strict)，源站使用 Cloudflare Origin Certificate。
+- 真实密钥只保存在 `/opt/think-tank/.env.production`，权限 600。
+
+默认自动部署：
+
+- 服务器 crontab 每分钟执行 `scripts/auto-deploy-tencent.sh`，发现 `origin/main` 更新后调用 `scripts/deploy-tencent.sh`。
+- 服务器脚本：`scripts/deploy-tencent.sh`，执行 `git reset --hard origin/main`、Docker build/up、`/robots.txt` 健康检查和 crontab 安装。
+
+验证命令：
+
+```bash
+curl -I https://yieldglide.com
+ssh -i ~/.ssh/think-tank-tencent_ed25519 ubuntu@<host> \
+  'cd /opt/think-tank && docker compose ps && crontab -l'
+```
+
+已知安全债：`npm audit --omit=dev` 仍报告 Next/PostCSS/nanoid 共 3 项；官方完整修复路径是 Next.js 16.3.6 主版本升级，需单独安排兼容性验证。
+
+### 2.3 建议环境变量
 
 - `DEEPSEEK_API_KEY`：站长免费体验模型 Key。
 - `DEEPSEEK_MODEL`：站长默认模型；当前为 `deepseek-flash`（DeepSeek-V4.1-Flash），不配置时同样回退到该模型。
@@ -107,7 +138,7 @@ npm test
 - `NEXT_PUBLIC_QR_CODE_URL`：个人二维码地址，可选。
 - `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`：股票池云同步，可选。
 
-### 2.3 建议测试账号模式
+### 2.4 建议测试账号模式
 
 | 模式 | 配置 |
 |---|---|
@@ -117,7 +148,7 @@ npm test
 | 空数据用户 | 清空全部 `thinktank_*` 本地键 |
 | 老用户 | 保留历史讨论、股票池、词条和模块缓存 |
 
-### 2.4 常用测试股票
+### 2.5 常用测试股票
 
 - 贵州茅台：`600519`
 - 中盐化工：`600328`
@@ -125,7 +156,7 @@ npm test
 - 无效代码：`999999`
 - 非 A 股：`AAPL`
 
-### 2.5 前端本地存储键
+### 2.6 前端本地存储键
 
 | Key | 用途 |
 |---|---|

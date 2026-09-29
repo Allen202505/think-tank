@@ -9,7 +9,7 @@
 ## 技术栈
 - **框架**: Next.js 14.2.5（App Router）
 - **语言**: React 18
-- **部署**: Vercel
+- **部署**: 腾讯云 Lighthouse（中国香港，Docker + 服务器自动拉取）
 - **小程序**: 微信原生小程序 + 微信云开发云函数（个人主体提审版，2026-09-19 新增）
 - **AI**: DeepSeek（.env.local 存 key，不入库）
 - **行情数据源**: 东财 → 腾讯 → 新浪（三级兜底，日K）
@@ -50,9 +50,9 @@
 
 ## 部署与仓库
 - GitHub: github.com/Allen202505/think-tank（main）
-- 部署：Vercel 已绑定该仓库，push 到 main 即自动触发部署、自动出线上链接，无需每次询问/手动部署；`DEEPSEEK_API_KEY`、Supabase 等必要环境变量已在 Vercel 配置好
+- 部署：腾讯云香港 Lighthouse 运行 Docker Compose；push 到 `main` 后由服务器定时检查更新并自动拉取、构建、重启。`DEEPSEEK_API_KEY`、Supabase 等必要环境变量保存在服务器 `/opt/think-tank/.env.production`，不进入仓库
 - 首次启用结果分享链接：在 Supabase SQL Editor 执行 `supabase/share_results.sql`；生产写入/读取依赖 `SUPABASE_SERVICE_ROLE_KEY`，未配置时分享接口返回 503
-- 小程序：Vercel 与微信云函数需配置相同的 `MINI_PROXY_SECRET`；云环境 ID 与真实 AppID 由开发者账号配置，详见 `miniprogram/README.md`
+- 小程序：Web 生产环境与微信云函数需配置相同的 `MINI_PROXY_SECRET`；云环境 ID 与真实 AppID 由开发者账号配置，详见 `miniprogram/README.md`
 - 本地开发：npm run dev（默认 3000，本机常用 3210）
 
 ## 迭代维护要求

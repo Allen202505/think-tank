@@ -7,9 +7,9 @@
     ↓
 Cloudflare CDN（全球节点加速）
     ↓
-Vercel 服务器（美国）
+腾讯云 Lighthouse（中国香港）
     ↓
-Next.js 应用
+Nginx → Next.js Docker
 ```
 
 ## 目录结构
@@ -87,7 +87,7 @@ think-tank/
 ### DNS 解析
 - DNS 服务商: Cloudflare
 - 域名指向: Cloudflare 的 IP
-- Cloudflare 转发到: Vercel 服务器
+- Cloudflare 转发到: 腾讯云 Lighthouse（中国香港，源站使用 Cloudflare Origin Certificate）
 
 ### CDN 节点
 - 全球 300+ 节点
@@ -99,8 +99,8 @@ think-tank/
 1. 用户请求 → Cloudflare CDN
 2. CDN 检查缓存
 3. 如有缓存 → 直接返回
-4. 如无缓存 → 请求 Vercel 服务器
-5. Vercel 执行 Next.js 渲染
+4. 如无缓存 → 请求腾讯云 Lighthouse
+5. Nginx 将请求转发给 Docker 中的 Next.js
 6. 返回结果 → CDN 缓存 → 用户
 
 ## 大师实盘联赛数据流（2026-09-15）
@@ -118,7 +118,7 @@ masterLeagueEngine 按真实开盘价执行、收盘价结算
     ↓
 MasterLeague.js 在工作台内展示
 
-同一次 Vercel Cron：
+同一次服务器 crontab：
 runDecisionJob（生成下一交易日计划）
     ↓ decisionsByMaster
 runCommentaryJob（按 planDate 生成并落库互评）
@@ -204,7 +204,7 @@ wx.setStorageSync（最多 30 条，仅本机）
 - `src/lib/miniProgramPolicy.js`：输入输出合规规则、结构化结果归一化、HMAC 签名与 OpenID 哈希。
 - `src/app/api/mini/debate/route.js`：财经圆桌接口；2-4 个学习视角，不拉行情、不做具体证券判断。
 - `src/app/api/mini/reading/route.js`：公开材料学习卡片接口；只做摘要、概念和影响维度梳理。
-- 安全：小程序不直连 Vercel；云函数请求必须通过时间戳、nonce、OpenID 和请求体 HMAC 校验；重复/篡改/过期请求被拒绝。
+- 安全：小程序不直连 Web 生产服务器；云函数请求必须通过时间戳、nonce、OpenID 和请求体 HMAC 校验；重复/篡改/过期请求被拒绝。
 - 隐私：OpenID 仅短期用于限流，服务端哈希后存在进程内 Map；问题正文不写入业务数据库；历史记录只在设备本地。
 - 类目边界：个人主体选择教育信息展示/信息查询，不申请金融业类目；企业版若接入行情、财报或模拟交易，应独立部署和提审。
 
