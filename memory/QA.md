@@ -24,8 +24,8 @@
 - [x] 联赛详情、今日决策筛选、完整排名、观点详情和点赞可用，点赞刷新后保持。
 - [x] 大师 PK、联赛、选股池、早餐、功能箱五 Tab、行业周期分析均能打开。
 - [x] A 股行情主源东财失败时可自动回退腾讯行情；`scripts/tencent-quote.test.mjs` 强制东财返回 502 后，`getQuote` 成功返回腾讯行情。
-- [x] 行业周期本地端到端：`POST /api/industry-cycle {symbol:"600519"}` 返回 200，识别贵州茅台、白酒Ⅱ并输出结构化分析。
-- [x] 注册/登录同源代理本地闭环：Supabase Auth settings/REST 返回 200，临时账号完成注册→登录→管理员删除。
+- [x] 行业周期端到端：本地与公网 `POST /api/industry-cycle {symbol:"600519"}` 均返回 200，识别贵州茅台、白酒Ⅱ并输出结构化分析；公网耗时 18.4s。
+- [x] 注册/登录同源代理闭环：本地与公网 Supabase Auth settings 返回 200，临时账号均完成注册→登录→管理员删除。
 - [ ] 无 Key 用户第 10 次 AI 功能可用，第 11 次被拦截并弹出 AI 设置。
 - [ ] 配置用户 Key 后，不占免费次数。
 - [x] 分享入口位于“入群反馈问题建议”上方，和其高度一致，分享图标可见。
@@ -701,7 +701,7 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [ ] AUTH-02 配置后可注册、登录、退出；本地代理链路已验证注册、登录，退出与浏览器 UI 待上线后复测。
 - [ ] AUTH-03 登录后“我的股票池”同步。
 - [ ] AUTH-04 换浏览器登录后能看到云端池。
-- [x] AUTH-05 `npm test` 包含 `scripts/supabase-proxy.test.mjs`，覆盖固定项目域名、查询参数保留和路径穿越拦截；本地临时账号注册、密码登录、服务端删除闭环通过。
+- [x] AUTH-05 `npm test` 包含 `scripts/supabase-proxy.test.mjs`，覆盖固定项目域名、查询参数保留和路径穿越拦截；本地与公网临时账号注册、密码登录、服务端删除闭环通过。
 - [ ] AUTH-05 用户只能访问自己的数据。
 - [ ] AUTH-06 API Key 不上传。
 
@@ -732,7 +732,7 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [ ] ERR-09 用户中途停止生成时界面恢复可操作状态。
 - [ ] ERR-10 重复点击提交不会产生重复请求。
 - [x] ERR-11 行业周期接口返回 HTML/网关 502 时，前端转换为友好错误，不暴露 JSON 解析异常。
-- [x] ERR-12 行业周期行情缺失改为 503 结构化 JSON，避免 Cloudflare 替换 502 响应体；腾讯行情回退单测通过（生产部署后复测）。
+- [x] ERR-12 行业周期行情缺失改为 503 结构化 JSON，避免 Cloudflare 替换 502 响应体；腾讯行情回退单测与生产公网回归均通过。
 
 ---
 
@@ -746,9 +746,9 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [ ] `POST /api/munger`
 - [ ] `POST /api/zen`
 - [ ] `POST /api/fundamental`
-- [ ] `POST /api/industry-cycle`
-- [ ] `GET /api/stock-search`
-- [ ] `ALL /api/supabase/[...path]`（本地 Auth settings、REST、注册、登录已验证；生产待部署复测）
+- [x] `POST /api/industry-cycle`（本地与公网 200，贵州茅台结构化分析）
+- [x] `GET /api/stock-search`（公网 200，600519 正确识别）
+- [x] `ALL /api/supabase/[...path]`（本地与公网 Auth settings、注册、登录均已验证；临时账号已删除）
 - [ ] `POST /api/naval/ask`
 - [ ] `POST /api/naval/daily`
 - [ ] `POST /api/pools/extract`
@@ -756,7 +756,7 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [ ] `POST /api/pools/suggest`
 - [x] `POST /api/share-results`（本地与生产三类快照实际创建通过）
 - [x] `GET /share/[id]`（本地与生产三类快照均返回 200 并渲染原文）
-- [ ] `GET /api/master-league`
+- [x] `GET /api/master-league`（公网 200）
 
 每个接口至少检查：
 

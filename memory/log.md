@@ -24,7 +24,10 @@
 - 本地 `POST /api/industry-cycle {symbol:"600519"}` 返回 200，识别贵州茅台、白酒Ⅱ并生成结构化周期分析。
 - 本地同源代理读取 Supabase Auth settings、REST profiles 均返回 200；临时账号完成注册→密码登录→管理员删除闭环。
 - 生产源站已复现：容器内请求东财 push2 返回 502，腾讯行情返回 200，应用返回“暂时没有获取到该股票的最新行情”。
-- 尚未推送线上；部署后需复测生产行业周期接口和注册代理，再补记线上验证结果。
+- 已推送 `main`（`f8e7c52`）并完成服务器自动部署；容器重建后 `Deployment healthy`，启动时间更新为 2026-09-30 16:37（北京时间）。
+- 公网 `POST https://yieldglide.com/api/industry-cycle {symbol:"600519"}` 返回 HTTP 200，价格 1258.62、PE 17.67、PB 6.26，输出结构化周期分析。
+- 公网同源代理完成生产账号闭环：Auth settings 200，临时账号注册 200、密码登录 200、管理员删除 200，无测试账号残留。
+- 公网相邻回归：`/api/master-league`、`/api/stock-search?q=600519`、`/api/fundamental`、`/api/context`、`/api/zen` 均返回 200。
 
 ## 2026-09-29 · 微信入口文案改为“入群反馈问题建议”
 
