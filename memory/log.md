@@ -1,5 +1,31 @@
 # 决策记录
 
+## 2026-09-30 · 修复线上行情与注册链路
+
+**背景**：线上用户反馈注册、行业周期分析等多个页面不可用；截图分别显示 `Failed to fetch` 与“分析失败，请重试”。
+
+**根因**：
+
+- 行业周期：香港源站访问东方财富 `push2.eastmoney.com` 稳定返回 Nginx 502 或空连接；应用因此拿不到 A 股行情并返回 HTTP 502，Cloudflare 又把 502 响应体替换为裸文本 `error code: 502`。源站容器未崩溃，搜索接口和腾讯行情 `qt.gtimg.cn` 均正常。
+- 注册：Supabase Auth/REST 本身健康，服务端可用；故障发生在用户浏览器直连 `*.supabase.co` 的跨境网络链路，前端只能拿到浏览器级 `Failed to fetch`。
+
+**改动**：
+
+- 新增 `src/lib/tencentQuote.mjs`，在统一行情层 `marketData.js` 中为 A 股增加腾讯实时行情兜底；东财 push2 失败后自动切换，保留价格、昨收、涨跌、PE、PB、市值、换手率等字段。
+- 新增同源代理 `src/app/api/supabase/[...path]/route.js`，浏览器端 Supabase URL 改为 `/api/supabase/`，由香港源站转发 Auth/REST 请求；显式保留项目原有 `sb-<project-ref>-auth-token` 存储键，避免现有登录态因代理切换失效。
+- 行业周期缺少行情时改返回 HTTP 503，避免 Cloudflare 将 502 替换成裸文本，前端可读取具体 JSON 错误并给出明确提示。
+- 新增 `scripts/tencent-quote.test.mjs` 与 `scripts/supabase-proxy.test.mjs`，覆盖腾讯字段映射、东财失败回退、固定项目域名和路径穿越拦截。
+
+**影响范围**：A 股实时行情、行业周期分析、禅论、股票池、财报等复用统一行情层的页面在东方财富跨境不可达时仍可运行；登录注册、股票池同步及联赛邀请改为同源 Supabase 代理，不再依赖浏览器直连 Supabase。
+
+**验证**：
+
+- `npm test` 94/94 通过；`npm run build` 通过，新增 `/api/supabase/[...path]` 动态路由。
+- 本地 `POST /api/industry-cycle {symbol:"600519"}` 返回 200，识别贵州茅台、白酒Ⅱ并生成结构化周期分析。
+- 本地同源代理读取 Supabase Auth settings、REST profiles 均返回 200；临时账号完成注册→密码登录→管理员删除闭环。
+- 生产源站已复现：容器内请求东财 push2 返回 502，腾讯行情返回 200，应用返回“暂时没有获取到该股票的最新行情”。
+- 尚未推送线上；部署后需复测生产行业周期接口和注册代理，再补记线上验证结果。
+
 ## 2026-09-29 · 微信入口文案改为“入群反馈问题建议”
 
 **背景**：用户要求将左侧底部微信入口从「入群反馈问题或建议」改为更简洁的「入群反馈问题建议」。

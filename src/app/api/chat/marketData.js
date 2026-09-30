@@ -17,6 +17,7 @@
 
 import { resolveLlmUrl, buildProviderHeaders, buildProviderBody } from '../../../lib/llm.js';
 import { isAShareQuotationRow } from '../../../lib/stockSearch.mjs';
+import { parseTencentQuote, tencentPrefixForCode } from '../../../lib/tencentQuote.mjs';
 
 // ─── 常量 ────────────────────────────────────────────────
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
@@ -568,6 +569,33 @@ async function fetchQuoteEM(secid) {
   };
 }
 
+// 东财 push2 在部分海外/跨境线路会直接返回 502，腾讯行情作为 A 股兜底。
+async function fetchQuoteTencent(secid) {
+  const [, code] = String(secid || '').split('.');
+  const prefix = tencentPrefixForCode(code);
+  if (!prefix) throw new Error('腾讯行情不支持该证券');
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(`https://qt.gtimg.cn/q=${prefix}${code}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        Referer: 'https://gu.qq.com/',
+      },
+      signal: ctrl.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = new TextDecoder('gbk').decode(await res.arrayBuffer());
+    const quote = parseTencentQuote(text);
+    if (!quote) throw new Error('腾讯行情无有效数据');
+    return quote;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 
 // 给 Promise 加超时（Yahoo 在某些网络不可达时可能卡住）
 export function withTimeout(promise, ms) {
@@ -925,7 +953,20 @@ export async function getQuote(info) {
   } catch (e) {
     // 东财失败则继续尝试 Yahoo
   }
-  if (info.market === 'CN') return em;
+  if (info.market === 'CN') {
+    if (em?.price != null) return em;
+    try {
+      const tx = await cached(
+        `txquote:${info.secid}`,
+        120000,
+        () => fetchQuoteTencent(info.secid),
+        { cacheErrors: false },
+      );
+      return tx || em;
+    } catch (e) {
+      return em;
+    }
+  }
   try {
     const y = await withTimeout(cached(`yquote:${info.symbol}`, 180000, () => fetchQuoteYahoo(info.symbol)), 2500);
     if (em) return { ...em, ...y };

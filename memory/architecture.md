@@ -65,7 +65,8 @@ think-tank/
 - `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`；前端允许中文单字触发候选，6 位纯代码跳过候选请求。
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
-- 行情容错：东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`；客户端对网关 HTML/非 JSON 响应做统一友好降级。
+- `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
+- `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
 - `src/app/api/chat/route.js`: DeepSeek 代理，调用 quoteContext 注入最新数据
 - `src/app/masters/page.js` + `[id]/page.js`: 大师列表页与详情静态页（SEO）
@@ -73,13 +74,14 @@ think-tank/
 
 ### 环境变量
 - `NEXT_PUBLIC_SITE_URL`: 网站基础 URL，用于生成 sitemap 和 robots
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase 项目地址与浏览器公开密钥；浏览器实际请求经 `/api/supabase/*` 同源代理转发
 
 ## 部署流程
 
 1. 代码推送到 Git 仓库
-2. Vercel 自动检测并构建
-3. 部署到 Vercel 服务器
-4. Cloudflare CDN 自动更新缓存
+2. 腾讯云 Lighthouse 定时检查 `origin/main`，调用自动部署脚本
+3. Docker 构建 Next.js standalone 并重启 `think-tank` 容器
+4. 源站健康检查通过后保留现有 Cloudflare/Nginx 入口
 5. 用户通过 Cloudflare 访问网站
 
 ## 网络架构

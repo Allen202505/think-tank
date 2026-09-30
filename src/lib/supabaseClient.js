@@ -10,15 +10,30 @@ export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
+function browserSupabaseUrl() {
+  if (typeof window === 'undefined') return SUPABASE_URL;
+  return new URL('/api/supabase/', window.location.origin).href;
+}
+
+function authStorageKey() {
+  try {
+    const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
+    return `sb-${ref}-auth-token`;
+  } catch (e) {
+    return 'sb-think-tank-auth-token';
+  }
+}
+
 let clientInstance = null;
 export function getSupabase() {
   if (!supabaseEnabled) return null;
   if (!clientInstance) {
-    clientInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    clientInstance = createClient(browserSupabaseUrl(), SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: authStorageKey(),
       },
     });
   }

@@ -307,7 +307,8 @@ export async function POST(request) {
       getFinancials(info).catch(() => null),
     ]);
     if (!quote?.price) {
-      return Response.json({ error: '暂时没有获取到该股票的最新行情，请稍后重试' }, { status: 502 });
+      // 503 不会被 Cloudflare 替换成裸文本 502，前端能读到具体错误并提示重试。
+      return Response.json({ error: '暂时没有获取到该股票的最新行情，请稍后重试' }, { status: 503 });
     }
     const deep = await getDeepAnalysis(info, quote, fin).catch(() => null);
     const industryName = quote.industry || deep?.industry?.emIndustry || '';
