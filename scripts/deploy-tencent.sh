@@ -28,6 +28,7 @@ source .env.production
 set +a
 
 export GIT_COMMIT="$(git rev-parse --short HEAD)"
+printf '%s\n' "$GIT_COMMIT" > .deploy-commit
 docker compose build --pull
 docker compose up -d --remove-orphans
 

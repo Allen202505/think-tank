@@ -5,7 +5,7 @@ export async function GET() {
   return Response.json({
     ok: true,
     app: 'ok',
-    commit: process.env.GIT_COMMIT || 'dev',
+    commit: process.env.BUILD_COMMIT || process.env.GIT_COMMIT || 'dev',
     checkedAt: new Date().toISOString(),
     config: {
       ai: Boolean(process.env.DEEPSEEK_API_KEY),

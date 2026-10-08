@@ -22,3 +22,5 @@ submission/review-screenshots
 .env*
 deploy.log
 cron.log
+
+.deploy-commit

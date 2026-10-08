@@ -59,7 +59,7 @@
 - [x] 带 `?tab=master-league`、`?tab=pools`、`?tab=breakfast`、`?tab=toolbox&tool=fundamental` 的直达页面均能正常渲染。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
 - [x] 服务器 crontab 每小时 `:35` 唤醒脚本，仅在北京时间 15:35–15:44 执行，并通过最新交易日校验跳过节假日。
-- [x] `GET /api/health` 返回运行状态、构建 commit 与核心配置布尔值，部署脚本要求 commit 与 `origin/main` 一致。
+- [x] `GET /api/health` 返回运行状态、构建 commit 与核心配置布尔值，部署脚本要求 `.deploy-commit` 与 `origin/main` 一致。
 - [x] 公开链接抓取拒绝 `localhost`、私网、云元数据地址及跳转到内网的重定向；相关接口回归返回 400。
 - [x] `npm audit --omit=dev` 为 0 个漏洞；Next.js 与 PostCSS/nanoid/source-map-js 已升级到安全版本。
 - [x] 服务器自动拉取部署：推送 `2338957` 后 1 分钟内 `deploy.log` 显示 `Deployment healthy`，站点保持 HTTP 200。

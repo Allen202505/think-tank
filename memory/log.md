@@ -20,7 +20,7 @@
 - 升级 Next.js 到 `16.4.0`，同步修复 PostCSS、nanoid、source-map-js；`npm audit --omit=dev` 降到 0 漏洞。适配 Next 16 的异步 `params`（Supabase 动态代理、分享详情页）。
 - `marketSnapshot` 的单股快照和指数摘要增加腾讯行情兜底；`marketData.getMarketOverview` 的指数行情增加腾讯兜底，香港节点访问东财 push2 失败时不再返回空大盘。
 - 新增 `src/lib/safeRemoteFetch.mjs`：公开 DNS 校验、内网/云元数据拦截、逐跳重定向校验、超时和响应体上限；接入大师动态、早餐链接、股票池链接、芒格财报链接和虚拟大师文章抓取。
-- 新增 `/api/health`，返回应用状态、构建 commit 和关键配置布尔值。部署脚本改为校验 commit 与 `origin/main` 一致；Docker build 注入 `GIT_COMMIT`。
+- 新增 `/api/health`，返回应用状态、构建 commit 和关键配置布尔值。部署脚本写入 `.deploy-commit` 并校验 commit 与 `origin/main` 一致，避免 Docker/Next 运行时环境变量差异。
 - 收盘脚本改为每小时 `:35` 唤醒，用 `Asia/Shanghai` 判断 15:35–15:44；每日决策接口先校验最新交易日，节假日直接跳过。
 - 股票池机构评级改为每批 6 并发，接口限流提高到 600 次/分钟；限流 IP 优先读取 Cloudflare `CF-Connecting-IP`。
 - 给 Supabase 代理、纳瓦尔期数、大师雷达等公开接口补充限流。

@@ -83,7 +83,7 @@ think-tank/
 1. 代码推送到 Git 仓库
 2. 腾讯云 Lighthouse 定时检查 `origin/main`，调用自动部署脚本
 3. Docker 构建 Next.js standalone 并重启 `think-tank` 容器
-4. `/api/health` 校验运行状态与构建 commit 一致后保留现有 Cloudflare/Nginx 入口
+4. `/api/health` 校验运行状态与 `.deploy-commit` 构建标记一致后保留现有 Cloudflare/Nginx 入口
 5. 用户通过 Cloudflare 访问网站
 
 ## 网络架构
