@@ -1,10 +1,13 @@
 // src/app/api/pools/route.js —— 大师的选股池
 // POST { symbols: ['300750','600519',...], days: 60 } → 当日涨跌 + 区间统计（vs 沪深300）
-import { resolveSymbols, getYahoo } from '../chat/marketData.js';
+import { resolveSymbols, getYahoo, getQuote } from '../chat/marketData.js';
 import { getClientIp, rateLimit, limitResponse } from '../../../lib/rateLimit';
+import { mergeQuoteIntoBars, parseEastmoneyQuotePayload } from '../../../lib/stockPoolQuote.mjs';
 import { marketOfSecid, ttlForMarket } from './marketTime.js';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+const EM_ULIST = 'https://push2.eastmoney.com/api/qt/ulist.np/get';
+const QUOTE_BATCH_SIZE = 80;
 let lastUSKlineErr = ''; // 诊断：最近一次美股/港股 K 线失败原因
 
 const cache = new Map();
@@ -24,6 +27,85 @@ function cached(key, ttlMs, loader) {
 // 按市场交易时段决定 K 线缓存有效期（收盘后长期缓存，盘中 60s）
 function cachedKline(secid, days) {
   return cached(`kl:${secid}:${days}`, ttlForMarket(marketOfSecid(secid)), () => fetchKline(secid, days));
+}
+
+function uniqueInfos(infos) {
+  const map = new Map();
+  for (const info of infos || []) {
+    if (info?.secid && !map.has(info.secid)) map.set(info.secid, info);
+  }
+  return Array.from(map.values());
+}
+
+async function fetchQuoteChunk(infos) {
+  const secids = infos.map((info) => info.secid).join(',');
+  const url = `${EM_ULIST}?secids=${encodeURIComponent(secids)}&fields=f2,f3,f12,f13,f14,f18,f124&fltt=2&invt=2`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Referer: 'https://quote.eastmoney.com/' },
+      signal: ctrl.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseEastmoneyQuotePayload(await res.json());
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchQuoteBatch(infos) {
+  const chunks = [];
+  for (let i = 0; i < infos.length; i += QUOTE_BATCH_SIZE) chunks.push(infos.slice(i, i + QUOTE_BATCH_SIZE));
+  const settled = await Promise.allSettled(chunks.map((chunk) => fetchQuoteChunk(chunk)));
+  const rows = settled.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+  if (!rows.length) throw new Error('实时行情批量请求失败');
+  return new Map(rows.map((quote) => [quote.secid, quote]));
+}
+
+// 东财 ulist 支持 A/港股/美股混批；同一批次共享最短市场 TTL，盘中 60 秒刷新。
+function cachedQuotes(infos) {
+  const list = uniqueInfos(infos);
+  if (!list.length) return Promise.resolve(new Map());
+  const key = `quotes:${list.map((info) => info.secid).sort().join(',')}`;
+  const ttl = Math.min(...list.map((info) => ttlForMarket(marketOfSecid(info.secid))));
+  return cached(key, ttl, () => fetchQuoteBatch(list));
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
+// 批量源缺失时逐只兜底（最多 6 并发），避免单只异常拖垮整池。
+async function fetchPoolQuotes(infos) {
+  const list = uniqueInfos(infos);
+  if (!list.length) return new Map();
+  const quotes = await cachedQuotes(list).catch(() => new Map());
+  const missing = list.filter((info) => quotes.get(info.secid)?.price == null);
+  if (!missing.length) return quotes;
+
+  const fallbacks = await mapLimit(missing, 6, async (info) => {
+    try {
+      const quote = await getQuote(info);
+      if (!quote || quote.price == null) return null;
+      const quoteAt = quote.quoteAt || (quote.isPreviousClose ? null : Date.now());
+      return [info.secid, { ...quote, secid: info.secid, quoteAt }];
+    } catch (e) {
+      return null;
+    }
+  });
+  for (const entry of fallbacks) if (entry) quotes.set(entry[0], entry[1]);
+  return quotes;
 }
 const TENCENT = (code, days) => `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${code},day,,,${days},qfq`;
 
@@ -279,9 +361,18 @@ export async function POST(request) {
     const valid = infos.filter(Boolean);
     if (!valid.length) return Response.json({ error: '未能识别这些股票，请使用 6 位代码，如 300750' }, { status: 404 });
 
-    // 拉每只股票 + 沪深300 的日K
-    const data = await Promise.all(valid.map(async (info) => ({ info, bars: await cachedKline(info.secid, days + 1) })));
-    const indexBars = await cachedKline('1.000001', days + 1); // 上证指数
+    // 实时报价与日K并行：报价用于现价/今日表现，日K负责区间统计和历史回溯
+    const indexInfo = { symbol: '000001', name: '上证指数', market: 'CN', secid: '1.000001' };
+    const [quoteMap, rawData, rawIndexBars] = await Promise.all([
+      fetchPoolQuotes([...valid, indexInfo]).catch(() => new Map()),
+      Promise.all(valid.map(async (info) => ({ info, bars: await cachedKline(info.secid, days + 1) }))),
+      cachedKline('1.000001', days + 1), // 上证指数
+    ]);
+    const data = rawData.map(({ info, bars }) => ({
+      info,
+      bars: mergeQuoteIntoBars(bars, quoteMap.get(info.secid), info.market),
+    }));
+    const indexBars = mergeQuoteIntoBars(rawIndexBars, quoteMap.get('1.000001'), 'CN');
 
     // 短周期：今天 / 昨天 / 本周（等权，自动取最近交易日）
     const periods = { today: [], yesterday: [], week: [] };
@@ -309,8 +400,9 @@ export async function POST(request) {
       const closes = wb.map((b) => b.close);
       const last = closes[closes.length - 1];
       const prev = closes[closes.length - 2];
-      // 现价/今日 始终取全量最后一根（不受选中区间影响）
-      const fLast = bars[bars.length - 1].close;
+      // 现价/今日 始终取全量最后一根（实时报价已合并进最后一根，不受选中区间影响）
+      const fLastBar = bars[bars.length - 1];
+      const fLast = fLastBar.close;
       const fPrev = bars[bars.length - 2].close;
       let upDays = 0;
       for (let i = 1; i < closes.length; i++) if (closes[i] > closes[i - 1]) upDays++;
@@ -319,6 +411,8 @@ export async function POST(request) {
         name: info.name,
         price: fLast,
         changePct: fPrev ? ((fLast - fPrev) / fPrev) * 100 : null,
+        priceSource: fLastBar.isRealtimeQuote ? 'quote' : 'kline',
+        quoteAt: fLastBar.quoteAt || null,
         ret: prev ? (last / closes[0] - 1) * 100 : null,
         upDays,
         totalDays: closes.length - 1,

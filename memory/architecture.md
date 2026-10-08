@@ -65,6 +65,7 @@ think-tank/
 - `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`；前端允许中文单字触发候选，6 位纯代码跳过候选请求。
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
+- `src/lib/stockPoolQuote.mjs` + `src/app/api/pools/route.js`: 选股池现价使用东财 `ulist.np/get` 批量实时报价，并按市场时区合并进日线；日 K 负责区间历史，实时价负责现价/今日涨跌，盘中 60 秒刷新。
 - `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
@@ -222,6 +223,7 @@ wx.setStorageSync（最多 30 条，仅本机）
 ### 股票池宽表
 
 - `StockPools.js` 根据列定义生成固定 `colgroup` 宽度、冻结偏移和表格总宽；冻结列使用 `position: sticky`，仅保留表格底部横向滚动容器；表格 `border-collapse: separate`，避免 collapse 布局导致 Windows/Chrome 粘性列失效。
+- 股票池行情缓存以服务端 `meta.cacheUntilMs` 为准：盘中 60 秒、收盘后到下一开盘；前端在到期和页面恢复可见时自动刷新。本地缓存键使用 `thinktank_pool_cache_v3`，并显示实际行情更新时间。
 - `estimateTextWidth` 按中日韩全角字符、数字、字母和标点分别估算宽度；`adaptiveColumnWidth` 对表头与真实数据取最大值，再叠加排序箭头、单元格内边距和冗余，表头总冗余额外增加 6px。股票名称、机构评级、价位等列会随当前池内容自动变化。
 - 冻结数量存于 `thinktank_pool_freeze_cols`，限制 0-5 列；单股移除由 `stockPoolUi.mjs#removeSymbolFromPool` 处理，组件随后调用 Supabase `upsertPoolServer` 覆盖 `symbols`，本地 `thinktank_user_pools` 由既有 effect 持久化。
 - 移除股票时同步删除 `thinktank_costs` 中该池、该代码的成本，避免后续重新加入时继承旧成本。

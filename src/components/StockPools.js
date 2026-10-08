@@ -53,20 +53,23 @@ function StockPoolDie() {
 
 // ── 本地持久缓存：收盘/非交易时段"拿过一次"就不再重复请求（刷新/重启也不丢） ──
 // 有效期来自服务端 meta.cacheUntilMs（收盘后=下一开盘；盘中≈60s）
-const POOL_LS_CACHE = 'thinktank_pool_cache_v2';
-function poolCacheGet(key) {
+const POOL_LS_CACHE = 'thinktank_pool_cache_v3';
+function poolCacheEntry(key) {
   try {
     const all = JSON.parse(localStorage.getItem(POOL_LS_CACHE) || '{}');
     const it = all[key];
-    if (it && it.u && it.u > Date.now()) return it.v;
+    if (it && it.u && it.u > Date.now()) return it;
     if (it) { delete all[key]; localStorage.setItem(POOL_LS_CACHE, JSON.stringify(all)); }
   } catch (e) { /* ignore */ }
   return null;
 }
+function poolCacheGet(key) {
+  return poolCacheEntry(key)?.v || null;
+}
 function poolCacheSet(key, untilMs, value) {
   try {
     const all = JSON.parse(localStorage.getItem(POOL_LS_CACHE) || '{}');
-    all[key] = { u: untilMs || 0, v: value };
+    all[key] = { at: Date.now(), u: untilMs || 0, v: value };
     const keys = Object.keys(all);
     if (keys.length > 600) {
       // 超出上限：先清已过期，再删最早过期的一批
@@ -101,6 +104,11 @@ function fmtPct(v, digits = 2) {
 // 机构评级：仅支持 A 股 6 位代码（0/3/6 开头）
 function isACode(code) {
   return /^\d{6}$/.test(code || '') && /^(0|3|6)/.test(code);
+}
+function fmtClock(ms) {
+  try {
+    return new Date(ms).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch (e) { return ''; }
 }
 function fmtPrice(v) {
   const n = Number(v);
@@ -302,6 +310,8 @@ export default function StockPools() {
   const [importType, setImportType] = useState('mine'); // 传给共享导入弹窗的初始类型（mine | master）
   const [addTarget, setAddTarget] = useState(null);      // 追加股票到已有池子的目标池
   const [detailVersion, setDetailVersion] = useState(0); // 池子内容变化后强制刷新行情
+  const [detailRefreshAt, setDetailRefreshAt] = useState(0); // 下一次行情刷新时刻（服务端按交易时段给出）
+  const [detailUpdatedAt, setDetailUpdatedAt] = useState(0); // 当前表格数据实际更新时间
   const [notice, setNotice] = useState('');              // 轻提示（添加/创建成功）
   const [poolTab, setPoolTab] = useState('master'); // 左侧列表页签：master=大师的股票池 | mine=我的股票池
   const [searchOpen, setSearchOpen] = useState(false);
@@ -411,15 +421,35 @@ export default function StockPools() {
   }, [pools, activeId, hydrated]);
 
   const loadSeq = useRef(0); // 请求序号：丢弃过期响应，避免大池子加载慢时旧数据覆盖新选中的池子
-  const loadDetail = useCallback(async (pool, d) => {
-    if (!pool || !pool.symbols || !pool.symbols.length) return;
+  const loadDetail = useCallback(async (pool, d, options = {}) => {
+    const { force = false, background = false } = options;
+    if (!pool || !pool.symbols || !pool.symbols.length) {
+      setDetail(null);
+      setDetailRefreshAt(0);
+      setDetailUpdatedAt(0);
+      return;
+    }
+
     const cKey = `d:${pool.id}:${String(d)}:${[...pool.symbols].sort().join(',')}`;
-    const cached = poolCacheGet(cKey);
-    if (cached) { setDetail(cached); return; } // 有效期内直接用本地数据，不请求
     const seq = ++loadSeq.current;
-    setLoading(true);
-    setError('');
-    setDetail(null);
+    if (!force) {
+      const cached = poolCacheEntry(cKey);
+      if (cached) {
+        setError('');
+        setDetail(cached.v);
+        setDetailRefreshAt(cached.u || 0);
+        setDetailUpdatedAt(cached.at || 0);
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!background) {
+      setLoading(true);
+      setError('');
+      setDetail(null);
+      setDetailRefreshAt(0);
+    }
     try {
       const res = await fetch('/api/pools', {
         method: 'POST',
@@ -429,21 +459,48 @@ export default function StockPools() {
       const data = await res.json();
       if (loadSeq.current !== seq) return; // 已切到别的池子，丢弃
       if (!res.ok || data.error) throw new Error(data.error || '加载失败，请重试');
-      setDetail(data.result);
       const until = data && data.meta && data.meta.cacheUntilMs;
+      const refreshAt = until && until > Date.now() ? until : Date.now() + 60 * 1000;
+      setDetail(data.result);
+      setDetailRefreshAt(refreshAt);
+      setDetailUpdatedAt(Date.now());
       if (until && until > Date.now()) poolCacheSet(cKey, until, data.result);
     } catch (e) {
       if (loadSeq.current !== seq) return;
       setError(e.message || '加载失败，请重试');
+      setDetailRefreshAt(Date.now() + 60 * 1000); // 失败后 1 分钟再试，避免定时器停死
     } finally {
       if (loadSeq.current === seq) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (active) loadDetail(active, days);
+    if (active) loadDetail(active, days, { background: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, days, detailVersion]);
+
+  // 服务端按交易时段返回 cacheUntilMs；到点后静默刷新，页面保持可读不闪加载态。
+  useEffect(() => {
+    if (!active || !detailRefreshAt) return undefined;
+    const delay = Math.max(0, detailRefreshAt - Date.now());
+    const timer = setTimeout(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      loadDetail(active, days, { force: true, background: true });
+    }, delay);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.symbols?.join(','), days, detailRefreshAt]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const refreshWhenVisible = () => {
+      if (!active || !detailRefreshAt || document.visibilityState !== 'visible' || Date.now() < detailRefreshAt - 1000) return;
+      loadDetail(active, days, { force: true, background: true });
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => document.removeEventListener('visibilitychange', refreshWhenVisible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, active?.symbols?.join(','), days, detailRefreshAt]);
 
   // 机构评级：池子加载后，为每只 A 股懒加载评级/目标价（点击可看明细）
   const fetchRatings = useCallback(async (code) => {
@@ -1106,7 +1163,7 @@ export default function StockPools() {
                   )}
 
                   <div className="sp-table-toolbar">
-                    <span className="sp-table-toolbar-hint">← 拖动下方滚动条查看全部指标；可自定义冻结列 →</span>
+                    <span className="sp-table-toolbar-hint">← 拖动下方滚动条查看全部指标；可自定义冻结列{detailUpdatedAt ? ` · 行情 ${fmtClock(detailUpdatedAt)} 更新` : ''} →</span>
                     <label className="sp-freeze-control">
                       <span>冻结前</span>
                       <select
