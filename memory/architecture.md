@@ -47,7 +47,7 @@ think-tank/
 
 ### 数据层（实时行情/财务）
 - `src/app/api/chat/marketData.js`: 统一市场数据层（东方财富主源，腾讯/新浪/Yahoo 按市场降级，TTL 缓存）
-- `src/app/api/master-league/route.js`: 大师实盘联赛结算入口；东方财富 → 腾讯证券 → 新浪财经三级行情回退，5 分钟进程内缓存。
+- `src/app/api/master-league/route.js`: 大师实盘联赛结算入口；东方财富 → 腾讯证券 → 新浪财经三级日线回退。若日线缺少当天数据，再用腾讯实时快照补齐开盘/最高/最低/收盘后结算，5 分钟进程内缓存。
 - `src/lib/masterLeagueEngine.mjs`: 纯函数结算引擎；按 100 股交易单位、次日开盘价成交、当日收盘价计量净值，并生成收益曲线和排名。
 - `filterCompetitionDates` 按 `PUBLIC_LEAGUE.startDate` 截取比赛交易日；`dayCount` 使用截取后的日期数组长度，首日计 1。API 在生成计划映射前先过滤开赛日之前的旧计划，数据库快照降级读取时也会裁剪开赛日前曲线。
 - `src/lib/masterLeagueInvites.mjs`: 用户邀请大师参赛，统一赠送 10 万元初始额度；公开赛按累计收益率合并排名。

@@ -10,6 +10,7 @@ function tencentLine(symbol, name, code, price, changePct) {
     4: String(price),
     5: String(price),
     6: '100',
+    30: '20261008131927',
     31: '1.00',
     32: String(changePct),
     33: String(price),
@@ -50,6 +51,8 @@ test('东财 push2 不可用时，单股快照回退腾讯行情', async () => {
   assert.equal(quote.name, 'Moutai');
   assert.equal(quote.price, 1245.5);
   assert.equal(quote.changePct, -1.04);
+  assert.equal(quote.tradeDate, '2026-10-08');
+  assert.equal(quote.open, 1245.5);
 });
 
 test('东财 push2 不可用时，指数摘要回退腾讯行情', async () => {

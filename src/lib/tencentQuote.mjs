@@ -36,6 +36,9 @@ export function parseTencentQuote(text) {
   const amountParts = String(fields[35] || '').split('/');
   const marketCapYi = num(fields[45]);
   const floatMarketCapYi = num(fields[44]);
+  const timeText = String(fields[30] || '').trim();
+  const timeMatch = timeText.match(/^(\d{4})(\d{2})(\d{2})/);
+  const tradeDate = timeMatch ? `${timeMatch[1]}-${timeMatch[2]}-${timeMatch[3]}` : null;
 
   return {
     symbol,
@@ -58,6 +61,8 @@ export function parseTencentQuote(text) {
     floatMarketCap: floatMarketCapYi != null ? floatMarketCapYi * 1e8 : null,
     currency: 'CNY',
     industry: null,
+    tradeDate,
+    quoteTime: timeText || null,
     source: 'tencent',
   };
 }

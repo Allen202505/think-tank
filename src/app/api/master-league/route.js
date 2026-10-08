@@ -11,6 +11,7 @@ import {
 import { buildPendingLeague, filterCompetitionDates, settleMasterLeague } from '../../../lib/masterLeagueEngine.mjs';
 import { loadPublicLeagueSnapshot, savePublicLeagueSnapshot } from '../../../lib/masterLeagueDb.js';
 import { loadPlansFromDb } from '../../../lib/masterLeaguePlansDb.js';
+import { fetchIndexSummary, fetchStockQuote } from '../../../lib/marketSnapshot.mjs';
 import { getClientIp, limitResponse, rateLimit } from '../../../lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -136,6 +137,50 @@ async function fetchBars(secid, limit = 40) {
   return value;
 }
 
+function todayShanghai() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await worker(items[index]);
+    }
+  }));
+  return results;
+}
+
+// 新浪日线在盘中通常还没有当天数据；用腾讯实时快照补一根当日日线。
+// 个股必须有真实开盘价才补，避免把“当前价当开盘价”造成错误成交。
+function mergeQuoteBar(bars, quote, date, benchmark = false) {
+  if (!Array.isArray(bars) || !bars.length || !quote || quote.isPreviousClose) return bars;
+  if (quote.tradeDate && quote.tradeDate !== date) return bars;
+  const close = Number(quote.price);
+  const previousClose = Number(bars[bars.length - 1]?.close);
+  const open = Number(quote.open) || (benchmark ? previousClose : null);
+  if (!(close > 0) || !(open > 0)) return bars;
+  const bar = {
+    date,
+    open,
+    close,
+    high: Number(quote.high) > 0 ? Number(quote.high) : close,
+    low: Number(quote.low) > 0 ? Number(quote.low) : close,
+    volume: Number(quote.volume) || 0,
+  };
+  const next = [...bars];
+  if (next[next.length - 1].date === date) next[next.length - 1] = bar;
+  else next.push(bar);
+  return next.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
 function secidOf(code) {
   return `${/^(6|9)/.test(String(code)) ? '1' : '0'}.${String(code)}`;
 }
@@ -238,6 +283,27 @@ export async function GET(request) {
     fetchBars(LEAGUE_BENCHMARK.secid).then((result) => ({ code: LEAGUE_BENCHMARK.code, benchmark: true, ...result })),
   ];
   const settled = await Promise.all(requests);
+  const today = todayShanghai();
+  const needsQuote = settled.filter((item) => item.bars.length >= 5 && item.bars[item.bars.length - 1].date < today);
+  if (needsQuote.length && !/^\d{4}-\d{2}-(?:0[6-7])$/.test(today)) {
+    const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
+    if (weekday >= 1 && weekday <= 5) {
+      const benchmarkNeed = needsQuote.some((item) => item.benchmark);
+      const indexQuote = benchmarkNeed
+        ? (await fetchIndexSummary().catch(() => [])).find((item) => item.code === LEAGUE_BENCHMARK.code)
+        : null;
+      const stockNeeds = needsQuote.filter((item) => !item.benchmark);
+      const stockQuotes = await mapLimit(stockNeeds, 6, async (item) => {
+        try { return [item.code, await fetchStockQuote(item.code)]; } catch { return [item.code, null]; }
+      });
+      const quoteMap = new Map(stockQuotes);
+      for (const item of needsQuote) {
+        const quote = item.benchmark ? indexQuote : quoteMap.get(item.code);
+        item.bars = mergeQuoteBar(item.bars, quote, today, Boolean(item.benchmark));
+      }
+    }
+  }
+
   const successful = settled.filter((item) => item.bars.length >= 5);
   const tradeResults = settled.filter((item) => !item.benchmark && item.bars.length >= 5);
   const benchmark = settled.find((item) => item.benchmark && item.bars.length >= 5);

@@ -14,6 +14,7 @@
 //   单股快照         东财 push2/stock/get → 腾讯行情      ✓
 //   日线             腾讯 ifzq → 新浪 CN_MarketDataService ✓
 import { parseTencentQuote, tencentPrefixForCode } from './tencentQuote.mjs';
+import { quoteDateForMarket } from './stockPoolQuote.mjs';
 
 const SINA_LIST = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData';
 const SINA_BOARDS = 'https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php';
@@ -279,7 +280,7 @@ const INDEX_SECIDS = [
 export async function fetchIndexSummary() {
   return cached('index', TTL.index, async () => {
     try {
-      const url = `${EM_ULIST}?secids=${INDEX_SECIDS.map((i) => i.secid).join(',')}&fields=f2,f3,f6,f12,f14,f104,f105,f106&fltt=2&invt=2`;
+      const url = `${EM_ULIST}?secids=${INDEX_SECIDS.map((i) => i.secid).join(',')}&fields=f2,f3,f6,f12,f13,f14,f15,f16,f17,f18,f104,f105,f106,f124&fltt=2&invt=2`;
       const payload = await fetchJson(url);
       const rows = diffRows(payload).map((row) => ({
         code: String(row?.f12 || ''),
@@ -287,6 +288,11 @@ export async function fetchIndexSummary() {
         price: num(row?.f2),
         changePct: num(row?.f3),
         amount: num(row?.f6),
+        open: num(row?.f17),
+        high: num(row?.f15),
+        low: num(row?.f16),
+        prevClose: num(row?.f18),
+        tradeDate: row?.f124 ? quoteDateForMarket(Number(row.f124) * 1000, 'CN') : null,
         up: num(row?.f104),
         down: num(row?.f105),
         flat: num(row?.f106),
@@ -304,6 +310,11 @@ export async function fetchIndexSummary() {
         price: quote?.price ?? null,
         changePct: quote?.changePct ?? null,
         amount: quote?.amount ?? null,
+        open: quote?.open ?? null,
+        high: quote?.high ?? null,
+        low: quote?.low ?? null,
+        prevClose: quote?.prevClose ?? null,
+        tradeDate: quote?.tradeDate ?? null,
         up: null,
         down: null,
         flat: null,
@@ -393,7 +404,7 @@ export async function fetchStockQuote(code) {
   const secid = `${/^(6|9)/.test(target) ? '1' : '0'}.${target}`;
   return cached(`quote:${target}`, TTL.quote, async () => {
     try {
-      const url = `${EM_STOCK}?secid=${secid}&fields=f43,f47,f48,f57,f58,f60,f116,f117,f127,f162,f168,f170&fltt=2&invt=2`;
+      const url = `${EM_STOCK}?secid=${secid}&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f116,f117,f124,f127,f162,f168,f170&fltt=2&invt=2`;
       const data = (await fetchJson(url))?.data;
       if (data) {
         return {
@@ -401,6 +412,11 @@ export async function fetchStockQuote(code) {
           name: String(data.f58 || ''),
           price: num(data.f43),
           changePct: num(data.f170),
+          open: num(data.f46),
+          high: num(data.f44),
+          low: num(data.f45),
+          prevClose: num(data.f60),
+          tradeDate: data.f124 ? quoteDateForMarket(Number(data.f124) * 1000, 'CN') : null,
           volume: num(data.f47),
           amount: num(data.f48),
           turnover: num(data.f168),
@@ -423,6 +439,12 @@ export async function fetchStockQuote(code) {
       name: quote.name || '',
       price: quote.price,
       changePct: quote.changePct,
+      open: quote.open,
+      high: quote.high,
+      low: quote.low,
+      prevClose: quote.prevClose,
+      tradeDate: quote.tradeDate,
+      isPreviousClose: quote.isPreviousClose,
       volume: quote.volume,
       amount: quote.amount,
       turnover: quote.turnoverRate,

@@ -8,6 +8,7 @@
 
 - 页面仍引用 Vercel Analytics；迁出 Vercel 后 `/_vercel/insights/script.js` 返回 HTML，浏览器执行时产生 `Unexpected token '<'`，进入联赛页会触发客户端脚本异常。
 - 大师智能体工具 `get_stock_quote` 与指数摘要仍只走东财 `push2`；香港节点访问该域名返回 502，导致工具快照和部分大盘上下文降级。
+- 联赛日线回退到新浪后，盘中缺少当天 K 线，生产页面的最新交易日一度从 10-08 回退到 09-30、交易日数从 13 降到 12。
 - 早餐链接、股票池链接提取、芒格财报链接、大师动态自定义链接等会由服务器抓取用户 URL；部分路径缺少 SSRF 防护，可访问本机和云元数据地址。
 - Next.js 14.2.35 依赖审计存在 critical 漏洞；`npm audit --omit=dev` 报告 3 high + 1 critical。
 - 股票池一次加载 68 只股票会并发请求大量机构评级；旧限流阈值下已实测出现 16 个 429。
@@ -19,6 +20,7 @@
 - 移除 `@vercel/analytics` 依赖与页面挂载，迁出 Vercel 后不再请求残留分析脚本。
 - 升级 Next.js 到 `16.4.0`，同步修复 PostCSS、nanoid、source-map-js；`npm audit --omit=dev` 降到 0 漏洞。适配 Next 16 的异步 `params`（Supabase 动态代理、分享详情页）。
 - `marketSnapshot` 的单股快照和指数摘要增加腾讯行情兜底；`marketData.getMarketOverview` 的指数行情增加腾讯兜底，香港节点访问东财 push2 失败时不再返回空大盘。
+- 联赛在历史日线缺少当天数据时，用腾讯实时快照补齐当日开盘/最高/最低/收盘后再结算，避免盘中交易日回退和成交价缺失。
 - 新增 `src/lib/safeRemoteFetch.mjs`：公开 DNS 校验、内网/云元数据拦截、逐跳重定向校验、超时和响应体上限；接入大师动态、早餐链接、股票池链接、芒格财报链接和虚拟大师文章抓取。
 - 新增 `/api/health`，返回应用状态、构建 commit 和关键配置布尔值。部署脚本写入 `.deploy-commit` 并校验 commit 与 `origin/main` 一致，避免 Docker/Next 运行时环境变量差异。
 - 收盘脚本改为每小时 `:35` 唤醒，用 `Asia/Shanghai` 判断 15:35–15:44；每日决策接口先校验最新交易日，节假日直接跳过。
@@ -36,6 +38,7 @@
 - SSRF 回归：`/api/pools/extract`、`/api/munger` 对 `127.0.0.1` 链接返回 400；雷达自定义链接返回明确拒绝错误，不访问内网。
 - 无头 Chrome 全模块巡检：联赛、选股池、早餐、行业周期、功能箱均打开，无 console/page error，无 4xx/5xx 请求。
 - 交易日任务回归：`date=2026-10-01` 返回“不是交易日（最新交易日 2026-09-30）”，不会调用 AI。
+- 联赛行情回归：仅新浪日线可用时，接口仍返回 `latestDate=2026-10-08`、`dayCount=13`，并正确执行待处理计划。
 
 **剩余建议**：Next 16 已提示 React 18 进入弃用期，下一轮单独评估 React 19；Turbopack 的 PDF worker warning 建议后续通过升级 pdfjs 或调整打包方式消除；Cloudflare 侧可继续叠加 WAF/速率规则，弥补进程内限流在多实例场景下的边界。
 

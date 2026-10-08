@@ -12,6 +12,7 @@ function quoteText(overrides = {}) {
     4: '1235.58',
     5: '1239.53',
     6: '38331',
+    30: '20261008131927',
     31: '23.04',
     32: '1.86',
     33: '1268.00',
@@ -56,6 +57,7 @@ test('腾讯行情映射价格、估值和市值字段', () => {
   assert.equal(quote.pb, 6.26);
   assert.equal(quote.marketCap, 15733.78 * 1e8);
   assert.equal(quote.source, 'tencent');
+  assert.equal(quote.tradeDate, '2026-10-08');
 });
 
 test('腾讯行情在盘中价缺失时使用昨收并标记降级', () => {
@@ -92,6 +94,7 @@ test('东财行情失败时 getQuote 自动回退到腾讯', async () => {
   try {
     const quote = await getQuote({ symbol: '600519', market: 'CN', secid: '1.600519' });
     assert.equal(quote.source, 'tencent');
+    assert.equal(quote.tradeDate, '2026-10-08');
     assert.equal(quote.price, 1258.62);
     assert.equal(emCalls, 2);
     assert.equal(txCalls, 1);
