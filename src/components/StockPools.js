@@ -524,12 +524,18 @@ export default function StockPools() {
 
   useEffect(() => {
     if (detail && detail.stocks && detail.stocks.length) {
-      detail.stocks.forEach((st) => {
-        if (st.code && isACode(st.code) && !fetchedRatingCodes.current.has(st.code)) {
-          fetchedRatingCodes.current.add(st.code);
-          fetchRatings(st.code);
-        }
-      });
+      const need = detail.stocks
+        .map((st) => st.code)
+        .filter((code) => code && isACode(code) && !fetchedRatingCodes.current.has(code));
+      if (need.length) {
+        need.forEach((code) => fetchedRatingCodes.current.add(code));
+        const runBatch = async (i) => {
+          if (i >= need.length) return;
+          await Promise.all(need.slice(i, i + 6).map((code) => fetchRatings(code)));
+          runBatch(i + 6);
+        };
+        runBatch(0);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);

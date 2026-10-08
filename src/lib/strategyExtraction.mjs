@@ -1,4 +1,6 @@
-import net from 'node:net';
+import { normalizePublicHttpUrl } from './safeRemoteFetch.mjs';
+
+export { isPrivateNetworkHost } from './safeRemoteFetch.mjs';
 
 export const STRATEGY_EXTRACT_CATEGORIES = ['长线价值', '短线波段', '交易心法', '其他'];
 
@@ -59,37 +61,8 @@ export function extractPageContent(html, sourceUrl = '') {
   return { url: String(sourceUrl || ''), title, description, author, content };
 }
 
-function isPrivateIpv4(host) {
-  const parts = host.split('.').map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-  const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127)
-    || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
-    || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19))
-    || a >= 224;
-}
-
-export function isPrivateNetworkHost(host) {
-  const value = String(host || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
-  if (!value || value === 'localhost' || value.endsWith('.localhost') || value.endsWith('.local') || value.endsWith('.internal')) return true;
-  const family = net.isIP(value);
-  if (family === 4) return isPrivateIpv4(value);
-  if (family === 6) {
-    const compact = value.replace(/^0+/, '').replace(/:0+/g, ':');
-    if (compact === '::1' || compact.startsWith('fc') || compact.startsWith('fd') || compact.startsWith('fe8') || compact.startsWith('fe9') || compact.startsWith('fea') || compact.startsWith('feb')) return true;
-    if (compact.startsWith('::ffff:')) return isPrivateIpv4(compact.slice(7));
-  }
-  return false;
-}
-
 export function normalizeStrategyUrl(raw) {
-  let url;
-  try { url = new URL(String(raw || '').trim()); } catch (e) { throw new Error('请输入完整的 http(s) 链接'); }
-  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('仅支持 http 或 https 链接');
-  if (url.username || url.password) throw new Error('链接不能包含账号密码');
-  if (isPrivateNetworkHost(url.hostname)) throw new Error('不支持内网或本机地址');
-  url.hash = '';
-  return url.toString();
+  return normalizePublicHttpUrl(raw);
 }
 
 export function limitExtractedContent(text, maxChars = 48000) {

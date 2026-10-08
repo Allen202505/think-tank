@@ -131,7 +131,7 @@ export async function GET(request) {
     return Response.json({ ok: true, summary: null, items: [], reason: 'unsupported' });
   }
 
-  const _rl = rateLimit('ratings:' + getClientIp(request), { limit: 120, windowMs: 60000 });
+  const _rl = rateLimit('ratings:' + getClientIp(request), { limit: 600, windowMs: 60000 });
   if (!_rl.ok) return limitResponse(_rl.retryAfter);
 
   const hit = cache.get(code);

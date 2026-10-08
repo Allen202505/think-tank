@@ -28,9 +28,9 @@
 
 ## 技术栈
 
-- Next.js 14（App Router）+ React 18
+- Next.js 16（App Router）+ React 18
 - DeepSeek / 任意 OpenAI 兼容模型（BYOK）
-- 数据源：东方财富 / 财联社 / Yahoo（行情与新闻）
+- 数据源：东方财富 / 腾讯证券 / 新浪财经 / 财联社 / Yahoo（行情与新闻）
 - 部署：腾讯云 Lighthouse（Docker + 服务器自动拉取）；Vercel 作为历史备用方案
 
 ## 快速开始
@@ -141,7 +141,7 @@ curl -sS -X POST 'http://127.0.0.1:3000/api/master-league/agent' \
 curl -sS 'http://127.0.0.1:3000/api/cron/master-league-daily' -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-- 定时：服务器 crontab 在 `35 15 * * 1-5`（UTC）= 北京时间 15:35 周一至周五执行；周末与节假日自动跳过。
+- 定时：服务器 crontab 每小时 `:35` 唤醒 `scripts/run-daily-cron.sh`，脚本按北京时间精确判断 15:35–15:44，且通过最新交易日校验自动跳过周末与节假日。
 - 成本：六位决策约 ¥0.13~0.20/天，互评约 ¥0.01/天，合计 **约 ¥4/月**。
 - 兜底：某位大师当天没有 AI 计划时，自动回退到 `src/data/masterLeague.js` 的预置剧本，比赛不会中断。
 
@@ -163,7 +163,7 @@ curl -sS 'http://127.0.0.1:3000/api/master-league/commentary?master=loeb'
 
 ### 腾讯云 Lighthouse（当前生产）
 
-生产服务器为腾讯云香港 Lighthouse，使用 Docker Compose 运行 Next.js standalone，Nginx 负责 HTTPS 入口。`main` 分支推送后由服务器定时检查更新并自动拉取、构建、重启容器和执行健康检查，通常在 1 分钟内上线。
+生产服务器为腾讯云香港 Lighthouse，使用 Docker Compose 运行 Next.js standalone，Nginx 负责 HTTPS 入口。`main` 分支推送后由服务器定时检查更新并自动拉取、构建、重启容器，再校验 `/api/health` 返回的构建 commit，通常在 1 分钟内上线。
 
 服务器不需要 GitHub 保存任何服务器私钥；自动部署由服务器自身的 crontab 完成。Cloudflare Cache Rule 对图片、字体和 favicon 设置 30 天边缘缓存、1 天浏览器缓存，`_next/static` 使用一年 immutable 缓存。
 

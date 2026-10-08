@@ -46,14 +46,14 @@ think-tank/
 
 
 ### 数据层（实时行情/财务）
-- `src/app/api/chat/marketData.js`: 统一市场数据层（东方财富 + Yahoo 双源、TTL 缓存、失败降级）
+- `src/app/api/chat/marketData.js`: 统一市场数据层（东方财富主源，腾讯/新浪/Yahoo 按市场降级，TTL 缓存）
 - `src/app/api/master-league/route.js`: 大师实盘联赛结算入口；东方财富 → 腾讯证券 → 新浪财经三级行情回退，5 分钟进程内缓存。
 - `src/lib/masterLeagueEngine.mjs`: 纯函数结算引擎；按 100 股交易单位、次日开盘价成交、当日收盘价计量净值，并生成收益曲线和排名。
 - `filterCompetitionDates` 按 `PUBLIC_LEAGUE.startDate` 截取比赛交易日；`dayCount` 使用截取后的日期数组长度，首日计 1。API 在生成计划映射前先过滤开赛日之前的旧计划，数据库快照降级读取时也会裁剪开赛日前曲线。
 - `src/lib/masterLeagueInvites.mjs`: 用户邀请大师参赛，统一赠送 10 万元初始额度；公开赛按累计收益率合并排名。
 - `src/lib/leagueInvites.js`: 读取、发布和删除 Supabase 公共邀请数据；所有访客可读，登录用户只能管理自己的邀请，管理员可删除任意邀请。
 - `src/lib/leagueInvitePolicy.mjs`: 邀请错误分类（底表缺失/缺字段/RLS 拒绝）与删除模式（真删/黑名单下架）纯函数。
-- `src/lib/marketSnapshot.mjs`: 全市场感知层（大师智能体数据底座）。新浪榜单/行业 + 东财指数/涨停池/单股 + 腾讯&新浪日线多源冗余，进程内缓存，纯函数可测。
+- `src/lib/marketSnapshot.mjs`: 全市场感知层（大师智能体数据底座）。新浪榜单/行业 + 东财指数/涨停池/单股 + 腾讯&新浪日线多源冗余；香港节点访问东财 `push2` 失败时，指数与单股快照自动回退腾讯行情，进程内缓存，纯函数可测。
 - `src/lib/masterLeagueTools.mjs`: 智能体工具层，5 个工具（概览/筛选/快照/日线/持仓）+ JSON Schema，可直接用于 function calling。
 - `src/app/api/master-league/tools/route.js`: 工具调试入口（零 LLM），`GET ?tool=&参数` 或 `POST {tool,args}`。
 - `src/lib/masterLeagueAgent.mjs`: 单大师决策循环（人设 prompt + 工具调用 + 结构化校验 + 资金约束 + 强制收口 + 成本台账）。`applyFundingConstraints` 会按可用现金、一手成本和同日卖出回笼资金排序/校正买入；所有成本闸门集中在 `AGENT_LIMITS` / `PRICING`，可用环境变量覆盖。
@@ -66,6 +66,7 @@ think-tank/
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
 - `src/lib/stockPoolQuote.mjs` + `src/app/api/pools/route.js`: 选股池现价使用东财 `ulist.np/get` 批量实时报价，并按市场时区合并进日线；日 K 负责区间历史，实时价负责现价/今日涨跌，盘中 60 秒刷新。
+- `src/lib/safeRemoteFetch.mjs`: 用户提供链接的安全抓取层；支持公开 DNS 校验、内网/云元数据拦截、重定向逐跳校验、超时和响应体大小限制。`radar/source`、早餐链接、股票池链接提取、芒格财报链接和虚拟大师文章抓取统一接入。
 - `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
@@ -82,7 +83,7 @@ think-tank/
 1. 代码推送到 Git 仓库
 2. 腾讯云 Lighthouse 定时检查 `origin/main`，调用自动部署脚本
 3. Docker 构建 Next.js standalone 并重启 `think-tank` 容器
-4. 源站健康检查通过后保留现有 Cloudflare/Nginx 入口
+4. `/api/health` 校验运行状态与构建 commit 一致后保留现有 Cloudflare/Nginx 入口
 5. 用户通过 Cloudflare 访问网站
 
 ## 网络架构
@@ -101,7 +102,7 @@ think-tank/
 
 - Cloudflare Cache Rule `Static images and fonts`：头像、二维码、favicon、图片和字体边缘缓存 30 天、浏览器缓存 1 天。
 - `_next/static/*`：Nginx 返回 `Cache-Control: public, max-age=31536000, immutable`，Cloudflare 命中后长期缓存。
-- HTML 与业务 API 默认不设置长缓存，避免用户数据和实时分析被旧响应覆盖。
+- HTML 与业务 API 默认不设置长缓存，避免用户数据和实时分析被旧响应覆盖。部署后 HTML 不引用 Vercel Analytics，避免迁出 Vercel 后请求 `/_vercel/insights/script.js` 返回 HTML 导致客户端脚本异常。
 - 头像等列表图片使用浏览器原生 `loading="lazy"` 和 `decoding="async"`，首屏只加载视口附近图片，避免一次性请求全部大师头像。
 - 联赛、选股池、早餐、行业周期和功能箱子模块使用按需加载；首次进入后保持挂载以保留组件状态，未访问模块不加载代码、不发起后台接口请求。
 - 头像统一压缩到最长边 192px，模块背景图使用 JPG/WebP；生产 HAR 首屏请求从 146 降到 47，传输从约 3.3MB 降到约 649KB。
@@ -137,7 +138,8 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 ```
 
 - **公共账户数据**：由市场行情实时计算，并通过 `src/lib/masterLeagueDb.js` 同步至 `supabase/master_league.sql` 定义的公共底表；未配置 `SUPABASE_SERVICE_ROLE_KEY` 时只返回测试快照，不持久化。
-- **收盘任务顺序**：`src/app/api/cron/master-league-daily/route.js` 先跑决策，再把刚生成的 `decisionsByMaster` 直接传给评论任务；评论不依赖联赛接口的计划缓存，因此不会把新操作误判为“无操作”。
+- **收盘任务顺序**：`src/app/api/cron/master-league-daily/route.js` 先校验最新交易日（节假日跳过），再跑决策，并把刚生成的 `decisionsByMaster` 直接传给评论任务；评论不依赖联赛接口的计划缓存，因此不会把新操作误判为“无操作”。
+- **定时时区**：服务器 cron 每小时 `:35` 唤醒 `run-daily-cron.sh`，脚本用 `Asia/Shanghai` 判断 15:35–15:44，避免服务器 UTC/本地时区导致任务错时执行。
 - **持有语义**：无标的「持有」只表示不调整仓位；`masterLeagueEngine.mjs` 补充 `holdingNames`（已执行计划取执行日前持仓，待执行计划取最新收盘持仓）。前端据此显示实际股票名或“当前空仓”，不展示无意义的 `targetPct=0`。
 - **互评日期**：服务端按策略 `planDate` / `decisionDate` 落库；`MasterLeague.js` 用当前展示策略的日期请求评论，避免次日默认查“今天”时错过前一晚生成的评论。
 - **普通用户点赞**：仅保存在浏览器 `localStorage`，键为 `thinktank_master_league_likes_v1`；不新增账号依赖。

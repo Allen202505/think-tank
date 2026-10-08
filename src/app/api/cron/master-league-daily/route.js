@@ -3,6 +3,7 @@
 //   Vercel Cron 会带 Authorization: Bearer $CRON_SECRET；本地/预览可直接调用。
 import { isWeekendDate, todayShanghai } from '../../../../lib/masterLeagueCommentaryJob.js';
 import { runDecisionJob } from '../../../../lib/masterLeagueDecisionJob.js';
+import { fetchLatestTradeDate } from '../../../../lib/marketSnapshot.mjs';
 import { runCommentaryJob } from '../../../../lib/masterLeagueCommentaryJob.js';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,13 @@ export async function GET(request) {
   const date = searchParams.get('date') || todayShanghai();
   if (isWeekendDate(date)) {
     return jsonResponse({ ok: true, skipped: true, reason: '周末不开市', date });
+  }
+
+  // 节假日即使落在周一至周五也不跑，避免周末判断之外白烧模型费用。
+  // 行情源暂时失败时不跳过任务，避免把上游抖动误判为交易日中断。
+  const latestTradeDate = await fetchLatestTradeDate({ force: true }).catch(() => '');
+  if (latestTradeDate && latestTradeDate !== date) {
+    return jsonResponse({ ok: true, skipped: true, reason: `今天不是交易日（最新交易日 ${latestTradeDate}）`, date });
   }
 
   const force = searchParams.get('force') === '1';

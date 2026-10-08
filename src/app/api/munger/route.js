@@ -7,6 +7,7 @@ import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } 
 import { generateJson, extractContentFromRaw } from '../../../lib/ai';
 import { masterProfileLine } from '../../../lib/prompts';
 import { extractPdfText } from '../../../lib/pdfText';
+import { fetchPublicBuffer } from '../../../lib/safeRemoteFetch.mjs';
 
 // 去掉 AI 把整段/整行用中文或英文引号首尾包起来的“包装引号”（只剥行首/行尾成对引号，不动正文内部的引号）
 function stripWrappingQuotes(text) {
@@ -24,18 +25,13 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 // 抓取财报链接正文：HTML 链接抽标题+正文文本；.pdf 链接下载后走脚本解析
 async function fetchLinkText(url) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const res = await fetch(url, {
+    const { body: buf, contentType: ct, finalUrl } = await fetchPublicBuffer(url, {
+      timeoutMs: 20000,
+      maxBytes: 30 * 1024 * 1024,
       headers: { 'User-Agent': UA, Accept: 'text/html,application/pdf,*/*' },
-      signal: ctrl.signal,
-      redirect: 'follow',
     });
-    if (!res.ok) throw new Error(`链接抓取失败（HTTP ${res.status}）`);
-    const ct = res.headers.get('content-type') || '';
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (/pdf/i.test(ct) || /\.pdf(\?|$)/i.test(url)) {
+    if (/pdf/i.test(ct) || /\.pdf(\?|$)/i.test(finalUrl)) {
       return extractPdfText(buf);
     }
     const html = buf.toString('utf8');
@@ -51,8 +47,6 @@ async function fetchLinkText(url) {
     return body.slice(0, 6000);
   } catch (e) {
     throw new Error(`链接抓取失败：${e.message || e}`);
-  } finally {
-    clearTimeout(timer);
   }
 }
 

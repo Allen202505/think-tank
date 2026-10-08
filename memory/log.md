@@ -1,5 +1,45 @@
 # 决策记录
 
+## 2026-10-08 · 上线后全面体检与迁移风险修复
+
+**背景**：腾讯云香港 Lighthouse 迁移后，用户担心存在尚未被发现的线上问题，要求对代码、部署、行情、安全、持久化和浏览器体验做一次全面体检。
+
+**线上确认的问题**：
+
+- 页面仍引用 Vercel Analytics；迁出 Vercel 后 `/_vercel/insights/script.js` 返回 HTML，浏览器执行时产生 `Unexpected token '<'`，进入联赛页会触发客户端脚本异常。
+- 大师智能体工具 `get_stock_quote` 与指数摘要仍只走东财 `push2`；香港节点访问该域名返回 502，导致工具快照和部分大盘上下文降级。
+- 早餐链接、股票池链接提取、芒格财报链接、大师动态自定义链接等会由服务器抓取用户 URL；部分路径缺少 SSRF 防护，可访问本机和云元数据地址。
+- Next.js 14.2.35 依赖审计存在 critical 漏洞；`npm audit --omit=dev` 报告 3 high + 1 critical。
+- 股票池一次加载 68 只股票会并发请求大量机构评级；旧限流阈值下已实测出现 16 个 429。
+- 收盘任务依赖 crontab 所在服务器时区，README 对 `35 15` 的 UTC/北京时间说明也不正确；节假日即使落在工作日，决策接口仍可能执行。
+- 部署健康检查只请求静态 `/robots.txt`，应用启动但关键 API、认证或数据库配置异常时仍可能被判定为部署成功。
+
+**修复**：
+
+- 移除 `@vercel/analytics` 依赖与页面挂载，迁出 Vercel 后不再请求残留分析脚本。
+- 升级 Next.js 到 `16.4.0`，同步修复 PostCSS、nanoid、source-map-js；`npm audit --omit=dev` 降到 0 漏洞。适配 Next 16 的异步 `params`（Supabase 动态代理、分享详情页）。
+- `marketSnapshot` 的单股快照和指数摘要增加腾讯行情兜底；`marketData.getMarketOverview` 的指数行情增加腾讯兜底，香港节点访问东财 push2 失败时不再返回空大盘。
+- 新增 `src/lib/safeRemoteFetch.mjs`：公开 DNS 校验、内网/云元数据拦截、逐跳重定向校验、超时和响应体上限；接入大师动态、早餐链接、股票池链接、芒格财报链接和虚拟大师文章抓取。
+- 新增 `/api/health`，返回应用状态、构建 commit 和关键配置布尔值。部署脚本改为校验 commit 与 `origin/main` 一致；Docker build 注入 `GIT_COMMIT`。
+- 收盘脚本改为每小时 `:35` 唤醒，用 `Asia/Shanghai` 判断 15:35–15:44；每日决策接口先校验最新交易日，节假日直接跳过。
+- 股票池机构评级改为每批 6 并发，接口限流提高到 600 次/分钟；限流 IP 优先读取 Cloudflare `CF-Connecting-IP`。
+- 给 Supabase 代理、纳瓦尔期数、大师雷达等公开接口补充限流。
+
+**影响范围**：部署健康检查、定时任务、浏览器运行错误、行情多源回退、公开 URL 抓取安全、Next.js 运行时与关键依赖、股票池评级请求。
+
+**验证**：
+
+- `npm test`：106/106 通过；新增行情回退、SSRF 拦截和真实客户端 IP 限流用例。
+- `npm audit --omit=dev`：0 漏洞。
+- `npm run build`：Next.js 16.4.0 Turbopack 生产构建通过；PDF worker 仍有 2 条动态 URL 解析 warning，但实际 PDF 文本解析已验证成功。
+- 本地生产模式：`/api/health` 返回 commit/配置状态，Supabase 代理 200，大师工具指数和单股快照正常，非法分享 ID 404。
+- SSRF 回归：`/api/pools/extract`、`/api/munger` 对 `127.0.0.1` 链接返回 400；雷达自定义链接返回明确拒绝错误，不访问内网。
+- 无头 Chrome 全模块巡检：联赛、选股池、早餐、行业周期、功能箱均打开，无 console/page error，无 4xx/5xx 请求。
+- 交易日任务回归：`date=2026-10-01` 返回“不是交易日（最新交易日 2026-09-30）”，不会调用 AI。
+
+**剩余建议**：Next 16 已提示 React 18 进入弃用期，下一轮单独评估 React 19；Turbopack 的 PDF worker warning 建议后续通过升级 pdfjs 或调整打包方式消除；Cloudflare 侧可继续叠加 WAF/速率规则，弥补进程内限流在多实例场景下的边界。
+
+
 ## 2026-10-08 · 修复自选股/大师选股池现价停留在昨收
 
 **背景**：用户反馈自选股在开盘后仍显示前一日收盘价；大师选股池共用同一行情链路，需要一并审查。

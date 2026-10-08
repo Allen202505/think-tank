@@ -96,8 +96,8 @@ async function getIndustryBoard(boardName) {
       available: !!(q || rows.length),
       name: q?.f58 || found.name || boardName,
       code: found.code,
-      price: q?.f43 != null ? q.f43 / scale : null,
-      changePct: num(q?.f170),
+      price: q?.f43 != null ? q.f43 / scale : (last?.close ?? null),
+      changePct: num(q?.f170) ?? (rows.length > 1 ? calcReturns(rows, 1) : null),
       date: last?.date || null,
       returns: {
         d20: calcReturns(rows, 20),

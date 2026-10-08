@@ -1,5 +1,4 @@
 import './globals.css'
-import { Analytics } from '@vercel/analytics/react'
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://think-tank.example.com'
 
@@ -131,7 +130,6 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         {children}
-        <Analytics />
       </body>
     </html>
   )

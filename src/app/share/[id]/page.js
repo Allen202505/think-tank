@@ -33,7 +33,8 @@ function formatDate(value) {
 const loadShare = cache(async (id) => getShareResult(id));
 
 export async function generateMetadata({ params }) {
-  const loaded = await loadShare(params.id);
+  const { id } = await params;
+  const loaded = await loadShare(id);
   if (!loaded.ok) {
     return {
       title: '分享内容暂时不可用 | 大师吵股',
@@ -89,7 +90,8 @@ function UnavailablePage({ message = '这条分享内容不存在，可能链接
 }
 
 export default async function ShareResultPage({ params }) {
-  const loaded = await loadShare(params.id);
+  const { id } = await params;
+  const loaded = await loadShare(id);
   if (!loaded.ok) {
     if (loaded.code === 'not_found') notFound();
     return <UnavailablePage />;

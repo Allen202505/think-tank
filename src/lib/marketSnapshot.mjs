@@ -9,10 +9,12 @@
 // 数据源现状（2026-09-13 实测）：
 //   全市场/行业榜单  新浪 Market_Center.getHQNodeData   ✓
 //   行业板块列表     新浪 newSinaHy.php（GBK）           ✓
-//   指数 + 涨跌家数  东财 ulist.np/get                   ✓
+//   指数 + 涨跌家数  东财 ulist.np/get → 腾讯指数行情    ✓
 //   涨停池           东财 push2ex getTopicZTPool          ✓
-//   单股快照         东财 push2/stock/get（含行业）       ✓
+//   单股快照         东财 push2/stock/get → 腾讯行情      ✓
 //   日线             腾讯 ifzq → 新浪 CN_MarketDataService ✓
+import { parseTencentQuote, tencentPrefixForCode } from './tencentQuote.mjs';
+
 const SINA_LIST = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData';
 const SINA_BOARDS = 'https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php';
 const SINA_KLINE = 'https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData';
@@ -20,7 +22,9 @@ const EM_ULIST = 'https://push2.eastmoney.com/api/qt/ulist.np/get';
 const EM_STOCK = 'https://push2.eastmoney.com/api/qt/stock/get';
 const EM_LIMIT_UP = 'https://push2ex.eastmoney.com/getTopicZTPool';
 const TENCENT_KLINE = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get';
+const TENCENT_QUOTE = 'https://qt.gtimg.cn/q=';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 const TTL = { board: 5 * 60 * 1000, index: 60 * 1000, list: 3 * 60 * 1000, quote: 60 * 1000, kline: 10 * 60 * 1000, limitUp: 5 * 60 * 1000 };
 
 const num = (value) => {
@@ -77,6 +81,20 @@ function diffRows(payload) {
   const diff = payload?.data?.diff;
   if (Array.isArray(diff)) return diff;
   return Object.values(diff || {});
+}
+
+function parseTencentQuoteMap(text) {
+  const map = new Map();
+  for (const chunk of String(text || '').split(';')) {
+    const quote = parseTencentQuote(chunk);
+    if (quote?.symbol) map.set(quote.symbol, quote);
+  }
+  return map;
+}
+
+async function fetchTencentQuoteMap(symbols) {
+  const text = await fetchText(`${TENCENT_QUOTE}${symbols.map((symbol) => encodeURIComponent(symbol)).join(',')}`, 10000, 'gbk');
+  return parseTencentQuoteMap(text);
 }
 
 // ── 行业别名：模型说「医药/芯片/券商」，数据源用的是细分行业名 ──
@@ -260,29 +278,53 @@ const INDEX_SECIDS = [
 // ── 网络：指数摘要（东财） ─────────────────────────────────
 export async function fetchIndexSummary() {
   return cached('index', TTL.index, async () => {
-    const url = `${EM_ULIST}?secids=${INDEX_SECIDS.map((i) => i.secid).join(',')}&fields=f2,f3,f6,f12,f14,f104,f105,f106&fltt=2&invt=2`;
-    const payload = await fetchJson(url);
-    return diffRows(payload).map((row) => ({
-      code: String(row?.f12 || ''),
-      name: String(row?.f14 || ''),
-      price: num(row?.f2),
-      changePct: num(row?.f3),
-      amount: num(row?.f6),
-      up: num(row?.f104),
-      down: num(row?.f105),
-      flat: num(row?.f106),
-    }));
+    try {
+      const url = `${EM_ULIST}?secids=${INDEX_SECIDS.map((i) => i.secid).join(',')}&fields=f2,f3,f6,f12,f14,f104,f105,f106&fltt=2&invt=2`;
+      const payload = await fetchJson(url);
+      const rows = diffRows(payload).map((row) => ({
+        code: String(row?.f12 || ''),
+        name: String(row?.f14 || ''),
+        price: num(row?.f2),
+        changePct: num(row?.f3),
+        amount: num(row?.f6),
+        up: num(row?.f104),
+        down: num(row?.f105),
+        flat: num(row?.f106),
+      }));
+      if (rows.length) return rows;
+    } catch (e) { /* 香港节点访问 push2 失败时走腾讯指数行情 */ }
+
+    const quotes = await fetchTencentQuoteMap(['sh000001', 'sz399001', 'sz399006']);
+    const rows = INDEX_SECIDS.map((item) => {
+      const code = item.secid.split('.')[1];
+      const quote = quotes.get(code);
+      return {
+        code,
+        name: quote?.name || item.name,
+        price: quote?.price ?? null,
+        changePct: quote?.changePct ?? null,
+        amount: quote?.amount ?? null,
+        up: null,
+        down: null,
+        flat: null,
+      };
+    }).filter((row) => row.price != null);
+    if (!rows.length) throw new Error('指数行情源不可用');
+    return rows;
   });
 }
 
 // ── 网络：涨停池（东财） ───────────────────────────────────
 // 最新交易日：从新浪上证指数日线取最后一根 K 线日期（1 请求，缓存 10 分钟）
-export async function fetchLatestTradeDate() {
-  return cached('latestTradeDate', TTL.kline, async () => {
-    const payload = await fetchJson(`${SINA_KLINE}?symbol=sh000001&scale=240&ma=no&datalen=3`);
-    const rows = Array.isArray(payload) ? payload : [];
-    return String(rows[rows.length - 1]?.day || '');
-  });
+async function fetchLatestTradeDateNow() {
+  const payload = await fetchJson(`${SINA_KLINE}?symbol=sh000001&scale=240&ma=no&datalen=3`);
+  const rows = Array.isArray(payload) ? payload : [];
+  return String(rows[rows.length - 1]?.day || '');
+}
+
+export async function fetchLatestTradeDate({ force = false } = {}) {
+  if (force) return fetchLatestTradeDateNow();
+  return cached('latestTradeDate', TTL.kline, fetchLatestTradeDateNow);
 }
 
 function limitUpUrl(date = '') {
@@ -344,27 +386,51 @@ export async function fetchStockList({ node = 'hs_a', sortBy = 'amount', order =
   });
 }
 
-// ── 网络：单只快照（东财，含行业） ──────────────────────────
+// ── 网络：单只快照（东财主源，腾讯兜底） ────────────────────
 export async function fetchStockQuote(code) {
   const target = String(code || '').trim();
   if (!/^\d{6}$/.test(target)) throw new Error('股票代码需为 6 位数字');
   const secid = `${/^(6|9)/.test(target) ? '1' : '0'}.${target}`;
   return cached(`quote:${target}`, TTL.quote, async () => {
-    const url = `${EM_STOCK}?secid=${secid}&fields=f43,f47,f48,f57,f58,f60,f116,f117,f127,f162,f168,f170&fltt=2&invt=2`;
-    const data = (await fetchJson(url))?.data;
-    if (!data) return null;
+    try {
+      const url = `${EM_STOCK}?secid=${secid}&fields=f43,f47,f48,f57,f58,f60,f116,f117,f127,f162,f168,f170&fltt=2&invt=2`;
+      const data = (await fetchJson(url))?.data;
+      if (data) {
+        return {
+          code: String(data.f57 || target),
+          name: String(data.f58 || ''),
+          price: num(data.f43),
+          changePct: num(data.f170),
+          volume: num(data.f47),
+          amount: num(data.f48),
+          turnover: num(data.f168),
+          marketCap: num(data.f116),
+          floatCap: num(data.f117),
+          pe: num(data.f162),
+          industry: String(data.f127 || ''),
+          source: 'eastmoney',
+        };
+      }
+    } catch (e) { /* 香港节点访问东财 push2 常被 502，继续腾讯兜底 */ }
+
+    const prefix = tencentPrefixForCode(target);
+    if (!prefix) return null;
+    const quotes = await fetchTencentQuoteMap([`${prefix}${target}`]);
+    const quote = quotes.get(target);
+    if (!quote) return null;
     return {
-      code: String(data.f57 || target),
-      name: String(data.f58 || ''),
-      price: num(data.f43),
-      changePct: num(data.f170),
-      volume: num(data.f47),
-      amount: num(data.f48),
-      turnover: num(data.f168),
-      marketCap: num(data.f116),
-      floatCap: num(data.f117),
-      pe: num(data.f162),
-      industry: String(data.f127 || ''),
+      code: quote.symbol,
+      name: quote.name || '',
+      price: quote.price,
+      changePct: quote.changePct,
+      volume: quote.volume,
+      amount: quote.amount,
+      turnover: quote.turnoverRate,
+      marketCap: quote.marketCap,
+      floatCap: quote.floatMarketCap,
+      pe: quote.pe,
+      industry: '',
+      source: 'tencent',
     };
   });
 }

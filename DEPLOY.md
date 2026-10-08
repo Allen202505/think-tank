@@ -19,7 +19,8 @@
 3. 服务器上准备环境变量：`cp .env.local .env.production`，并确认 `NEXT_PUBLIC_SITE_URL=https://yieldglide.com`。
 4. 执行 `set -a && source .env.production && set +a`，再运行 `docker compose up -d --build`。
 5. 安装 Nginx，使用 Cloudflare Origin Certificate 配置 443；Cloudflare SSL/TLS 设为 Full (strict)。
-6. 服务器 crontab 每分钟运行 `scripts/auto-deploy-tencent.sh`；push `main` 后检测到新提交即自动执行 `scripts/deploy-tencent.sh`。
+6. 服务器 crontab 每分钟运行 `scripts/auto-deploy-tencent.sh`；push `main` 后检测到新提交即自动执行 `scripts/deploy-tencent.sh`，并校验 `/api/health` 返回的构建 commit。
+7. `scripts/run-daily-cron.sh` 由 crontab 每小时 `:35` 唤醒，只在北京时间 15:35–15:44 执行每日联赛任务。
 
 ## 三、百度搜索资源平台（ziyuan.baidu.com）提交 sitemap
 
@@ -52,6 +53,7 @@
 - [ ] /sitemap.xml 返回 XML
 - [ ] 百度验证通过、sitemap 提交成功、主动推送返回 success
 - [ ] 服务器上 .env.production 不含明文密钥泄露（勿提交到 git）
+- [ ] `http://127.0.0.1:3000/api/health` 返回 200，且 `commit` 与当前部署提交一致
 
 ## 六、微信小程序提审版部署
 

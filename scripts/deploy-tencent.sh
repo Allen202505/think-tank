@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/think-tank}"
-HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/robots.txt}"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 
 # 防止 GitHub Actions 与服务器定时拉取同时部署。
 exec 9>/tmp/think-tank-deploy.lock
@@ -27,12 +27,15 @@ set -a
 source .env.production
 set +a
 
+export GIT_COMMIT="$(git rev-parse --short HEAD)"
 docker compose build --pull
 docker compose up -d --remove-orphans
 
+expected_commit="$(git rev-parse --short HEAD)"
 for _ in $(seq 1 30); do
-  if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null; then
-    cron_line="35 15 * * 1-5 $DEPLOY_PATH/scripts/run-daily-cron.sh >> $DEPLOY_PATH/cron.log 2>&1"
+  health_body="$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null || true)"
+  if printf '%s' "$health_body" | grep -Fq "\"commit\":\"$expected_commit\""; then
+    cron_line="35 * * * * $DEPLOY_PATH/scripts/run-daily-cron.sh >> $DEPLOY_PATH/cron.log 2>&1"
     auto_line="* * * * * $DEPLOY_PATH/scripts/auto-deploy-tencent.sh >> $DEPLOY_PATH/deploy.log 2>&1"
     {
       crontab -l 2>/dev/null | grep -vF "$DEPLOY_PATH/scripts/run-daily-cron.sh" | grep -vF "$DEPLOY_PATH/scripts/auto-deploy-tencent.sh" || true

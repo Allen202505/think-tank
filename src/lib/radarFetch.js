@@ -4,6 +4,9 @@
 //  - 其他网站（用户自提供链接）：尝试 RSS/Atom 自动发现；找不到则仅提供原始链接
 // 注意：知乎用户内容在公共 RSSHub 实例上常被 403（需自建 RSSHub 并配置 ZHIHU_COOKIE），
 //       失败时本模块会如实返回 error + 原始主页链接，不编造内容。
+//       用户自提供链接统一走 publicOnly 安全抓取，拒绝内网/云元数据地址。
+
+import { fetchPublicBuffer } from './safeRemoteFetch.mjs';
 
 export const PLATFORM_LABEL = {
   xueqiu: '雪球',
@@ -41,12 +44,17 @@ export function radarCached(key, ttlMs, loader) {
   return p;
 }
 
-async function fetchText(url, timeoutMs = 12000) {
+async function fetchText(url, timeoutMs = 12000, options = {}) {
+  const headers = { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*' };
+  if (options.publicOnly) {
+    const result = await fetchPublicBuffer(url, { timeoutMs, maxBytes: 2 * 1024 * 1024, headers });
+    return { res: result.response, body: result.body.toString('utf8') };
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*' },
+      headers,
       signal: ctrl.signal,
       cache: 'no-store',
       redirect: 'follow',
@@ -210,7 +218,7 @@ export function detectSourceByUrl(input) {
 // 网页 RSS 自动发现
 async function discoverFeed(url) {
   try {
-    const { body } = await fetchText(url, 12000);
+    const { body } = await fetchText(url, 12000, { publicOnly: true });
     // 本身就是 RSS/Atom（用户直接贴订阅地址）
     if (/^\s*<\?xml|^\s*<feed[ >]|^\s*<rss[ >]/i.test(body)) {
       return { ok: true, error: '', posts: parseFeed(body), feedUrl: url };
@@ -227,7 +235,7 @@ async function discoverFeed(url) {
     if (!href) return { ok: false, error: '该页面未发现 RSS/Atom 订阅源', posts: [] };
     const base = new URL(url);
     const abs = new URL(href, base).href;
-    const { body: feedBody } = await fetchText(abs, 12000);
+    const { body: feedBody } = await fetchText(abs, 12000, { publicOnly: true });
     const posts = parseFeed(feedBody);
     return { ok: true, error: '', posts, feedUrl: abs };
   } catch (e) {

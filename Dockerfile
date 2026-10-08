@@ -30,8 +30,10 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
 RUN npm run build
 
 FROM node:22-alpine AS runner
+ARG GIT_COMMIT
 WORKDIR /app
 ENV NODE_ENV=production
+ENV GIT_COMMIT=$GIT_COMMIT
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public

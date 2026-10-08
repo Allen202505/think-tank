@@ -7,6 +7,7 @@ import { getQuoteContext } from '../chat/quoteContext.js';
 import { withTimeout } from '../chat/marketData.js';
 import { enrichThinNews } from '../../../lib/announcementEnrich';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../lib/rateLimit';
+import { fetchPublicText } from '../../../lib/safeRemoteFetch.mjs';
 import { buildFrameworkStepPrompt, buildFollowupPrompt, buildQuickBreakfastPrompt, buildQuickTurnPrompt } from '../../../lib/prompts';
 import { FRAMEWORK_STEPS, resolveLead } from '../../../lib/framework';
 import { findMasterById } from '../../../lib/breakfast';
@@ -135,32 +136,26 @@ export async function POST(request) {
     if (/^https?:\/\/\S+$/i.test(String(news.title || '').trim())) {
       const link = news.title.trim();
       try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(link, {
-          signal: ctrl.signal,
+        const html = (await fetchPublicText(link, {
+          timeoutMs: 8000,
+          maxBytes: 300000,
           headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' },
-          redirect: 'follow',
-        });
-        clearTimeout(timer);
-        if (res.ok) {
-          const html = (await res.text()).slice(0, 300000);
-          const clean = (str) => String(str || '')
-            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-          const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-                            html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-          if (titleMatch) resolvedNews = { ...resolvedNews, title: clean(titleMatch[1]).slice(0, 120) || resolvedNews.title };
-          if (descMatch) resolvedNews = { ...resolvedNews, content: clean(descMatch[1]).slice(0, 500) || resolvedNews.content };
-          if (!resolvedNews.content || resolvedNews.content === resolvedNews.title) {
-            resolvedNews = { ...resolvedNews, content: resolvedNews.content || resolvedNews.title };
-          }
-          resolvedNews = { ...resolvedNews, source: '用户链接', tags: ['用户链接'] };
+        })).text;
+        const clean = (str) => String(str || '')
+          .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+        if (titleMatch) resolvedNews = { ...resolvedNews, title: clean(titleMatch[1]).slice(0, 120) || resolvedNews.title };
+        if (descMatch) resolvedNews = { ...resolvedNews, content: clean(descMatch[1]).slice(0, 500) || resolvedNews.content };
+        if (!resolvedNews.content || resolvedNews.content === resolvedNews.title) {
+          resolvedNews = { ...resolvedNews, content: resolvedNews.content || resolvedNews.title };
         }
+        resolvedNews = { ...resolvedNews, source: '用户链接', tags: ['用户链接'] };
       } catch (e) { /* 抓取失败：保持原文 */ }
     }
 

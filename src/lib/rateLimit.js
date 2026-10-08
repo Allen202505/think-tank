@@ -4,9 +4,14 @@
 const buckets = new Map();
 
 export function getClientIp(request) {
+  // Cloudflare/Nginx 后会同时出现多个来源头；优先使用由边缘节点写入、客户端无法伪造的头。
+  const cf = request.headers.get('cf-connecting-ip');
+  if (cf) return cf.trim();
+  const real = request.headers.get('x-real-ip');
+  if (real) return real.trim();
   const fwd = request.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'local';
+  return 'local';
 }
 
 // key: 例如 'chat:1.2.3.4'；limit: 窗口内最大请求数；windowMs: 窗口毫秒

@@ -570,15 +570,11 @@ async function fetchQuoteEM(secid) {
 }
 
 // 东财 push2 在部分海外/跨境线路会直接返回 502，腾讯行情作为 A 股兜底。
-async function fetchQuoteTencent(secid) {
-  const [, code] = String(secid || '').split('.');
-  const prefix = tencentPrefixForCode(code);
-  if (!prefix) throw new Error('腾讯行情不支持该证券');
-
+async function fetchTencentQuoteSymbol(symbol) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(`https://qt.gtimg.cn/q=${prefix}${code}`, {
+    const res = await fetch(`https://qt.gtimg.cn/q=${encodeURIComponent(symbol)}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
         Referer: 'https://gu.qq.com/',
@@ -594,6 +590,13 @@ async function fetchQuoteTencent(secid) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchQuoteTencent(secid) {
+  const [, code] = String(secid || '').split('.');
+  const prefix = tencentPrefixForCode(code);
+  if (!prefix) throw new Error('腾讯行情不支持该证券');
+  return fetchTencentQuoteSymbol(`${prefix}${code}`);
 }
 
 
@@ -905,22 +908,45 @@ function fmtYi(v) {
   return n >= 1e8 ? `${(n / 1e8).toFixed(0)}亿` : `${n.toLocaleString()}`;
 }
 
+const TENCENT_INDEX_SYMBOLS = {
+  '1.000001': 'sh000001',
+  '0.399001': 'sz399001',
+  '0.399006': 'sz399006',
+  '1.000688': 'sh000688',
+};
+
 async function fetchIndexQuote(secid) {
-  const fields = 'f2,f3,f4,f6,f12,f14,f104,f105,f106';
-  const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}&fltt=2`;
-  const json = await fetchJson(url);
-  const d = json?.data;
-  if (!d || d.f12 == null) throw new Error('无指数数据');
-  return {
-    code: String(d.f12),
-    name: d.f14 || null,
-    price: d.f2,
-    changePct: d.f3,
-    amount: d.f6,   // 成交额（元）
-    up: d.f104,     // 上涨家数
-    down: d.f105,   // 下跌家数
-    flat: d.f106,   // 平盘家数
-  };
+  try {
+    const fields = 'f2,f3,f4,f6,f12,f14,f104,f105,f106';
+    const url = `${EM_QUOTE}?secid=${encodeURIComponent(secid)}&fields=${fields}&fltt=2`;
+    const json = await fetchJson(url);
+    const d = json?.data;
+    if (!d || d.f12 == null) throw new Error('无指数数据');
+    return {
+      code: String(d.f12),
+      name: d.f14 || null,
+      price: d.f2,
+      changePct: d.f3,
+      amount: d.f6,   // 成交额（元）
+      up: d.f104,     // 上涨家数
+      down: d.f105,   // 下跌家数
+      flat: d.f106,   // 平盘家数
+    };
+  } catch (e) {
+    const symbol = TENCENT_INDEX_SYMBOLS[secid];
+    if (!symbol) throw e;
+    const quote = await fetchTencentQuoteSymbol(symbol);
+    return {
+      code: quote.symbol,
+      name: quote.name,
+      price: quote.price,
+      changePct: quote.changePct,
+      amount: quote.amount,
+      up: null,
+      down: null,
+      flat: null,
+    };
+  }
 }
 
 /**

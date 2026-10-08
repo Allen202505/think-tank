@@ -1,4 +1,5 @@
 import { buildSupabaseUpstreamUrl } from '../../../../lib/supabaseProxy.mjs';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,15 +14,18 @@ const RESPONSE_SKIP_HEADERS = new Set([
 ]);
 
 async function proxy(request, { params }) {
+  const limited = rateLimit(`supabase-proxy:${getClientIp(request)}`, { limit: 600, windowMs: 60000 });
+  if (!limited.ok) return limitResponse(limited.retryAfter);
   if (!METHODS.has(request.method)) {
     return Response.json({ error: '不支持的请求方法' }, { status: 405 });
   }
 
   try {
     const requestUrl = new URL(request.url);
+    const resolvedParams = await params;
     const upstreamUrl = buildSupabaseUpstreamUrl(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      params?.path || [],
+      resolvedParams?.path || [],
       requestUrl.search,
     );
 

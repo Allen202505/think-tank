@@ -2,8 +2,11 @@
 // GET → { ok, issues:[{issue_date, issue_label, title, quiz_question, source, created_at}] }
 // GET ?date=YYYY-MM-DD → { ok, issue }（含完整 content）
 import { listIssues, getIssue } from '../../../../lib/navalDb';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 export async function GET(request) {
+  const limited = rateLimit(`naval-issues:${getClientIp(request)}`, { limit: 120, windowMs: 60000 });
+  if (!limited.ok) return limitResponse(limited.retryAfter);
   const url = new URL(request.url);
   const date = url.searchParams.get('date');
   if (date) {

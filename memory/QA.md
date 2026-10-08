@@ -23,7 +23,7 @@
 - [x] 联赛行情可用时，账户按真实开盘价执行、收盘价结算；行情失败时只显示初始资金和待执行计划。
 - [x] 联赛详情、今日决策筛选、完整排名、观点详情和点赞可用，点赞刷新后保持。
 - [x] 大师 PK、联赛、选股池、早餐、功能箱五 Tab、行业周期分析均能打开。
-- [x] A 股行情主源东财失败时可自动回退腾讯行情；`scripts/tencent-quote.test.mjs` 强制东财返回 502 后，`getQuote` 成功返回腾讯行情。
+- [x] A 股行情主源东财失败时可自动回退腾讯行情；`scripts/tencent-quote.test.mjs` 与 `scripts/market-snapshot-fallback.test.mjs` 覆盖单股、指数和大师工具快照。
 - [x] 行业周期端到端：本地与公网 `POST /api/industry-cycle {symbol:"600519"}` 均返回 200，识别贵州茅台、白酒Ⅱ并输出结构化分析；公网耗时 18.4s。
 - [x] 注册/登录同源代理闭环：本地与公网 Supabase Auth settings 返回 200，临时账号均完成注册→登录→管理员删除。
 - [ ] 无 Key 用户第 10 次 AI 功能可用，第 11 次被拦截并弹出 AI 设置。
@@ -58,7 +58,10 @@
 - [x] 当前测试网络浏览器导航计时：TTFB 362ms、DOMContentLoaded 749ms、Load 782ms。
 - [x] 带 `?tab=master-league`、`?tab=pools`、`?tab=breakfast`、`?tab=toolbox&tool=fundamental` 的直达页面均能正常渲染。
 - [x] `yieldglide.com` 和 `www.yieldglide.com` 已切到新服务器，HTTPS 使用 Cloudflare Full (strict)。
-- [x] 服务器 crontab 已配置交易日 15:35（北京时间）执行每日联赛任务。
+- [x] 服务器 crontab 每小时 `:35` 唤醒脚本，仅在北京时间 15:35–15:44 执行，并通过最新交易日校验跳过节假日。
+- [x] `GET /api/health` 返回运行状态、构建 commit 与核心配置布尔值，部署脚本要求 commit 与 `origin/main` 一致。
+- [x] 公开链接抓取拒绝 `localhost`、私网、云元数据地址及跳转到内网的重定向；相关接口回归返回 400。
+- [x] `npm audit --omit=dev` 为 0 个漏洞；Next.js 与 PostCSS/nanoid/source-map-js 已升级到安全版本。
 - [x] 服务器自动拉取部署：推送 `2338957` 后 1 分钟内 `deploy.log` 显示 `Deployment healthy`，站点保持 HTTP 200。
 
 ### P1：完整回归（约 1–2 小时）
@@ -109,7 +112,7 @@ npm start
 npm test
 ```
 
-当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序与实时报价合并、联赛/市场快照、财报侦查诊断、腾讯行情回退、Supabase 代理路径安全，以及小程序输入/输出拦截、结构化归一化和云函数签名校验，共 98 个用例。
+当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序与实时报价合并、联赛/市场快照、行情多源回退、公开链接 SSRF 防护、真实客户端 IP 限流、财报侦查诊断、Supabase 代理路径安全，以及小程序输入/输出拦截、结构化归一化和云函数签名校验，共 106 个用例。
 
 ### 2.2 腾讯云 Lighthouse 自动部署
 
@@ -127,7 +130,7 @@ npm test
 默认自动部署：
 
 - 服务器 crontab 每分钟执行 `scripts/auto-deploy-tencent.sh`，发现 `origin/main` 更新后调用 `scripts/deploy-tencent.sh`。
-- 服务器脚本：`scripts/deploy-tencent.sh`，执行 `git reset --hard origin/main`、Docker build/up、`/robots.txt` 健康检查和 crontab 安装。
+- 服务器脚本：`scripts/deploy-tencent.sh`，执行 `git reset --hard origin/main`、Docker build/up、`/api/health` 构建 commit 校验和 crontab 安装。
 
 验证命令：
 
@@ -137,7 +140,7 @@ ssh -i ~/.ssh/think-tank-tencent_ed25519 ubuntu@<host> \
   'cd /opt/think-tank && docker compose ps && crontab -l'
 ```
 
-已知安全债：`npm audit --omit=dev` 仍报告 Next/PostCSS/nanoid 共 3 项；官方完整修复路径是 Next.js 16.3.6 主版本升级，需单独安排兼容性验证。
+安全基线：Next.js 16.4.0 与依赖审计为 0 漏洞；React 18 在 Next 16 已进入弃用提示期，后续单独评估 React 19 升级。
 
 ### 2.3 建议环境变量
 
@@ -354,7 +357,7 @@ ssh -i ~/.ssh/think-tank-tencent_ed25519 ubuntu@<host> \
 - 步骤：重复打开同一财报链接或查询同一基础面股票。
 - 预期：财报链接 + 补充说明 7 天内直接使用本地结果；基础面同股票 7 天内有历史记录时直接恢复并高亮原记录，不消耗免费次数、不请求 API。
 
-`scripts/browser-cache.test.mjs` 覆盖缓存 JSON 读写和行情 TTL；`scripts/fundamental-history.test.mjs` 覆盖 7 天内同股票命中、过期不命中以及同一股票重复查询追加新记录。
+`scripts/browser-cache.test.mjs` 覆盖缓存 JSON 读写和行情 TTL；`scripts/fundamental-history.test.mjs` 覆盖 7 天内同股票命中、过期不命中以及同一股票重复查询追加新记录；`scripts/safe-remote-fetch.test.mjs`、`scripts/market-snapshot-fallback.test.mjs`、`scripts/rate-limit.test.mjs` 覆盖 SSRF、行情兜底与真实客户端 IP 限流。
 
 
 ### G-13 分享结果链接生成
@@ -737,6 +740,8 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [ ] ERR-10 重复点击提交不会产生重复请求。
 - [x] ERR-11 行业周期接口返回 HTML/网关 502 时，前端转换为友好错误，不暴露 JSON 解析异常。
 - [x] ERR-12 行业周期行情缺失改为 503 结构化 JSON，避免 Cloudflare 替换 502 响应体；腾讯行情回退单测与生产公网回归均通过。
+- [x] ERR-13 用户链接指向 `127.0.0.1`、私网或云元数据地址时，接口在抓取前拒绝并返回明确错误。
+- [x] ERR-14 生产部署 smoke：`/api/health` 200，Supabase 同源代理 200，非法分享 ID 404，PDF 文本解析后再进入模型调用链路。
 
 ---
 
@@ -744,7 +749,9 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 
 以下接口均应验证：
 
-- [ ] `POST /api/chat`
+- [x] `GET /api/health`（本地生产模式返回 commit 与配置状态）
+- [x] `GET /api/master-league/tools?tool=get_stock_quote&code=600519`（本地与公网回归）
+- [x] `POST /api/chat`
 - [ ] `POST /api/context`
 - [ ] `POST /api/breakfast`
 - [ ] `POST /api/munger`
@@ -755,12 +762,13 @@ curl -sS 'http://127.0.0.1:3000/api/stock-search?q=宇树'
 - [x] `ALL /api/supabase/[...path]`（本地与公网 Auth settings、注册、登录均已验证；临时账号已删除）
 - [ ] `POST /api/naval/ask`
 - [ ] `POST /api/naval/daily`
-- [ ] `POST /api/pools/extract`
+- [x] `POST /api/pools/extract`（文本/链接路径；内网链接返回 400）
 - [ ] `POST /api/pools/review`
 - [ ] `POST /api/pools/suggest`
 - [x] `POST /api/share-results`（本地与生产三类快照实际创建通过）
 - [x] `GET /share/[id]`（本地与生产三类快照均返回 200 并渲染原文）
 - [x] `GET /api/master-league`（公网 200）
+- [x] `GET /api/radar/source`（公网正常来源可返回；内网链接被拒绝）
 
 每个接口至少检查：
 

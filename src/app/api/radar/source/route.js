@@ -3,8 +3,11 @@
 // 支持：雪球/知乎主页（走 RSSHub）；其他网站尝试 RSS/Atom 自动发现；
 //       都不行则如实返回仅链接（linkOnly），由前端展示「前往原页面」降级
 import { detectSourceByUrl, fetchSourcePosts, radarCacheClear, PLATFORM_LABELS } from '../../../../lib/radarFetch';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 export async function GET(request) {
+  const limited = rateLimit(`radar-source:${getClientIp(request)}`, { limit: 20, windowMs: 60000 });
+  if (!limited.ok) return limitResponse(limited.retryAfter);
   const sp = request.nextUrl.searchParams;
   const url = (sp.get('url') || '').trim();
   const refresh = sp.get('refresh') === '1';

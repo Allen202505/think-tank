@@ -3,8 +3,11 @@
 // 返回每位大师各自的多平台源结果（雪球/知乎等），由前端按大师单独展示
 import { RADAR_ACCOUNTS, PLATFORM_LABEL } from '../../../../data/radarAccounts';
 import { fetchSourcePosts, radarCacheClear } from '../../../../lib/radarFetch';
+import { getClientIp, rateLimit, limitResponse } from '../../../../lib/rateLimit';
 
 export async function GET(request) {
+  const limited = rateLimit(`radar-feed:${getClientIp(request)}`, { limit: 30, windowMs: 60000 });
+  if (!limited.ok) return limitResponse(limited.retryAfter);
   const sp = request.nextUrl.searchParams;
   const ids = (sp.get('master') || '').split(',').map((s) => s.trim()).filter(Boolean);
   const refresh = sp.get('refresh') === '1';

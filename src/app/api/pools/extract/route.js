@@ -2,6 +2,7 @@
 // POST { text } 或 { url } → { ok, result: { stocks: [{code,name}], source } }
 import { generateJson } from '../../../../lib/ai';
 import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } from '../../../../lib/rateLimit';
+import { fetchPublicText } from '../../../../lib/safeRemoteFetch.mjs';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const MAX_TEXT = 12000;
@@ -23,26 +24,20 @@ function htmlToText(html) {
 }
 
 async function fetchUrlText(url) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const res = await fetch(url, {
+    const { text: raw } = await fetchPublicText(url, {
+      timeoutMs: 15000,
+      maxBytes: 1_500_000,
       headers: { 'User-Agent': UA, Accept: 'text/html,text/plain,application/json,*/*' },
-      signal: ctrl.signal,
-      redirect: 'follow',
     });
-    if (!res.ok) throw new Error(`链接打开失败（HTTP ${res.status}），可复制正文文本粘贴`);
-    const buf = await res.arrayBuffer();
-    const text = htmlToText(new TextDecoder('utf-8').decode(buf));
+    const text = htmlToText(raw);
     if (text.length < 40) {
       throw new Error('该链接没有可读取的正文：可能需要登录，或页面内容由脚本动态渲染，请复制正文文本直接粘贴');
     }
     return text;
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('打开链接超时：网站响应慢，或需要登录/验证码后才出内容，请复制正文文本粘贴');
+    if (/超时/.test(String(e?.message || ''))) throw new Error('打开链接超时：网站响应慢，或需要登录/验证码后才出内容，请复制正文文本粘贴');
     throw e;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -105,6 +100,8 @@ export async function POST(request) {
     const stocks = list.filter((s) => (seen.has(s.code) ? false : (seen.add(s.code), true))).slice(0, 30);
     return Response.json({ ok: true, result: { stocks, source } });
   } catch (e) {
-    return Response.json({ error: e.message || '提取失败，请重试' }, { status: 500 });
+    const message = e.message || '提取失败，请重试';
+    const isInputError = /不支持内网|本机地址|链接|正文|打开链接|远程链接|域名|超时/.test(message);
+    return Response.json({ error: message }, { status: isInputError ? 400 : 500 });
   }
 }

@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: { root: __dirname },
   productionBrowserSourceMaps: false,
   output: 'standalone',
   poweredByHeader: false,

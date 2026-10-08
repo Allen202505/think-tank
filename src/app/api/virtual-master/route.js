@@ -6,6 +6,7 @@ import { getClientIp, rateLimit, limitResponse, guardFreeDaily, quotaResponse } 
 import { snapColorToPalette } from '../../../data/masters';
 import { RECIPES } from '../../../data/recipes';
 import { resolveAiConfig, buildProviderHeaders, buildProviderBody, resolveLlmUrl } from '../../../lib/llm.js';
+import { fetchPublicText } from '../../../lib/safeRemoteFetch.mjs';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36';
 
 function slugify(s) {
@@ -113,9 +114,11 @@ async function fetchArticle(url) {
   try {
     const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
     if (BLOCKED_HOSTS.test(host)) return '';
-    const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(4000), redirect: 'follow' });
-    if (!r.ok) return '';
-    const html = await r.text();
+    const { text: html } = await fetchPublicText(url, {
+      timeoutMs: 4000,
+      maxBytes: 1_500_000,
+      headers: { 'User-Agent': UA },
+    });
     const text = html
       .replace(/<script[\s\S]*?<\/script>/g, ' ')
       .replace(/<style[\s\S]*?<\/style>/g, ' ')
