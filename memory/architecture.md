@@ -151,14 +151,14 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 
 ## 功能箱导航（2026-09-11）
 
-- `src/components/ToolboxTabs.js`：渲染五个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
-- 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）、`strategy-gallery`（选股策略大赏）。
+- `src/components/ToolboxTabs.js`：渲染六个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
+- 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）、`strategy-gallery`（选股策略大赏）、`supply-chain`（供应链瓶颈分析）。
 - 主导航顺序：功能箱位于行业周期分析之后；移动端底栏与功能大厅保持一致。
 - Tab 采用紧凑胶囊：仅保留图标与模块名，桌面宽度随内容收缩，移动端横向滚动。
-- 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和五个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
+- 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和六个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
 - URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental|strategy-gallery` 自动进入功能箱并选中对应模块。
 - 本地记忆：`thinktank_toolbox_tab` 保存用户最后一次选择的 Tab。
-- 挂载策略：五个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
+- 挂载策略：六个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
 
 ## 芒格财报侦查诊断数据流（2026-09-16）
 
@@ -254,7 +254,7 @@ wx.setStorageSync（最多 30 条，仅本机）
 
 - `browserCache.mjs` 统一提供 `stableHash`、`readJsonCache`、`writeJsonCache`、`marketAwareTtlMs` 和 `researchCacheTtlMs`。缓存键带统一前缀与内容哈希，避免不同模块互相覆盖。
 - 行情类：盘中缓存 5 分钟；盘前缓存到当日 09:15；收盘后与周末缓存到下一个工作日 09:15。已接入 `/api/context`、股票联想搜索、行业周期分析和大师联赛公开赛数据（联赛额外封顶 30 分钟，避免收盘任务生成后长时间看不到新计划）。
-- 研究/分析类：财报链接结果按“链接 + 补充说明”缓存 7 天；基础面研究同股票 7 天内直接复用历史结果；缠论分析按问题缓存到行情窗口结束；早餐新闻、纳瓦尔期数、选股池评级/区间数据保留既有专用缓存。
+- 研究/分析类：财报链接结果按“链接 + 补充说明”缓存 7 天；基础面研究同股票 7 天内直接复用历史结果；供应链瓶颈报告按“产业链 + 市场 + 补充关注”缓存 1 天；缠论分析按问题缓存到行情窗口结束；早餐新闻、纳瓦尔期数、选股池评级/区间数据保留既有专用缓存。
 - 不缓存：登录态、免费额度、分享状态、用户池写入、邀请/删除等账户与写操作；实时快讯和雷达源仍按各自时效请求，避免把新闻流错误地长期缓存。
 
 
@@ -267,6 +267,30 @@ wx.setStorageSync（最多 30 条，仅本机）
 - 提取降级：公开链接抓取失败时，用户可粘贴正文继续；无正文或正文过短会返回 422，不伪造策略。AI 只允许引用给定页面/粘贴正文，输出再次归一化并限制字段长度。
 - 成本与安全：提取复用 `generateJson` 与 BYOK/免费额度/按 IP 限流；用户 Key 不落库。AI 结构化数据固定保留用户输入链接，用户可在保存前编辑核对。
 - 自动化测试：`scripts/strategy-extraction.test.mjs` 覆盖 HTML 清洗、私网地址拦截、字段归一化和 18 条预置数据完整性；请求命令 `npm test`。
+
+## 供应链瓶颈分析（2026-10-09）
+
+```text
+用户输入产业链 / 市场范围 / 补充关注
+    ↓
+ /api/stock-choke
+    ├─ 东方财富行业/概念板块搜索 + 板块行情快照
+    ├─ buildStockChokeMessages（Skill v3.2.1 + Serenity 六步法 + 七条排除规则）
+    └─ generateJson → normalizeStockChokeResult
+    ↓
+候选公司名称/代码解析 → getQuote 回填价格/PE/PB/市值
+    ↓
+供应链地图 + 卡点排序 + 候选信号卡 + 多空确认 + 验证日历
+```
+
+- 页面：`src/components/SupplyChainBottleneck.js` + `SupplyChainBottleneck.module.css`，功能箱第六个 Tab，URL 为 `?tab=toolbox&tool=supply-chain`。
+- 说明层：页内直接展示 Skill 原仓库、版本与许可证，Serenity 的人物/理论简介，以及六步框架和七条排除规则。
+- 提示词与归一化：`src/lib/stockChoke.js`，基于 `fadewalk/serenity-stock-choke` v3.2.1（MIT）改写；强制区分快照、公开已知信息与待核验证据，候选公司最多 6 家。
+- 接口：`POST /api/stock-choke`，按 IP 每分钟 8 次限流，未配置用户 Key 时按 IP 每日 20 次免费总量兜底；支持 `auto / CN / HK / US / global`。
+- 数据：板块名支持 CPO/光模块、AI 算力链、电力等别名拆分重试；候选公司通过东方财富搜索解析后调用统一行情层 `getQuote`，A 股还可在东财失败时回退腾讯。板块与候选行情失败不阻断报告，只标注“行情未回填”。
+- 合规：只输出研究观察与验证路径，不提供买入/卖出、目标价或收益承诺；小盘股波动、流动性与供应链消息真伪必须显著提示。
+- 降级：无板块行情时报告继续生成并列入数据缺口；AI 未返回有效 JSON 时返回 502；上游超时返回 504。
+- 自动化：`scripts/stock-choke.test.mjs` 覆盖 Skill/Serenity 六步提示词、七条排除规则、JSON Schema 和结果归一化；`scripts/toolbox-tabs.test.mjs` 覆盖第六个 Tab 白名单。
 
 ## 分析结果分享链接（2026-09-26）
 

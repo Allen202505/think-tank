@@ -47,6 +47,7 @@ const CrocodileFundamental = dynamic(() => import('../components/CrocodileFundam
 const IndustryCycleAnalysis = dynamic(() => import('../components/IndustryCycleAnalysis'), { loading: ModuleLoading });
 const MasterLeague = dynamic(() => import('../components/MasterLeague'), { loading: ModuleLoading });
 const StrategyGallery = dynamic(() => import('../components/StrategyGallery'), { loading: ModuleLoading });
+const SupplyChainBottleneck = dynamic(() => import('../components/SupplyChainBottleneck'), { loading: ModuleLoading });
 import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
 import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
 import ShareResultButton from '../components/ShareResultButton';
@@ -1970,6 +1971,7 @@ export default function Home() {
           {mountedToolboxTabs.has('naval') && <div id="toolbox-panel-naval" role="tabpanel" aria-labelledby="toolbox-tab-naval" className={toolboxTab === 'naval' ? '' : 'ws-hidden'}><NavalAcademy /></div>}
           {mountedToolboxTabs.has('fundamental') && <div id="toolbox-panel-fundamental" role="tabpanel" aria-labelledby="toolbox-tab-fundamental" className={toolboxTab === 'fundamental' ? '' : 'ws-hidden'}><CrocodileFundamental /></div>}
           {mountedToolboxTabs.has('strategy-gallery') && <div id="toolbox-panel-strategy-gallery" role="tabpanel" aria-labelledby="toolbox-tab-strategy-gallery" className={toolboxTab === 'strategy-gallery' ? '' : 'ws-hidden'}><StrategyGallery /></div>}
+          {mountedToolboxTabs.has('supply-chain') && <div id="toolbox-panel-supply-chain" role="tabpanel" aria-labelledby="toolbox-tab-supply-chain" className={toolboxTab === 'supply-chain' ? '' : 'ws-hidden'}><SupplyChainBottleneck /></div>}
         </div>
       )}
 

@@ -11,6 +11,7 @@ const TAB_LABEL_KEYS = {
   zen: 'tabsZen',
   naval: 'tabsNaval',
   'strategy-gallery': 'tabsStrategyGallery',
+  'supply-chain': 'tabsSupplyChain',
 };
 
 export default function ToolboxTabs({ active, onChange, t }) {

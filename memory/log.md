@@ -1,5 +1,33 @@
 # 决策记录
 
+## 2026-10-09 · 新增供应链瓶颈分析模块并接入 Serenity Skill
+
+**背景**：用户要求安装 `fadewalk/serenity-stock-choke` Skill，并基于该 Skill 在功能箱新增「供应链瓶颈分析」模块，同时向用户解释所用 Skill、Serenity 和六步分析框架。
+
+**改动**：
+
+- 将 Skill 安装到 `~/.codex/skills/serenity-stock-choke`，补齐 `scripts/a_stock_query.py` 与 `references/user_guide.md`；运行脚本查询贵州茅台验证公开行情链路可用（本机 Python 证书校验失败时脚本自动降级 curl）。
+- 功能箱新增第六个 Tab `supply-chain`，URL 为 `?tab=toolbox&tool=supply-chain`；新增图标、中英文标签与按需挂载面板，默认 Tab 仍为鱼大基础面研究。
+- 新增 `SupplyChainBottleneck.js` / `SupplyChainBottleneck.module.css`：页内展示 Skill 来源、版本、许可证、Serenity 人物与理论、六步框架、七条排除规则；提供板块、市场范围和补充关注输入，以及结构化报告展示。
+- 新增 `src/lib/stockChoke.js` 与 `src/data/supplyChainBottleneck.js`：保存共享 Skill 元数据、提示词、JSON Schema 和结果归一化规则；外部 Skill 方法论按 MIT 许可证改写为站内提示词。
+- 新增 `POST /api/stock-choke`：匹配东方财富行业/概念板块，生成供应链瓶颈报告，并解析候选公司代码后用统一 `getQuote` 回填价格、涨跌、PE、PB、市值。
+- 模块明确区分“框架评分”“实时行情”“待核验证据”；不输出买入/卖出、目标价或收益承诺；行情失败不阻断报告，只显示数据缺口。
+- 新增 `scripts/stock-choke.test.mjs`，更新 `scripts/toolbox-tabs.test.mjs`；新增 `THIRD_PARTY_NOTICES.md` 保留上游版权与 MIT 许可全文。
+
+**影响范围**：功能箱导航与 URL、首页客户端按需加载、公开 AI 接口、行情回填、本地 1 天研究缓存、免费额度与 IP 限流；不修改数据库结构、小程序和已有分享类型。
+
+**验证**：
+
+- `npm test`：108/108 通过，新增 Skill 提示词、六步法、七条排除规则、结果归一化和第六个 Tab 用例。
+- `npm run build`：Next.js 16.4.0 Turbopack 生产构建通过，新增 `/api/stock-choke` 动态路由；PDF worker 的 2 条既有 warning 与本轮无关。
+- 本地 `POST /api/stock-choke {industry:"CPO / 光模块"}` 返回 200，匹配「光通信模块」板块并生成 7 层供应链、3 个卡点、6 家候选公司。
+- 6 家候选公司均成功回填真实价格、涨跌与 PE 等公开行情，响应中保留“供应链证据仍需核验”标记。
+- 本地 `GET /?tab=toolbox&tool=supply-chain` 返回 200，新 Tab 页面可访问。
+- 无头 Chrome 实测 1440px 与 390px 首屏，六个 Tab、Skill 区、Serenity 区、六步框架与输入区正常；390px 下 `scrollWidth = clientWidth = 390`，无横向溢出。
+- 注入真实接口报告后，周期结论、供应链地图、候选信号卡、多空确认、催化/组合约束均正常渲染，候选公司代码与回填价格可见。
+
+**边界**：公开行情只能验证价格与估值快照，不能替代订单、产能、份额、客户认证和政策文件的证据核验；本轮不做报告分享、账号历史归档和自动联网证据库。
+
 ## 2026-10-08 · 上线后全面体检与迁移风险修复
 
 **背景**：腾讯云香港 Lighthouse 迁移后，用户担心存在尚未被发现的线上问题，要求对代码、部署、行情、安全、持久化和浏览器体验做一次全面体检。

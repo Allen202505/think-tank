@@ -15,6 +15,7 @@ import {
   Trophy,         // 大师实盘联赛：冠军榜
   BriefcaseBusiness, // 功能箱：多能力集合
   LibraryBig,    // 选股策略大赏：策略档案
+  Network,       // 供应链瓶颈分析：节点网络
 } from 'lucide-react';
 
 const MAP = {
@@ -30,6 +31,7 @@ const MAP = {
   'master-league': Trophy,
   toolbox: BriefcaseBusiness,
   'strategy-gallery': LibraryBig,
+  'supply-chain': Network,
 };
 
 export default function NavIcon({ id, size = 18, className = '' }) {
