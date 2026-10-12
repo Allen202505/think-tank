@@ -17,7 +17,7 @@
 
 import { resolveLlmUrl, buildProviderHeaders, buildProviderBody } from '../../../lib/llm.js';
 import { isAShareQuotationRow } from '../../../lib/stockSearch.mjs';
-import { parseTencentQuote, tencentPrefixForCode } from '../../../lib/tencentQuote.mjs';
+import { parseTencentQuote, tencentPrefixForCode, tencentSymbolForSecid } from '../../../lib/tencentQuote.mjs';
 
 // ─── 常量 ────────────────────────────────────────────────
 const EM_SUGGEST = 'https://searchapi.eastmoney.com/api/suggest/get';
@@ -593,10 +593,11 @@ async function fetchTencentQuoteSymbol(symbol) {
 }
 
 async function fetchQuoteTencent(secid) {
-  const [, code] = String(secid || '').split('.');
-  const prefix = tencentPrefixForCode(code);
-  if (!prefix) throw new Error('腾讯行情不支持该证券');
-  return fetchTencentQuoteSymbol(`${prefix}${code}`);
+  // 必须按 secid 的市场位取代码：指数 secid 与股票代码前缀并不一致
+  // （1.000001 上证指数 / 0.000001 平安银行），按代码前缀推断会串标的。
+  const symbol = tencentSymbolForSecid(secid);
+  if (!symbol) throw new Error('腾讯行情不支持该证券');
+  return fetchTencentQuoteSymbol(symbol);
 }
 
 

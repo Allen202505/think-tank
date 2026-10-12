@@ -18,6 +18,17 @@ export function tencentPrefixForCode(code) {
   return null;
 }
 
+// secid（形如 "1.000001"）→ 腾讯行情代码。优先使用 secid 的市场位，
+// 避免上证指数 1.000001 被按代码前缀误判成深市 000001（平安银行）。
+export function tencentSymbolForSecid(secid) {
+  const [market, code] = String(secid || '').trim().split('.');
+  const value = String(code || '');
+  if (!/^\d{6}$/.test(value)) return null;
+  if (market === '1') return `sh${value}`;
+  if (market === '0') return `${/^[489]/.test(value) ? 'bj' : 'sz'}${value}`;
+  return null; // 105/106/116 等海外市场不走腾讯行情
+}
+
 export function parseTencentQuote(text) {
   const match = String(text || '').match(/v_[a-z]{2}\d{6}="([^"]*)"/i);
   if (!match?.[1]) return null;

@@ -62,7 +62,11 @@ export function parseEastmoneyQuotePayload(payload) {
 
 // 盘中报价优先：同一交易日覆盖日线收盘价，跨交易日追加一条当日虚拟日线。
 // 这样“现价/今日涨跌/本周/区间统计”共享同一口径，不会出现表格现价是 T-1 的情况。
-export function mergeQuoteIntoBars(bars, quote, market) {
+//
+// options.maxDeviation：与最后一根日线收盘价的允许偏离比例（如 0.25 = ±25%）。
+// 传入后，偏离过大的报价视为串标的/异常数据直接忽略，避免错误价格污染今日涨跌、
+// 相对大盘表现和温度计（宁可用日线收盘价，也不显示错误数据）。
+export function mergeQuoteIntoBars(bars, quote, market, options = {}) {
   const clean = Array.isArray(bars) ? bars.filter((bar) => bar && bar.date && positive(bar.close) != null) : [];
   const price = positive(quote?.price);
   const date = quoteDateForMarket(quote?.quoteAt, market);
@@ -70,6 +74,12 @@ export function mergeQuoteIntoBars(bars, quote, market) {
 
   const last = clean[clean.length - 1];
   if (date < last.date) return clean;
+
+  const maxDeviation = Number(options.maxDeviation);
+  if (Number.isFinite(maxDeviation) && maxDeviation > 0) {
+    const ratio = price / last.close;
+    if (ratio > 1 + maxDeviation || ratio < 1 - maxDeviation) return clean;
+  }
 
   const quotedBar = {
     ...last,

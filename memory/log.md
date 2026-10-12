@@ -1,5 +1,34 @@
 # 决策记录
 
+## 2026-10-12 · 修复选股池温度计：指数报价串到同号股票导致「大盘暴跌仍显示滚烫 100°」
+
+**背景**：用户反馈 10-12 大盘下跌、持仓 -1.21%（1 涨 4 跌）时，我的持仓温度计仍显示「滚烫 100°」，且「vs 上证指数」是 -99.69%，怀疑与迁移服务器后的改动有关。
+
+**根因**（已本地复现到与截图一致的数字）：
+
+- 上证指数 secid 为 `1.000001`，其「今日/本周涨幅」取日 K 最后一根与上一根收盘价；迁移当天新增的 `3144d51 fix: refresh stock pool quotes intraday` 会用实时报价覆盖日 K 最后一根。
+- 香港节点访问东财 push2 常被 502，指数报价只能走腾讯兜底；但 `fetchQuoteTencent` 只按 6 位代码前缀猜市场，把 `1.000001` 解析成 `sz000001`（平安银行 11.75），与个股 `0.000001` 串成同一标的。
+- 于是指数最后一根收盘价被写成 11.75，指数「今日涨幅」≈ -99.69%；温度计 `50 + (池子收益 − 指数收益) × 8 + 赚钱效应 + 跑赢天数` 被顶到上限 100，显示「滚烫」。
+- 结论：确认与迁移期间的改动有关——10-08 之前选股池不合并盘中实时报价，指数涨幅只来自日 K，不会踩到这条兜底链路。
+
+**修复**：
+
+- `src/lib/tencentQuote.mjs` 新增 `tencentSymbolForSecid(secid)`：按 secid 的市场位取腾讯代码（`1.`→sh、`0.`→sz、`0.4/8/9`→bj，105/106/116 等海外市场不支持），不再用代码前缀猜市场。
+- `src/app/api/chat/marketData.js` 的 `fetchQuoteTencent` 改用该函数：指数 `1.000001` → `sh000001`，与平安银行 `0.000001` → `sz000001` 区分开。
+- `src/lib/stockPoolQuote.mjs` 的 `mergeQuoteIntoBars` 增加可选 `maxDeviation` 防线：实时报价与日 K 最后一根偏离超过阈值时直接忽略本次合并（宁可用日线收盘价，也不显示错误价格）。`src/app/api/pools/route.js` 对指数使用 ±25% 上限。
+- 新增自动化用例：`scripts/tencent-quote.test.mjs` 覆盖 secid→腾讯代码映射与「东财 502 时指数兜底只请求 `q=sh000001` 并返回指数价」；`scripts/stock-pool-quote.test.mjs` 覆盖「异常偏离报价被忽略、正常报价仍合并、不传上限时保持旧行为」。
+
+**影响范围**：选股池（我的股票池 / 大师股票池）现价、今日/本周表现、相对上证指数与持仓温度计；`getQuote` 的 A 股/指数行情兜底。不改数据库结构、分享、免费额度和小程序。
+
+**验证**：
+
+- `npm test`：111/111 通过（新增 3 个用例）。
+- `npm run build`：Next.js 16.4.0 Turbopack 生产构建通过，仅剩 pdfjs 2 条既有 warning。
+- 本地模拟香港节点（把所有 eastmoney 请求打成 502）直跑 `POST /api/pools`：
+  - 修复前 `index.last=11.75`、`indexRet=-99.6919%`、`temperature.today=100`，与用户截图数字一致；
+  - 修复后 `index.last=3805.29`、`indexRet=-0.2229%`、`temperature.today=67`。
+- 线上：推送 `main` 后由服务器自动部署，`GET https://yieldglide.com/api/health` 返回新 commit 后公网复测 `POST /api/pools` 指数涨幅正常（见下一条记录）。
+
 ## 2026-10-09 · 新增供应链瓶颈分析模块并接入 Serenity Skill
 
 **背景**：用户要求安装 `fadewalk/serenity-stock-choke` Skill，并基于该 Skill 在功能箱新增「供应链瓶颈分析」模块，同时向用户解释所用 Skill、Serenity 和六步分析框架。

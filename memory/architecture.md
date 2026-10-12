@@ -65,9 +65,9 @@ think-tank/
 - `src/lib/stockSearch.mjs` + `GET /api/stock-search`: A 股中文模糊搜索，兼容东财旧 `AStock` 与科创板 `Classify=23`；前端允许中文单字触发候选，6 位纯代码跳过候选请求。
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
-- `src/lib/stockPoolQuote.mjs` + `src/app/api/pools/route.js`: 选股池现价使用东财 `ulist.np/get` 批量实时报价，并按市场时区合并进日线；日 K 负责区间历史，实时价负责现价/今日涨跌，盘中 60 秒刷新。
+- `src/lib/stockPoolQuote.mjs` + `src/app/api/pools/route.js`: 选股池现价使用东财 `ulist.np/get` 批量实时报价，并按市场时区合并进日线；日 K 负责区间历史，实时价负责现价/今日涨跌，盘中 60 秒刷新。`mergeQuoteIntoBars` 支持 `maxDeviation` 偏离上限，报价与日线最后一根偏离过大（疑似串标的）时忽略该报价；上证指数使用 ±25% 上限，温度计与「vs 上证指数」因此不会被错误行情顶到极值。
 - `src/lib/safeRemoteFetch.mjs`: 用户提供链接的安全抓取层；支持公开 DNS 校验、内网/云元数据拦截、重定向逐跳校验、超时和响应体大小限制。`radar/source`、早餐链接、股票池链接提取、芒格财报链接和虚拟大师文章抓取统一接入。
-- `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
+- `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情（`tencentSymbolForSecid` 按 secid 市场位取 `sh/sz/bj` 代码，指数与同号股票不串标的）；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
 - `src/app/api/chat/route.js`: DeepSeek 代理，调用 quoteContext 注入最新数据

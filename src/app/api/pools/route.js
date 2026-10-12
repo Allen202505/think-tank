@@ -372,7 +372,9 @@ export async function POST(request) {
       info,
       bars: mergeQuoteIntoBars(bars, quoteMap.get(info.secid), info.market),
     }));
-    const indexBars = mergeQuoteIntoBars(rawIndexBars, quoteMap.get('1.000001'), 'CN');
+    // 上证指数用 25% 偏离上限兜底：指数单日不可能偏离超过上限，
+    // 一旦报价源串到别的标的（如 000001 平安银行），直接用日线，不让温度计失真。
+    const indexBars = mergeQuoteIntoBars(rawIndexBars, quoteMap.get('1.000001'), 'CN', { maxDeviation: 0.25 });
 
     // 短周期：今天 / 昨天 / 本周（等权，自动取最近交易日）
     const periods = { today: [], yesterday: [], week: [] };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTencentQuote, tencentPrefixForCode } from '../src/lib/tencentQuote.mjs';
+import { parseTencentQuote, tencentPrefixForCode, tencentSymbolForSecid } from '../src/lib/tencentQuote.mjs';
 import { getMarketOverview, getQuote } from '../src/app/api/chat/marketData.js';
 
 function quoteText(overrides = {}) {
@@ -74,6 +74,18 @@ test('A 股代码能映射到沪、深、北交易所前缀', () => {
   assert.equal(tencentPrefixForCode('ABC'), null);
 });
 
+test('secid 的市场位优先于代码前缀（指数不会被判成同号股票）', () => {
+  assert.equal(tencentSymbolForSecid('1.000001'), 'sh000001'); // 上证指数
+  assert.equal(tencentSymbolForSecid('0.000001'), 'sz000001'); // 平安银行
+  assert.equal(tencentSymbolForSecid('1.600519'), 'sh600519');
+  assert.equal(tencentSymbolForSecid('0.300750'), 'sz300750');
+  assert.equal(tencentSymbolForSecid('0.399001'), 'sz399001'); // 深证成指
+  assert.equal(tencentSymbolForSecid('0.430047'), 'bj430047');
+  assert.equal(tencentSymbolForSecid('1.000688'), 'sh000688'); // 科创50
+  assert.equal(tencentSymbolForSecid('116.00700'), null); // 港股不走腾讯
+  assert.equal(tencentSymbolForSecid(''), null);
+});
+
 test('东财行情失败时 getQuote 自动回退到腾讯', async () => {
   const originalFetch = globalThis.fetch;
   let emCalls = 0;
@@ -98,6 +110,32 @@ test('东财行情失败时 getQuote 自动回退到腾讯', async () => {
     assert.equal(quote.price, 1258.62);
     assert.equal(emCalls, 2);
     assert.equal(txCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('指数行情腾讯兜底按市场位取代码，不会串到同号股票', async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  globalThis.fetch = async (url) => {
+    const target = String(url);
+    if (target.includes('push2.eastmoney.com')) return new Response('bad gateway', { status: 502 });
+    if (target.includes('qt.gtimg.cn')) {
+      requested.push(target);
+      if (target.includes('sh000001')) return new Response(indexQuoteText('sh000001', 'SSE', 3803.43, -0.27));
+      if (target.includes('sz000001')) return new Response(indexQuoteText('sz000001', 'PAB', 11.76, 1.47));
+      throw new Error(`unexpected fetch: ${target}`);
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+  try {
+    const quote = await getQuote({ symbol: '000001', name: '上证指数', market: 'CN', secid: '1.000001' });
+    assert.equal(quote.name, 'SSE');
+    assert.equal(quote.price, 3803.43);
+    assert.equal(quote.source, 'tencent');
+    assert.equal(requested.length, 1);
+    assert.ok(requested[0].includes('q=sh000001'), `实际请求：${requested[0]}`);
   } finally {
     globalThis.fetch = originalFetch;
   }
