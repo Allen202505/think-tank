@@ -27,7 +27,9 @@
 - 本地模拟香港节点（把所有 eastmoney 请求打成 502）直跑 `POST /api/pools`：
   - 修复前 `index.last=11.75`、`indexRet=-99.6919%`、`temperature.today=100`，与用户截图数字一致；
   - 修复后 `index.last=3805.29`、`indexRet=-0.2229%`、`temperature.today=67`。
-- 线上：推送 `main` 后由服务器自动部署，`GET https://yieldglide.com/api/health` 返回新 commit 后公网复测 `POST /api/pools` 指数涨幅正常（见下一条记录）。
+- 线上：`main` 推送后服务器自动部署，13:12:47 `GET https://yieldglide.com/api/health` 返回 `commit=8ba4bce`。
+- 公网复测 `POST /api/pools`（同一组 5 只，含与指数同号的 `000001` 平安银行）：`index.last=3804.04`、`indexRet=-0.2557%`、`temperature.today=72`；同刻东财上证为 3803.51 / -0.27%，口径一致。
+- 说明：生产服务器当前能直连东财 push2，线上未触发腾讯兜底链路；该链路由「所有 eastmoney 请求返回 502」的单测与本地端到端模拟覆盖（见上一条本地验证）。
 
 ## 2026-10-09 · 新增供应链瓶颈分析模块并接入 Serenity Skill
 
