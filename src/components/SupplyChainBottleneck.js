@@ -36,7 +36,6 @@ import {
 } from '../data/supplyChainBottleneck';
 import { consumeFree, ensureAiReady, getAiConfig } from '../lib/aiGate';
 import { readApiResponse } from '../lib/apiResponse.mjs';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import { readJsonCache, researchCacheTtlMs, writeJsonCache } from '../lib/browserCache.mjs';
 import ModuleHero from './ModuleHero';
 import styles from './SupplyChainBottleneck.module.css';
@@ -172,7 +171,6 @@ export default function SupplyChainBottleneck() {
       setResult(data.result);
       setMeta(data.meta || null);
       writeJsonCache('stock-choke', cacheKey, { result: data.result, meta: data.meta || null }, researchCacheTtlMs(1));
-      markFeatureCompleted('供应链瓶颈分析');
     } catch (e) {
       const message = String(e?.message || e || '分析失败，请稍后重试');
       setError(/failed to fetch|network|load|timed? ?out|econn|reset|terminated/i.test(message)

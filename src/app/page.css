@@ -9,14 +9,6 @@
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .icon-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); font-size: 16px; cursor: pointer; border-radius: 50%; transition: color 0.2s, border-color 0.2s, background 0.2s; }
 .icon-btn:hover { color: var(--accent); border-color: var(--accent-dim); }
-.qr-backdrop { position: fixed; inset: 0; background: transparent; z-index: 1100; }
-.qr-popover { position: absolute; top: 44px; right: 0; width: 220px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 12px; z-index: 1200; text-align: left; }
-.qr-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 10px; }
-.qr-img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border-subtle); background: var(--bg-input); display: block; }
-.qr-fallback { padding: 10px; border-radius: 10px; border: 1px dashed var(--border); color: var(--text-muted); background: var(--bg-input); font-size: 12px; line-height: 1.6; }
-.qr-fallback-hint { margin-top: 6px; font-family: var(--font-mono); font-size: 10px; opacity: 0.9; }
-.qr-open { display: inline-block; margin-top: 10px; font-family: var(--font-mono); font-size: 10px; color: var(--accent); text-decoration: none; }
-.qr-open:hover { text-decoration: underline; }
 .main-layout { max-width: 1300px; margin: 0 auto; padding: 26px 20px 48px; display: grid; grid-template-columns: 280px 1fr; gap: 28px; position: relative; }
 .sidebar { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 80px); overflow-y: auto; overscroll-behavior: contain; padding-right: 20px; border-right: 1px solid var(--border-subtle); }
 .sidebar-actions { display: flex; gap: 4px; margin-bottom: 8px; }
@@ -209,7 +201,6 @@
   .header { padding: 30px 14px 18px; }
   .header-actions { top: 12px; right: 10px; gap: 8px; }
   .main-layout { padding: 10px 8px; gap: 12px; }
-  .qr-popover { width: 200px; }
   .question-input { min-height: 84px; }
   .modal-content { max-width: 100%; }
   .speech-meta { gap: 6px; }
@@ -221,18 +212,6 @@
 .debate-reset-btn { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; cursor: pointer; opacity: 0.7; }
 .debate-reset-btn:hover { opacity: 1; color: var(--bear); }
 
-
-/* 分享海报（#10） */
-.poster-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.btn-poster { padding: 8px 18px; background: transparent; border: 1px solid var(--accent-dim); color: var(--accent); border-radius: 6px; font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
-.btn-poster:hover { background: var(--accent-bg); }
-.btn-poster:disabled { opacity: 0.5; cursor: not-allowed; }
-.poster-modal { max-width: 460px; }
-.poster-img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); }
-.poster-actions { display: flex; gap: 10px; margin-top: 14px; }
-.poster-btn { flex: 1; padding: 11px; border-radius: 6px; font-weight: 600; text-align: center; cursor: pointer; border: none; text-decoration: none; font-size: 13px; }
-.poster-btn-save { background: var(--accent); color: var(--on-accent); }
-.poster-btn-close { background: transparent; border: 1px solid var(--border); color: var(--text); }
 
 /* 信息层梳理提示 */
 .context-notice { margin-top: 10px; padding: 9px 12px; font-size: 12px; line-height: 1.6; color: var(--neutral); background: var(--accent-bg); border: 1px dashed var(--accent-dim); border-radius: 6px; }
@@ -334,7 +313,7 @@
 .profile-chat-btn:hover { opacity: 0.92; }
 
 /* ─── UI 打磨：无衬线系统 UI（按钮/输入/标签用 sans，衬线保留给阅读） ─── */
-.btn-submit, .btn-followup, .btn-poster, .invite-btn, .profile-chat-btn,
+.btn-submit, .btn-followup, .invite-btn, .profile-chat-btn,
 .followup-input, .invite-input,
 .master-style, .history-item .history-q { font-family: var(--font-sans); }
 .master-style { font-size: 10px; color: var(--text-muted); }
@@ -887,7 +866,7 @@
   white-space: nowrap;
 }
 
-/* ── 左栏底部操作区（换肤/历史 + 联系我） ── */
+/* ── 左栏底部操作区（AI 设置 / 账号 / 换肤） ── */
 .app-sidebar-foot {
   position: relative;
   display: flex;
@@ -902,43 +881,6 @@
   align-items: center;
   gap: 4px;
 }
-/* 左下角：联系我入口（个人微信） */
-.sb-group-entry {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  height: 44px;
-  box-sizing: border-box;
-  padding: 0 8px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-dim);
-  border-radius: 10px;
-  color: var(--accent-strong);
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font-sans);
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.sb-group-entry:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.sb-group-icon { display: inline-flex; flex-shrink: 0; }
-.sb-group-title { font-size: 12.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
-/* 二维码弹层：顶层 fixed，脱离侧栏滚动/堆叠环境，避免被遮挡 */
-.qr-popover {
-  position: fixed;
-  top: auto;
-  bottom: 64px;
-  left: 24px;
-  right: auto;
-  z-index: 2100;
-}
-/* 个人微信二维码弹层：抬高一点，避免盖住下方入口按钮 */
-.qr-popover-personal {
-  width: 268px;
-  bottom: 132px;
-}
-.qr-personal-hint { margin-top: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
-
 /* 移动端：导航摊平成横向可滚动条 */
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 1fr; gap: 4px; }
@@ -1027,7 +969,6 @@
 .mg-speech { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .mg-speech-head { display: flex; align-items: center; gap: 10px; }
 .mg-speech-name { font-size: 14px; font-weight: 700; color: var(--accent-strong); }
-.mg-share-result-inline { margin-left: auto; }
 .mg-speech-tag { font-size: 10px; color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .mg-speech-body { font-size: 14px; line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word; }
 .mg-followups { border-top: 1px dashed var(--border-subtle); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }

@@ -1,6 +1,5 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import ShareLinkActions from '../../../components/ShareLinkActions';
 import ShareResultView from '../../../components/ShareResultView';
 import { getShareResult } from '../../../lib/shareResultsDb';
 import { SHARE_KIND_LABELS } from '../../../lib/shareResults.mjs';
@@ -109,7 +108,6 @@ export default async function ShareResultPage({ params }) {
             <span className="share-brand-mark" aria-hidden="true">⚖</span>
             大师吵股
           </a>
-          <ShareLinkActions title={`${record.title} | ${kindLabel}`} />
         </nav>
 
         <article className="share-document">

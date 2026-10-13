@@ -23,7 +23,7 @@ think-tank/
 │   ├── components/           # Card / MasterAvatar / MiniBtn / MasterProfileModal
 │   ├── data/masters.js       # 32 位大师数据
 │   ├── i18n/messages.js      # 中英文案
-│   └── lib/                  # prompts.js（prompt 构建）/ poster.js（分享海报）
+│   └── lib/                  # prompts.js（prompt 构建）等纯函数与浏览器缓存
 │       ├── robots.js          # 生成 robots.txt
 │       ├── sitemap.js         # 生成 sitemap.xml
 │       └── ...                # 其他页面和组件
@@ -72,7 +72,6 @@ think-tank/
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
 - `src/app/api/chat/route.js`: DeepSeek 代理，调用 quoteContext 注入最新数据
 - `src/app/masters/page.js` + `[id]/page.js`: 大师列表页与详情静态页（SEO）
-- `src/lib/poster.js`: 客户端生成 1080×1920 辩论分享海报
 
 ### 环境变量
 - `NEXT_PUBLIC_SITE_URL`: 网站基础 URL，用于生成 sitemap 和 robots
@@ -292,7 +291,7 @@ wx.setStorageSync（最多 30 条，仅本机）
 - 降级：无板块行情时报告继续生成并列入数据缺口；AI 未返回有效 JSON 时返回 502；上游超时返回 504。
 - 自动化：`scripts/stock-choke.test.mjs` 覆盖 Skill/Serenity 六步提示词、七条排除规则、JSON Schema 和结果归一化；`scripts/toolbox-tabs.test.mjs` 覆盖第六个 Tab 白名单。
 
-## 分析结果分享链接（2026-09-26）
+## 分析结果分享链接（2026-09-26 上线，2026-10-13 下线入口）
 
 ```text
 大师PK / 巴菲特早餐 / 芒格财报结果
@@ -310,6 +309,6 @@ Supabase share_results（service_role 写入）
 - `src/app/api/share-results/route.js`：生成分享链接；按 IP 每小时 30 次限流，错误区分参数错误、服务未初始化和数据库异常。
 - `src/lib/shareResultsDb.js`：生产使用 `SUPABASE_SERVICE_ROLE_KEY` 读写 `share_results`；本地开发使用进程内 Map，避免本机网络不可达时阻塞，不用于生产持久化。
 - `src/app/share/[id]/page.js`：公开动态只读页；服务端按随机 ID 查询，设置 `noindex`，不要求登录。
-- `ShareResultButton` 只提交当前结果快照；分享页不暴露原应用状态、用户股票池、API Key 或上传文件 Base64。
+- 分享入口（`ShareResultButton`、`ShareLinkActions`、`ShareInvite`）已于 2026-10-13 全部移除；只读快照页与生成接口保留，历史链接仍可访问，但前端不再提供任何生成或二次分享入口。
 - `supabase/share_results.sql` / `supabase/schema.sql`：创建 `share_results`，RLS 开启但不向 anon/authenticated 授权；仅 service_role 有 select/insert 权限，避免通过公开 anon key 枚举分享数据。
 - 分享链接是不可变快照：原分析重新生成不会回写旧链接；当前不做撤回、过期、浏览计数和跨设备管理。

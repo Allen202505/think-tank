@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import { MasterAvatar } from './ui';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import AskDrawer from './AskDrawer';
 import ModuleHero from './ModuleHero';
 import { marketAwareTtlMs } from '../lib/browserCache.mjs';
@@ -94,7 +93,6 @@ export default function ZenShortTerm() {
       const mem = loadZenMemory();
       mem[memKey] = { result: data.result, at: Date.now(), expiresAt: Date.now() + marketAwareTtlMs() };
       saveZenMemory(mem);
-      markFeatureCompleted('缠论短线');
     } catch (e) {
       setError(e.message || '分析失败，请重试');
     } finally {

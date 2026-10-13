@@ -8,7 +8,6 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { MasterAvatar } from './ui';
 import AskDrawer from './AskDrawer';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import { NAVAL } from '../lib/navalPrompts';
 import { useAuth } from '../lib/authProvider';
 import { supabaseEnabled } from '../lib/supabaseClient';
@@ -228,7 +227,6 @@ export default function NavalAcademy() {
       };
       setThread((prev) => (fresh ? [{ role: 'user', text: msg }, { role: 'naval', ...answer }] : [...prev, { role: 'naval', ...answer }]));
       // 记录历史提问（问题+答案，去重）
-      markFeatureCompleted('纳瓦尔知识学堂');
       setAskHistory((prev) => {
         const next = [{ q: msg, at: Date.now(), content: answer.content, keyPoint: answer.keyPoint, formula: answer.formula }, ...prev.filter((h) => h.q !== msg)].slice(0, ASK_HISTORY_MAX);
         saveAskHistory(next);
@@ -363,7 +361,6 @@ export default function NavalAcademy() {
       });
       setActiveDate(issue.issue_date);
       setActiveIssue(issue);
-      markFeatureCompleted('纳瓦尔知识学堂');
     } catch (e) {
       const em = String((e && e.message) || e);
       setDailyError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(em) ? '网络异常或连接超时，请重试' : (em || '生成失败，请重试'));

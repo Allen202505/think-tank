@@ -6,7 +6,6 @@ import {
   Database, Gauge, Layers3, Minus, Scale, ScanSearch, ShieldAlert, Target, TrendingUp,
 } from 'lucide-react';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import { readApiResponse } from '../lib/apiResponse.mjs';
 import Dice3D from './Dice3D';
 import ModuleHero from './ModuleHero';
@@ -423,7 +422,6 @@ export default function IndustryCycleAnalysis() {
       if (!res.ok || data.error) throw new Error(data.error || '分析失败，请重试');
       setResult(data.result);
       writeJsonCache('industry-cycle', cacheKey, { result: data.result, industryData: industryData.trim() }, marketAwareTtlMs());
-      markFeatureCompleted('行业周期分析');
     } catch (e) {
       const message = String(e?.message || e || '');
       setError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(message) ? '网络异常或连接超时，请稍后重试' : (message || '分析失败，请重试'));

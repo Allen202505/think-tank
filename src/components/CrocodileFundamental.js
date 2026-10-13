@@ -7,7 +7,6 @@ import ModuleHero from './ModuleHero';
 import Dice3D from './Dice3D';
 import { findMasterById } from '../lib/breakfast';
 import { ensureAiReady, consumeFree, getAiConfig } from '../lib/aiGate';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import { FUNDAMENTAL_MASTERS } from '../lib/fundamental';
 import {
   addFundamentalHistoryEntry,
@@ -598,7 +597,6 @@ export default function CrocodileFundamental() {
       setResult(nextResult);
       setHistory((previous) => addFundamentalHistoryEntry(previous, entry));
       setActiveHistoryId(entry.id);
-      markFeatureCompleted('基础面研究');
     } catch (e) {
       const m = String((e && e.message) || e || '');
       setError(/failed to fetch|network|load|timed? ?out|econn|reset/i.test(m) ? '网络异常或连接超时，请重试' : (m || '研究失败，请重试'));

@@ -15,7 +15,6 @@ import AiSettingsModal from '../components/AiSettingsModal';
 import AuthModal from '../components/AuthModal';
 import { AuthProvider } from '../lib/authProvider';
 import { ensureAiReady, consumeFree, getAiConfig, setOnNeedConfig } from '../lib/aiGate';
-import { markFeatureCompleted } from '../lib/shareInvite';
 import {
   TYPING_INDICATOR_MS,
   TYPEWRITER_DELAY_MS,
@@ -30,7 +29,6 @@ import {
   buildExplainPrompt,
   buildReplyPrompt,
 } from '../lib/prompts';
-import { generatePoster } from '../lib/poster';
 import { marketAwareTtlMs, readJsonCache, writeJsonCache } from '../lib/browserCache.mjs';
 import './page.css';
 import './breakfast/page.css';
@@ -49,9 +47,6 @@ const MasterLeague = dynamic(() => import('../components/MasterLeague'), { loadi
 const StrategyGallery = dynamic(() => import('../components/StrategyGallery'), { loading: ModuleLoading });
 const SupplyChainBottleneck = dynamic(() => import('../components/SupplyChainBottleneck'), { loading: ModuleLoading });
 import { DEFAULT_TOOLBOX_TAB, isToolboxTab } from '../lib/toolboxTabs.mjs';
-import ShareInvite, { ShareSidebarEntry } from '../components/ShareInvite';
-import ShareResultButton from '../components/ShareResultButton';
-import { buildMasterPkSharePayload, masterPkShareTitle } from '../lib/shareResults.mjs';
 import TermAddModal from '../components/TermAddModal';
 import { useDrawerResize } from '../lib/drawerResize';
 
@@ -264,8 +259,6 @@ export default function Home() {
   };
 
   const [theme, setTheme] = useState('white'); // 默认纯白；SSR 与首帧一致，挂载后 effect 再读 localStorage
-  const [qrOpen, setQrOpen] = useState(false);
-  const [qrImgError, setQrImgError] = useState(false);
   // 语言：默认跟随浏览器语言（中文优先）
   const [locale, setLocale] = useState('zh');
   // 默认 5 位（SSR 固定，避免水合不一致；挂载后再随机/恢复）
@@ -290,9 +283,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [profileMaster, setProfileMaster] = useState(null);
-  const [posterOpen, setPosterOpen] = useState(false);
-  const [posterUrl, setPosterUrl] = useState('');
-  const [posterBusy, setPosterBusy] = useState(false);
   const [customMasters, setCustomMasters] = useState([]); // 邀请的虚拟大师
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -329,7 +319,6 @@ export default function Home() {
   // 非流式（rounds）模式的逐条展示进度；流式结束后也会用它来保留历史记录
   const [revealStepLegacy, setRevealStepLegacy] = useState(0);
   const fetchInProgressRef = useRef(false);
-  const masterFeatureRoundsRef = useRef(0);
   const goTimeoutRef = useRef(null);
   const snapshotRef = useRef(''); // 信息层梳理生成的快照（随每条请求带给 /api/chat）
   // 小白解释：点击某条大师发言 → 浮层用大白话解释术语与思路
@@ -425,14 +414,6 @@ export default function Home() {
       }
     });
     return out;
-  }, [rounds]);
-
-  useEffect(() => {
-    const completed = (rounds || []).filter((round) => round?.type === 'round' && Array.isArray(round.discussion) && round.discussion.length > 0).length;
-    if (completed > masterFeatureRoundsRef.current) {
-      masterFeatureRoundsRef.current = completed;
-      markFeatureCompleted('大师PK');
-    }
   }, [rounds]);
 
   const useStreamingMode = sequence.length > 0;
@@ -841,54 +822,6 @@ export default function Home() {
       return best || null;
     } catch (e) { return null; }
   }, []);
-
-  // 分享海报（#10）
-  const handlePoster = useCallback(async () => {
-    if (!result || posterBusy) return;
-    setPosterBusy(true);
-    setError('');
-    try {
-      const stances = (result.discussion || []).reduce((acc, m) => {
-        if (m?.stance === 'BULL') acc.bull += 1;
-        else if (m?.stance === 'BEAR') acc.bear += 1;
-        else acc.neutral += 1;
-        return acc;
-      }, { bull: 0, bear: 0, neutral: 0 });
-      const canvas = await generatePoster({
-        question: query,
-        hostId: result.hostId,
-        masters: result.investors || allMasters.filter((m) => selected.has(m.id)),
-        hostOpening: result.hostOpening,
-        discussion: result.discussion,
-        hostClosing: result.hostClosing,
-        verdict: { ...(result.verdict || {}), bullCount: stances.bull, bearCount: stances.bear, neutralCount: stances.neutral },
-      });
-      setPosterUrl(canvas.toDataURL('image/png'));
-      setPosterOpen(true);
-    } catch (e) {
-      setError(`生成海报失败：${e.message || '未知错误'}`);
-    }
-    setPosterBusy(false);
-  }, [result, query, selected, allMasters, posterBusy]);
-
-
-  const masterPkSharePayload = useMemo(() => {
-    const roster = [...(result?.investors || []), ...allMasters.filter((master) => selected.has(master.id))];
-    const masters = Array.from(new Map(roster.map((master) => [master.id, master])).values());
-    return buildMasterPkSharePayload({ question: query, result, rounds, masters });
-  }, [query, result, rounds, selected, allMasters]);
-  const masterPkShareResetKey = `${query}:${rounds.length}:${(result?.discussion || []).length}`;
-
-  const qrSrc = process.env.NEXT_PUBLIC_QR_CODE_URL || '/my-qr.jpg';
-
-  useEffect(() => {
-    if (!qrOpen) return undefined;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setQrOpen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [qrOpen]);
 
   const dict = messages[locale] || messages.zh;
   const t = (key, ...args) => {
@@ -1304,20 +1237,19 @@ export default function Home() {
 
   // 弹窗 Escape 关闭（除二维码外统一处理）
   useEffect(() => {
-    const open = inviteOpen || historyOpen || supplementOpen || posterOpen || profileMaster || explain;
+    const open = inviteOpen || historyOpen || supplementOpen || profileMaster || explain;
     if (!open) return undefined;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
       if (supplementOpen) skipSupplement();
       else if (inviteOpen) closeInvite();
       else if (historyOpen) setHistoryOpen(false);
-      else if (posterOpen) setPosterOpen(false);
       else if (profileMaster) setProfileMaster(null);
       else if (explain) closeExplain();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [inviteOpen, historyOpen, supplementOpen, posterOpen, profileMaster, explain, skipSupplement, closeInvite, closeExplain]);
+  }, [inviteOpen, historyOpen, supplementOpen, profileMaster, explain, skipSupplement, closeInvite, closeExplain]);
 
   const sendFollowUp = useCallback(async () => {
     const msg = followUpInput.trim();
@@ -1462,12 +1394,6 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="page-root">
-        <ShareInvite />
-
-
-
-
-
       <div className={`bg-master-layer${tab === 'breakfast' ? ' bg-breakfast' : ''}`} aria-hidden="true">
         <img src={tab === 'breakfast' ? '/bg-breakfast.jpg' : tab === 'toolbox' && toolboxTab === 'munger' ? '/bg-munger.jpg?v=12' : tab === 'toolbox' && toolboxTab === 'fundamental' ? '/bg-munger.jpg?v=12' : tab === 'toolbox' && toolboxTab === 'naval' ? '/bg-naval.jpg' : tab === 'toolbox' && toolboxTab === 'strategy-gallery' ? '/bg-debate.webp' : tab === 'pools' || tab === 'master-league' ? '/bg-debate.webp' : '/bg-argue.jpg'} alt="" />
       </div>
@@ -1498,20 +1424,6 @@ export default function Home() {
           </div>
           <SidebarNav tab={tab} onSwitch={switchTab} t={t} />
           <div className="app-sidebar-foot">
-        <ShareSidebarEntry />
-        <button
-          type="button"
-          className="sb-group-entry"
-          onClick={() => { setQrImgError(false); setQrOpen(true); }}
-          title="扫码添加我的个人微信"
-        >
-          <span className="sb-group-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-          </span>
-          <span className="sb-group-title">入群反馈问题建议</span>
-        </button>
         <div className="sb-foot-row">
           <button
             type="button"
@@ -1910,20 +1822,6 @@ export default function Home() {
                 )}
 
                 <div className="followup-section">
-                  {result && result.discussion && result.discussion.length > 0 && (
-                    <div className="poster-toolbar">
-                      <ShareResultButton
-                        kind="master_pk"
-                        title={masterPkShareTitle(query)}
-                        payload={masterPkSharePayload}
-                        resetKey={masterPkShareResetKey}
-                        disabled={loadingFollowUp || !masterPkSharePayload.rounds.length}
-                      />
-                      <button type="button" className="btn-poster" onClick={handlePoster} disabled={posterBusy}>
-                        {posterBusy ? t('posterSaving') : t('sharePoster')}
-                      </button>
-                    </div>
-                  )}
                   <label className="followup-label">{t('followupLabel')}</label>
                   <div className="followup-row">
                     <input
@@ -1992,35 +1890,6 @@ export default function Home() {
       <footer className="page-disclaimer">{t('disclaimer')}</footer>
         </div>
       </div>
-
-      {qrOpen && (
-        <>
-          <div className="qr-backdrop" onClick={() => setQrOpen(false)} />
-          <div
-            className="qr-popover qr-popover-personal"
-            role="dialog"
-            aria-label="我的个人微信二维码"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="qr-title">添加我的微信</div>
-            {!qrImgError ? (
-              <img
-                className="qr-img"
-                src={qrSrc}
-                alt="我的个人微信二维码"
-                onError={() => setQrImgError(true)}
-              />
-            ) : (
-              <div className="qr-fallback">
-                <div>未找到个人微信二维码图片。</div>
-                <div className="qr-fallback-hint">把二维码放到 `public/my-qr.jpg`，或设置 `NEXT_PUBLIC_QR_CODE_URL`。</div>
-              </div>
-            )}
-            <div className="qr-personal-hint">微信扫码添加我的个人微信</div>
-            <a className="qr-open" href={qrSrc} target="_blank" rel="noreferrer">新窗口打开</a>
-          </div>
-        </>
-      )}
 
       {quoteTip && (
         <div className="quote-tooltip" style={{ left: quoteTip.x, top: quoteTip.y }}>{quoteTip.text}</div>
@@ -2294,19 +2163,6 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {posterOpen && (
-        <div className="modal-overlay" onClick={() => setPosterOpen(false)} role="dialog" aria-modal="true" aria-label="分享海报">
-          <div className="modal-content poster-modal" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="modal-close" onClick={() => setPosterOpen(false)} aria-label="关闭">×</button>
-            {posterUrl && <img src={posterUrl} alt={t('sharePoster')} className="poster-img" />}
-            <div className="poster-actions">
-              <a href={posterUrl} download="大师吵股-辩论海报.png" className="poster-btn poster-btn-save">{t('posterSave')}</a>
-              <button type="button" className="poster-btn poster-btn-close" onClick={() => setPosterOpen(false)}>{t('posterClose')}</button>
-            </div>
           </div>
         </div>
       )}

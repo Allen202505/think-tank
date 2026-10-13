@@ -1,5 +1,29 @@
 # 决策记录
 
+## 2026-10-13 · 移除「入群反馈问题建议」「分享给好友」及平台全部分享入口
+
+**背景**：用户要求拿掉两个功能（侧栏「入群反馈问题建议」与「分享给好友」），并把平台上所有分享按钮和入口一并删除。
+
+**改动**：
+
+- 侧栏底部删除「入群反馈问题建议」按钮、二维码弹层（`qrOpen`/`qrImgError` 状态、Escape 处理、`qrSrc` 与 `page.css` 中 `.qr-*`/`.sb-group-*` 样式）；`app-sidebar-foot` 只保留 AI 设置、账号、换肤三个图标按钮。
+- 删除 `分享给好友` 全套：`src/components/ShareInvite.js`（浮动入口 + 分享面板 + 顶部分享提示）、`ShareSidebarEntry`、`src/lib/shareInvite.js`，以及各模块中的 `markFeatureCompleted(...)` 埋点（大师PK、早餐、财报、基础面、供应链瓶颈、纳瓦尔、行业周期、缠论）。
+- 删除结果区分享按钮：`src/components/ShareResultButton.js`，以及大师PK（`page.js`）、早餐（`BreakfastRoundtable.js`）、芒格财报（`MungerFinance.js`）中的调用与快照 payload/文案构建。
+- 删除「分享海报」：`page.js` 的 `handlePoster`/`posterOpen`/`posterUrl`/`posterBusy`/海报弹层、`src/lib/poster.js`、`page.css` 中 `.poster-*`/`.btn-poster` 样式与对应 i18n 文案（`sharePoster`/`posterSaving`/`posterSave`/`posterClose`）。
+- 删除分享页顶部按钮：`src/components/ShareLinkActions.js` 及 `src/app/share/[id]/page.js` 中的引用。
+- 保留历史兼容：`/share/[id]` 只读快照页、`POST /api/share-results`、`src/lib/shareResults.mjs`、`src/lib/shareResultsDb.js` 与 `supabase/share_results.sql` 不动，已生成的旧链接仍可打开，但前端不再有任何生成分享链接的入口。
+
+**影响范围**：首页侧栏底部、大师PK 结果操作区、巴菲特的早餐结果操作区、芒格财报结果操作区、分享快照页顶部；不影响免费额度、本地缓存、接口鉴权、数据结构和其它模块功能。
+
+**验证**：
+
+- `npm test`：111/111 通过。
+- `npm run build`：Next.js 16.4.0 Turbopack 生产构建通过，仅剩 pdfjs 既有 warning。
+- 本地 `next dev` 实测：首页 SSR 200，`入群反馈问题建议`/`分享给好友`/`分享海报`/`个人微信二维码`/`sb-group-entry` 出现次数均为 0；桌面 1440px 截图确认左栏底部只剩三个图标按钮。
+- 本地 `POST /api/share-results` 生成 master_pk 快照后打开 `/share/<id>` 返回 200，正文与免责声明正常，页面上「分享给朋友」「复制链接」计数为 0。
+
+**文档**：同步更新 `memory/PRD.md`（功能表、流程图、模块说明、目录树、第 19 节标注下线）、`memory/QA.md`（P0/P2 清单、3.3/3.3.1/3.4 章节、G-05/G-06/G-11/G-13、界面与已知限制条目）、`memory/project.md`、`memory/architecture.md`、`README.md`。
+
 ## 2026-10-12 · 修复选股池温度计：指数报价串到同号股票导致「大盘暴跌仍显示滚烫 100°」
 
 **背景**：用户反馈 10-12 大盘下跌、持仓 -1.21%（1 涨 4 跌）时，我的持仓温度计仍显示「滚烫 100°」，且「vs 上证指数」是 -99.69%，怀疑与迁移服务器后的改动有关。
