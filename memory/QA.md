@@ -141,7 +141,7 @@ ssh -i ~/.ssh/think-tank-tencent_ed25519 ubuntu@<host> \
   'cd /opt/think-tank && docker compose ps && crontab -l'
 ```
 
-安全基线：Next.js 16.4.0 与依赖审计为 0 漏洞；React 18 在 Next 16 已进入弃用提示期，后续单独评估 React 19 升级。
+安全基线：Next.js 16.4.3 与依赖审计为 0 漏洞；React 18 在 Next 16 已进入弃用提示期，后续单独评估 React 19 升级。
 
 ### 2.3 建议环境变量
 
