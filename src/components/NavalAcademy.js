@@ -204,7 +204,7 @@ export default function NavalAcademy() {
   const sendAsk = useCallback(async (raw, opts = {}) => {
     const msg = String(raw || query || '').trim();
     if (!msg || askLoading) return;
-    if (!ensureAiReady()) { setAskError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
+    if (!ensureAiReady()) { setAskError('AI 免费体验次数已用完，请先配置自己的 API Key 继续使用'); return; }
     consumeFree();
     setAskError('');
     setAskLoading(true);
@@ -333,7 +333,7 @@ export default function NavalAcademy() {
   // 模块2：生成今日知识点
   const generateToday = useCallback(async () => {
     if (genLoading) return;
-    if (!ensureAiReady()) { setDailyError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
+    if (!ensureAiReady()) { setDailyError('AI 免费体验次数已用完，请先配置自己的 API Key 继续使用'); return; }
     consumeFree();
     setGenLoading(true);
     setDailyError('');

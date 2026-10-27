@@ -55,7 +55,9 @@ export default function AiSettingsModal({ open, onClose }) {
         </div>
 
         <p className="ai-settings-note">
-          免费体验剩余 <strong>{freeLeft}</strong> 次；之后需要配置你自己的 API Key。
+          {freeLeft > 0
+            ? <>免费体验剩余 <strong>{freeLeft}</strong> 次；用完后请配置你自己的 API Key 继续使用。</>
+            : <>免费体验已用完。请配置你自己的 API Key 继续使用。</>}
           你的 Key 只保存在本机浏览器，仅用于本次请求调用，不会上传保存。
         </p>
 

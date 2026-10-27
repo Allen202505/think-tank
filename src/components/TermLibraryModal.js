@@ -61,7 +61,7 @@ export default function TermLibraryModal({ open, onClose }) {
     setActive({ name: t.name, content: t.content || '', keyPoint: t.keyPoint || '', formula: t.formula || '', highlights: Array.isArray(t.highlights) ? t.highlights : [] });
     if (t.content) return;
     if (loading) return;
-    if (!ensureAiReady()) { setError('AI 免费体验次数已用完，请先配置 API Key 或稍后再试'); return; }
+    if (!ensureAiReady()) { setError('AI 免费体验次数已用完，请先配置自己的 API Key 继续使用'); return; }
     consumeFree();
     setLoading(true);
     setError('');

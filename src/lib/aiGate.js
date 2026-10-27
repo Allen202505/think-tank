@@ -4,7 +4,7 @@
 
 export const CONFIG_KEY = 'thinktank_ai_config';
 export const QUOTA_KEY = 'thinktank_free_quota';
-export const FREE_LIMIT = 10;
+export const FREE_LIMIT = 2;
 
 // 常用 OpenAI 兼容服务预设（用户可自定义 Base URL 与模型名）
 export const PROVIDERS = {
@@ -47,7 +47,7 @@ export function hasUserKey() {
 
 // 免费次数同时写入 localStorage + cookie（双写）。
 // 无痕/隐私模式下 localStorage 可能被清空或不可靠，cookie 在同一会话内刷新/新开标签仍保留，
-// 取两者中已用次数较大者，避免「刷新重置 10 次」绕过；服务端另有按 IP 的每日免费总量兜底。
+// 取两者中已用次数较大者，避免「刷新重置 2 次」绕过；服务端另有按 IP 的每日免费总量兜底。
 function getQuotaCookie() {
   try {
     const m = document.cookie.match(new RegExp('(?:^|; )' + QUOTA_KEY.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));

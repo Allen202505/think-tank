@@ -69,6 +69,8 @@ think-tank/
 - `src/lib/safeRemoteFetch.mjs`: 用户提供链接的安全抓取层；支持公开 DNS 校验、内网/云元数据拦截、重定向逐跳校验、超时和响应体大小限制。`radar/source`、早餐链接、股票池链接提取、芒格财报链接和虚拟大师文章抓取统一接入。
 - `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情（`tencentSymbolForSecid` 按 secid 市场位取 `sh/sz/bj` 代码，指数与同号股票不串标的）；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
+- `src/lib/aiGate.js`: 浏览器本地 BYOK 配置、每位访客 2 次免费体验闸门，以及 localStorage + Cookie 双写额度计数。
+- `src/components/AiSettingsModal.js`: API Key / Base URL / 模型设置弹窗；免费额度用尽时提示配置自己的 Key。
 - `src/app/api/chat/quoteContext.js`: 解析问题里的公司，生成「最新行情+财务快照」注入 AI
 - `src/app/api/chat/route.js`: DeepSeek 代理，调用 quoteContext 注入最新数据
 - `src/app/masters/page.js` + `[id]/page.js`: 大师列表页与详情静态页（SEO）
@@ -312,3 +314,22 @@ Supabase share_results（service_role 写入）
 - 分享入口（`ShareResultButton`、`ShareLinkActions`、`ShareInvite`）已于 2026-10-13 全部移除；只读快照页与生成接口保留，历史链接仍可访问，但前端不再提供任何生成或二次分享入口。
 - `supabase/share_results.sql` / `supabase/schema.sql`：创建 `share_results`，RLS 开启但不向 anon/authenticated 授权；仅 service_role 有 select/insert 权限，避免通过公开 anon key 枚举分享数据。
 - 分享链接是不可变快照：原分析重新生成不会回写旧链接；当前不做撤回、过期、浏览计数和跨设备管理。
+
+## AI 免费体验闸门（2026-10-27）
+
+```text
+用户发起 AI 请求
+    ↓
+ensureAiReady()
+    ├─ 已配置用户 Key → 放行，不消耗免费次数
+    ├─ 仍有免费次数 → 放行
+    └─ 免费次数用尽 → 打开 AI 设置，提示配置自己的 API Key
+    ↓
+consumeFree()
+    ├─ localStorage: thinktank_free_quota
+    └─ Cookie: thinktank_free_quota（取较大值，防刷新重置）
+```
+
+- `FREE_LIMIT = 2`：每位未配置 Key 的访客前 2 次可用，第 3 次起被拦截。
+- 用户 Key 只保存在浏览器本地，随请求传给服务端即用即弃，不写数据库。
+- 服务端 `guardFreeDaily()` 的按 IP 每日免费总量仍是独立的防滥用兜底，不替代前端每位访客额度。
