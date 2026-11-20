@@ -11,9 +11,10 @@ export default function FeatureHall({ open, onClose, onSwitch, t }) {
     { id: 'master-league', name: t('tabsLeague'), desc: t('hallLeagueDesc') },
     { id: 'pools', name: t('tabsPools'), desc: t('hallPoolsDesc') },
     { id: 'breakfast', name: t('tabsBreakfast'), desc: t('hallBreakfastDesc') },
-    // 跟踪大师动态：暂时隐藏
+    // 跟踪大师动态：继续隐藏
     // { id: 'radar', name: t('tabsRadar'), desc: t('hallRadarDesc') },
     { id: 'industry-cycle', name: t('tabsIndustryCycle'), desc: t('hallIndustryCycleDesc') },
+    { id: 'index-dewater', name: t('tabsIndexDewater'), desc: t('hallIndexDewaterDesc') },
     { id: 'toolbox', name: t('tabsToolbox'), desc: t('hallToolboxDesc') },
   ];
 

@@ -16,6 +16,7 @@ import {
   BriefcaseBusiness, // 功能箱：多能力集合
   LibraryBig,    // 选股策略大赏：策略档案
   Network,       // 供应链瓶颈分析：节点网络
+  Droplets,      // 上证指数脱水：剔除权重后的指数
 } from 'lucide-react';
 
 const MAP = {
@@ -28,6 +29,7 @@ const MAP = {
   naval: BookOpen,
   fundamental: Fish,
   'industry-cycle': Gauge,
+  'index-dewater': Droplets,
   'master-league': Trophy,
   toolbox: BriefcaseBusiness,
   'strategy-gallery': LibraryBig,

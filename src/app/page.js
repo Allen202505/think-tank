@@ -43,6 +43,7 @@ const StockPools = dynamic(() => import('../components/StockPools'), { loading: 
 const NavalAcademy = dynamic(() => import('../components/NavalAcademy'), { loading: ModuleLoading });
 const CrocodileFundamental = dynamic(() => import('../components/CrocodileFundamental'), { loading: ModuleLoading });
 const IndustryCycleAnalysis = dynamic(() => import('../components/IndustryCycleAnalysis'), { loading: ModuleLoading });
+const IndexDewater = dynamic(() => import('../components/IndexDewater'), { loading: ModuleLoading });
 const MasterLeague = dynamic(() => import('../components/MasterLeague'), { loading: ModuleLoading });
 const StrategyGallery = dynamic(() => import('../components/StrategyGallery'), { loading: ModuleLoading });
 const SupplyChainBottleneck = dynamic(() => import('../components/SupplyChainBottleneck'), { loading: ModuleLoading });
@@ -471,6 +472,9 @@ export default function Home() {
       } else if (t === 'industry-cycle') {
         markTabMounted('industry-cycle');
         setTab('industry-cycle');
+      } else if (t === 'index-dewater') {
+        markTabMounted('index-dewater');
+        setTab('index-dewater');
       } else if (t === 'master-league') {
         markTabMounted('master-league');
         setTab('master-league');
@@ -518,7 +522,7 @@ export default function Home() {
         url.searchParams.set('tab', 'toolbox');
         url.searchParams.set('tool', nextToolboxTab);
         try { localStorage.setItem('thinktank_toolbox_tab', nextToolboxTab); } catch (e) { /* ignore */ }
-      } else if (resolvedNext === 'breakfast' || resolvedNext === 'pools' || resolvedNext === 'industry-cycle' || resolvedNext === 'master-league') {
+      } else if (resolvedNext === 'breakfast' || resolvedNext === 'pools' || resolvedNext === 'industry-cycle' || resolvedNext === 'index-dewater' || resolvedNext === 'master-league') {
         url.searchParams.set('tab', resolvedNext);
         url.searchParams.delete('tool');
       } else {
@@ -1879,11 +1883,18 @@ export default function Home() {
         </div>
       )}
 
+      {mountedTabs.has('index-dewater') && (
+        <div className={`mg-workspace-wrap${tab === 'index-dewater' ? '' : ' ws-hidden'}`}>
+          <IndexDewater />
+        </div>
+      )}
+
       {mountedTabs.has('master-league') && (
         <div className={`mg-workspace-wrap${tab === 'master-league' ? '' : ' ws-hidden'}`}>
           <MasterLeague customMasters={customMasters} onAddCustomMaster={registerCustomMaster} />
         </div>
       )}
+
 
 
 

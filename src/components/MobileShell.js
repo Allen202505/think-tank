@@ -10,9 +10,10 @@ export default function MobileShell({ tab, onSwitch, t, theme, onToggleTheme, on
     { id: 'master-league', label: t('tabLeagueShort') },
     { id: 'pools', label: t('tabPoolsShort') },
     { id: 'breakfast', label: t('tabBreakfastShort') },
-    // 跟踪大师动态：暂时隐藏
+    // 跟踪大师动态：继续隐藏
     // { id: 'radar', label: t('tabRadarShort') },
     { id: 'industry-cycle', label: t('tabIndustryCycleShort') },
+    { id: 'index-dewater', label: t('tabIndexDewaterShort') },
     { id: 'toolbox', label: t('tabToolboxShort') },
   ];
 

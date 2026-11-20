@@ -53,6 +53,7 @@ think-tank/
 - `src/lib/masterLeagueInvites.mjs`: 用户邀请大师参赛，统一赠送 10 万元初始额度；公开赛按累计收益率合并排名。
 - `src/lib/leagueInvites.js`: 读取、发布和删除 Supabase 公共邀请数据；所有访客可读，登录用户只能管理自己的邀请，管理员可删除任意邀请。
 - `src/lib/leagueInvitePolicy.mjs`: 邀请错误分类（底表缺失/缺字段/RLS 拒绝）与删除模式（真删/黑名单下架）纯函数。
+- `src/lib/indexDewater.mjs` + `src/app/api/index-dewater/route.js`: 上证指数脱水计算层与接口。东财沪市 A/B 股样本分页缓存、指数/个股日线缓存、行业映射、组合去重、样本校验、点位归因、独立脱水指数和结论生成；不调用 AI。
 - `src/lib/marketSnapshot.mjs`: 全市场感知层（大师智能体数据底座）。新浪榜单/行业 + 东财指数/涨停池/单股 + 腾讯&新浪日线多源冗余；香港节点访问东财 `push2` 失败时，指数与单股快照自动回退腾讯行情，进程内缓存，纯函数可测。
 - `src/lib/masterLeagueTools.mjs`: 智能体工具层，5 个工具（概览/筛选/快照/日线/持仓）+ JSON Schema，可直接用于 function calling。
 - `src/app/api/master-league/tools/route.js`: 工具调试入口（零 LLM），`GET ?tool=&参数` 或 `POST {tool,args}`。
@@ -66,7 +67,10 @@ think-tank/
 - `src/lib/tableSort.mjs`: 选股池表头数值/文本排序；区间涨幅按带符号数值升降序，空值置尾。
 - `src/components/StockPools.js`: 选股池列表与大师评价加载态使用单颗 CSS 3D 骰子（六面点数 + 透视旋转），不引入图片或第三方动画库；`prefers-reduced-motion` 下关闭动画。
 - `src/lib/stockPoolQuote.mjs` + `src/app/api/pools/route.js`: 选股池现价使用东财 `ulist.np/get` 批量实时报价，并按市场时区合并进日线；日 K 负责区间历史，实时价负责现价/今日涨跌，盘中 60 秒刷新。`mergeQuoteIntoBars` 支持 `maxDeviation` 偏离上限，报价与日线最后一根偏离过大（疑似串标的）时忽略该报价；上证指数使用 ±25% 上限，温度计与「vs 上证指数」因此不会被错误行情顶到极值。
-- `src/lib/safeRemoteFetch.mjs`: 用户提供链接的安全抓取层；支持公开 DNS 校验、内网/云元数据拦截、重定向逐跳校验、超时和响应体大小限制。`radar/source`、早餐链接、股票池链接提取、芒格财报链接和虚拟大师文章抓取统一接入。
+- `src/lib/safeRemoteFetch.mjs`: 用户提供链接的安全抓取层；支持公开 DNS 校验、内网/云元数据拦截、重定向逐跳校验、超时和响应体大小限制。`radar/source`、早餐链接、股票池链接提取、芒格财报链接和虚拟大师文章抓取统一接入；自定义网页在交给 DeepSeek Fetch 前还会执行 `assertPublicHostname`，防止域名解析到内网。
+- `src/lib/radarSearch.mjs`: 跟踪大师动态的 DeepSeek Search/Fetch 数据层；Search 查询计划、结果过滤/去重、A/B/C 证据分级、雪球/知乎 WAF 页面识别、10 分钟搜索缓存、30 分钟 Fetch/AI 提炼缓存。
+- `src/app/api/radar/feed/route.js`: 每位大师独立返回 Search 结果与 AI 机会线索；Search 失败/空结果回退 RSSHub；按 IP 每分钟 12 次限流；`refresh=1` 额外限制每 IP 5 分钟 2 次，避免绕过缓存反复触发付费搜索/AI。
+- `src/components/MasterRadar.js`: 「机会雷达」卡片 + 时间线；显示动作、证据等级、来源站点、原话、机会逻辑、催化剂、风险、周期与置信度。
 - `src/lib/tencentQuote.mjs` + `src/app/api/chat/marketData.js`: A 股实时行情在东财 push2 失败时自动回退腾讯行情（`tencentSymbolForSecid` 按 secid 市场位取 `sh/sz/bj` 代码，指数与同号股票不串标的）；东财盘前 `f43=0` 时使用 `f60` 昨收并标记 `isPreviousClose`，客户端对网关 HTML/非 JSON 响应做统一友好降级。
 - `src/app/api/supabase/[...path]/route.js`: Supabase Auth/REST 同源代理；浏览器访问 `/api/supabase/*`，服务端固定转发到 `NEXT_PUBLIC_SUPABASE_URL`，并保留原项目存储键以维持既有登录态。
 - `src/lib/aiGate.js`: 浏览器本地 BYOK 配置、每位访客 2 次免费体验闸门，以及 localStorage + Cookie 双写额度计数。
@@ -78,6 +82,8 @@ think-tank/
 ### 环境变量
 - `NEXT_PUBLIC_SITE_URL`: 网站基础 URL，用于生成 sitemap 和 robots
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase 项目地址与浏览器公开密钥；浏览器实际请求经 `/api/supabase/*` 同源代理转发
+- `DEEPSEEK_SEARCH_API_KEY` / `DEEPSEEK_SEARCH_BASE_URL`: DeepSeek Search/Fetch 可选独立配置；未配置时复用 `DEEPSEEK_API_KEY` 与 `https://api.deepseek.com/v1`
+- `RSSHUB_BASE`: 雪球/知乎 RSSHub 实例；仅在 Search 无结果或失败时作为兜底
 
 ## 部署流程
 
@@ -154,12 +160,53 @@ GET /api/master-league/commentary?date=<策略 decisionDate>&master=<id>
 
 - `src/components/ToolboxTabs.js`：渲染六个 Tab，不再显示“功能箱”标题与说明；使用 `role=tablist/tab/tabpanel` 保持键盘与读屏语义；Tab 顺序和默认值来自 `src/lib/toolboxTabs.mjs`。
 - 收纳模块：`fundamental`（鱼大基础面研究，第一且默认）、`munger`（芒格财报）、`zen`（缠中说禅）、`naval`（纳瓦尔知识学堂）、`strategy-gallery`（选股策略大赏）、`supply-chain`（供应链瓶颈分析）。
-- 主导航顺序：功能箱位于行业周期分析之后；移动端底栏与功能大厅保持一致。
+- 主导航顺序：上证指数脱水位于行业周期分析与功能箱之间；移动端底栏与功能大厅保持一致。
 - Tab 采用紧凑胶囊：仅保留图标与模块名，桌面宽度随内容收缩，移动端横向滚动。
 - 功能箱桌面内容轨道统一为 1180px：页面标题、Tab 胶囊和六个模块主体共用同一左边界；功能箱标题与模块主标题统一使用 `line-height: 1.08`。
 - URL：`?tab=toolbox&tool=<module>`；旧链接 `?tab=munger|zen|naval|fundamental|strategy-gallery` 自动进入功能箱并选中对应模块。
 - 本地记忆：`thinktank_toolbox_tab` 保存用户最后一次选择的 Tab。
 - 挂载策略：六个模块组件保持常驻，仅用 `.ws-hidden` 隐藏非当前面板，避免切换时丢失组件内状态。
+
+## 上证指数脱水数据流（2026-11-20）
+
+```text
+用户选择区间 / 行业 / 个股
+    ↓
+POST /api/index-dewater
+    ├─ 沪市样本：东财分页优先 → 新浪沪市 A 股榜单 + 行业板块降级，进程缓存 10 分钟
+    ├─ 上证指数日线：东财 → 腾讯证券 → 新浪财经，进程缓存 10 分钟
+    ├─ 东财行业字段：按申万一级名称归组
+    └─ 被剔除股票前复权日线：14 并发拉取，进程缓存 10 分钟
+    ↓
+resolveSelection
+    ├─ 行业 + 个股合并
+    ├─ 代码去重
+    ├─ 上证样本资格校验
+    └─ 非样本 / 历史不足分组
+    ↓
+computeDewaterAttribution
+    ├─ 点位贡献：区间首日官方点位 × 当前权重 × 个股区间收益
+    ├─ 同除数剩余点位：官方收盘点位 ×（1 - 剔除股票当前指数权重）
+    ├─ 图表终值：以同除数剩余点位为终点重新锚定独立脱水收益序列
+    └─ 独立脱水指数：区间首日归一，倒推剩余股票日收益并复利
+    ↓
+前端卡片 + 指数对比走势图 + 涨跌家数大盘 + 剔除明细 + 侧边条件浮层
+```
+
+- 页面：`src/components/IndexDewater.js`，样式在同名 CSS Module；URL 为 `?tab=index-dewater`。
+- 入口：桌面左侧导航、移动端底部导航、功能大厅均排在「行业周期分析」之后、「功能箱」之前。
+- 指数对比固定使用近一年区间；顶部当前点位取结束日收盘。大盘时间组件只控制涨跌家数统计，不触发上方脱水报告重算。
+- 动态两卡：官方指数、当前筛选方案同除数剩余点位；卡片标题随行业/个股组合实时变化，点位差直接用点数表达。
+- 图表对齐：独立脱水收益序列以截止日同除数剩余点位为终点重新锚定，保证图末值、顶部点位和当前方案剩余点位完全一致。
+- 指标口径：卡片大数字展示“同除数剩余点位”，卡片小字展示“独立区间收益”；页面不展示点位贡献榜。
+- 归一化：行业列表按当前快照动态统计；默认八个行业组映射到东财细分行业字段，自定义行业可选全部细分类。
+- 去重：同一股票同时命中行业和个股时只计一次，结果保留 `industry/stock` 来源并统计去重次数。
+- 缓存：服务端行情/日线 10 分钟；浏览器结果使用 `index-dewater-v5` 作用域并校验 `schemaVersion=5`，避免旧版卡片结构导致字段错配；行业/个股条件保存在 `thinktank_index_dewater_state_v2`；区间不跨刷新恢复，每次首次打开固定默认近一年。
+- 数据质量：V1 不伪造历史成分股或历史股本。权重使用东财 f21 流通市值并与指数 f117 对齐，禁止用 f20 总市值把 A+H 公司的 H 股带入；数据来源保留在顶部入口，不再占用整块页面。
+- 多源降级：东财 push2 空响应时，样本自动切新浪 `sh_a` 与行业板块；指数/个股日线按东财 → 腾讯 → 新浪依次尝试。新浪样本模式会在 `dataQuality.notes` 和 `sources` 中明确标注。
+- 错误降级：所有数据源同时不可用才返回 503；自定义日期、剔除数量超限等参数错误返回 400；单只个股历史失败不阻断报告，计入 `missingHistoryCount`。
+- 涨跌家数快照：`src/data/marketBreadthHistory.json` 由 `scripts/build-market-breadth.mjs` 拉取沪深北 A 股近 320 根日线聚合生成；`POST /api/market-breadth` 按区间计算阈值天数、分布桶和排名；前端以竖向柱状图与阈值卡同行展示，今日详情压缩为摘要行。
+- 自动化：`scripts/index-dewater.test.mjs` 覆盖脱水计算；`scripts/market-breadth.test.mjs` 覆盖阈值、分布桶与排名。
 
 ## 芒格财报侦查诊断数据流（2026-09-16）
 

@@ -9,9 +9,10 @@ export default function SidebarNav({ tab, onSwitch, t }) {
     { id: 'master-league', label: t('tabsLeague') },
     { id: 'pools', label: t('tabsPools') },
     { id: 'breakfast', label: t('tabsBreakfast') },
-    // 跟踪大师动态：能力未就绪（RSSHub/知乎 Cookie/VPS），暂时隐藏，就绪后放开
+    // 跟踪大师动态：继续隐藏
     // { id: 'radar', label: t('tabsRadar') },
     { id: 'industry-cycle', label: t('tabsIndustryCycle') },
+    { id: 'index-dewater', label: t('tabsIndexDewater') },
     { id: 'toolbox', label: t('tabsToolbox') },
   ];
   return (
