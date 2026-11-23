@@ -56,7 +56,7 @@ async function fetchLiveBreadthDay() {
     fetchIndexQuote(),
   ]);
   const rows = pages.flatMap((item) => item.status === 'fulfilled' && Array.isArray(item.value) ? item.value : []);
-  if (rows.length < 1000) throw new Error('实时全 A 股列表不可用');
+  if (rows.length < 5000) throw new Error('实时全 A 股列表不完整');
   const counts = rows.reduce((acc, row) => {
     const trade = Number(row.trade);
     const change = Number(row.changepercent);
@@ -67,7 +67,7 @@ async function fetchLiveBreadthDay() {
     else acc.flat += 1;
     return acc;
   }, { up: 0, down: 0, flat: 0, total: 0 });
-  if (!indexQuote) throw new Error('指数实时行情不可用');
+  if (!indexQuote || counts.total < 5000) throw new Error('实时全 A 股行情不完整');
   const value = {
     ...counts,
     date: indexQuote.date,
@@ -88,7 +88,7 @@ export async function POST(request) {
     try {
       const liveDay = await Promise.race([
         fetchLiveBreadthDay(),
-        new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+        new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
       ]);
       if (liveDay) sourceHistory = mergeLiveBreadthDay(history, liveDay);
     } catch {
