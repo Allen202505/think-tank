@@ -8,7 +8,7 @@ const SINA_LIST = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/json
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36';
 let liveCache = { at: 0, value: null };
 
-async function fetchJson(url, timeoutMs = 12000) {
+async function fetchJson(url, timeoutMs = 4000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -22,7 +22,7 @@ async function fetchJson(url, timeoutMs = 12000) {
 
 async function fetchIndexQuote() {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 3000);
   try {
     const response = await fetch('https://qt.gtimg.cn/q=sh000001', { headers: { 'User-Agent': UA }, signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -48,10 +48,13 @@ async function fetchIndexQuote() {
 
 async function fetchLiveBreadthDay() {
   if (liveCache.value && Date.now() - liveCache.at < 2 * 60 * 1000) return liveCache.value;
-  const pages = await Promise.allSettled(Array.from({ length: 60 }, (_, index) => {
-    const query = new URLSearchParams({ page: String(index + 1), num: '100', sort: 'symbol', asc: '1', node: 'hs_a', symbol: '' });
-    return fetchJson(`${SINA_LIST}?${query}`);
-  }));
+  const [pages, indexQuote] = await Promise.all([
+    Promise.allSettled(Array.from({ length: 60 }, (_, index) => {
+      const query = new URLSearchParams({ page: String(index + 1), num: '100', sort: 'symbol', asc: '1', node: 'hs_a', symbol: '' });
+      return fetchJson(`${SINA_LIST}?${query}`);
+    })),
+    fetchIndexQuote(),
+  ]);
   const rows = pages.flatMap((item) => item.status === 'fulfilled' && Array.isArray(item.value) ? item.value : []);
   if (rows.length < 1000) throw new Error('实时全 A 股列表不可用');
   const counts = rows.reduce((acc, row) => {
@@ -64,7 +67,6 @@ async function fetchLiveBreadthDay() {
     else acc.flat += 1;
     return acc;
   }, { up: 0, down: 0, flat: 0, total: 0 });
-  const indexQuote = await fetchIndexQuote();
   if (!indexQuote) throw new Error('指数实时行情不可用');
   const value = {
     ...counts,
@@ -84,8 +86,11 @@ export async function POST(request) {
   try {
     let sourceHistory = history;
     try {
-      const liveDay = await fetchLiveBreadthDay();
-      sourceHistory = mergeLiveBreadthDay(history, liveDay);
+      const liveDay = await Promise.race([
+        fetchLiveBreadthDay(),
+        new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]);
+      if (liveDay) sourceHistory = mergeLiveBreadthDay(history, liveDay);
     } catch {
       /* 静态快照兜底 */
     }
