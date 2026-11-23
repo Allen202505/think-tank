@@ -11,6 +11,8 @@
 // 该实现不伪造历史股本与历史成分股。接口会明确返回数据质量边界，历史精确复刻需要
 // 接入带历史成分、历史股本和指数除数的授权数据源。
 
+import { parseTencentQuote } from './tencentQuote.mjs';
+
 export const INDEX_DEWATER_INDEX = {
   code: '000001',
   secid: '1.000001',
@@ -744,6 +746,83 @@ async function fetchJson(url, timeoutMs = 12000) {
   }
 }
 
+async function fetchText(url, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'text/plain,*/*', Referer: 'https://gu.qq.com/' },
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function mergeLiveBar(bars, liveBar) {
+  if (!liveBar?.date || !(liveBar.close > 0)) return bars;
+  const next = (Array.isArray(bars) ? bars : []).filter((bar) => bar.date !== liveBar.date);
+  next.push(liveBar);
+  next.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return next;
+}
+
+async function fetchLiveIndexBar(startDate, endDate) {
+  try {
+    const text = await fetchText('https://qt.gtimg.cn/q=sh000001', 8000);
+    const match = text.match(/v_sh000001="([^"]*)"/);
+    if (!match) return null;
+    const f = match[1].split('~');
+    const close = positive(f[3]);
+    const time = String(f[30] || '');
+    if (close == null || !/^\d{8}/.test(time)) return null;
+    const date = `${time.slice(0, 4)}-${time.slice(4, 6)}-${time.slice(6, 8)}`;
+    if ((startDate && date < startDate) || (endDate && date > endDate)) return null;
+    return {
+      date,
+      open: positive(f[5]),
+      close,
+      high: positive(f[33]),
+      low: positive(f[34]),
+      volume: num(f[6]),
+      source: 'tencent-live',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTencentLiveStockBars(codes, startDate, endDate) {
+  const result = new Map();
+  if (!codes.length) return result;
+  const symbols = codes.filter((code) => /^\d{6}$/.test(code)).map((code) => `sh${code}`);
+  if (!symbols.length) return result;
+  try {
+    const text = await fetchText(`https://qt.gtimg.cn/q=${symbols.join(',')}`, 10000);
+    for (const match of text.matchAll(/v_(sh\d{6})="([^"]*)"/g)) {
+      const code = match[1].slice(2);
+      const quote = parseTencentQuote(`v_${match[1]}="${match[2]}"`);
+      if (!quote || quote.isPreviousClose || !quote.tradeDate || !(quote.price > 0)) continue;
+      if ((startDate && quote.tradeDate < startDate) || (endDate && quote.tradeDate > endDate)) continue;
+      result.set(code, {
+        date: quote.tradeDate,
+        open: quote.open,
+        close: quote.price,
+        high: quote.high,
+        low: quote.low,
+        volume: quote.volume,
+        source: 'tencent-live',
+      });
+    }
+  } catch {
+    /* live add-on is best effort */
+  }
+  return result;
+}
+
 const universeCache = new Map();
 const klineCache = new Map();
 
@@ -870,6 +949,12 @@ export async function fetchIndexKline({ startDate, endDate, force = false } = {}
   const key = `index:${startDate}:${endDate}`;
   const hit = klineCache.get(key);
   if (!force && hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.value;
+  const finalize = async (bars, source) => {
+    const liveBar = await fetchLiveIndexBar(startDate, endDate);
+    const value = mergeLiveBar(bars, liveBar);
+    klineCache.set(key, { at: Date.now(), value, source });
+    return value;
+  };
 
   try {
     const params = new URLSearchParams({
@@ -886,8 +971,7 @@ export async function fetchIndexKline({ startDate, endDate, force = false } = {}
     const bars = parseEastmoneyKline(payload);
     if (bars.length >= 2) {
       const value = filterKlineWindow(bars, startDate, endDate);
-      klineCache.set(key, { at: Date.now(), value, source: 'eastmoney' });
-      return value;
+      if (value.length >= 2) return finalize(value, 'eastmoney');
     }
   } catch {
     /* 尝试腾讯/新浪指数日线 */
@@ -896,10 +980,7 @@ export async function fetchIndexKline({ startDate, endDate, force = false } = {}
   try {
     const payload = await fetchJson(`${TENCENT_KLINE}?param=sh000001,day,,,1000,qfq`, 12000);
     const value = filterKlineWindow(parseTencentKline(payload, 'sh000001'), startDate, endDate);
-    if (value.length >= 2) {
-      klineCache.set(key, { at: Date.now(), value, source: 'tencent' });
-      return value;
-    }
+    if (value.length >= 2) return finalize(value, 'tencent');
   } catch {
     /* 继续新浪兜底 */
   }
@@ -908,10 +989,7 @@ export async function fetchIndexKline({ startDate, endDate, force = false } = {}
     const params = new URLSearchParams({ symbol: 'sh000001', scale: '240', ma: 'no', datalen: '1000' });
     const payload = await fetchJson(`${SINA_KLINE}?${params.toString()}`, 12000);
     const value = filterKlineWindow(parseSinaKline(payload), startDate, endDate);
-    if (value.length >= 2) {
-      klineCache.set(key, { at: Date.now(), value, source: 'sina' });
-      return value;
-    }
+    if (value.length >= 2) return finalize(value, 'sina');
   } catch {
     /* 统一在下方报错 */
   }
@@ -975,7 +1053,12 @@ export async function fetchStockKline(code, { startDate, endDate, force = false 
 export async function fetchStockBarsMap(codes = [], options = {}) {
   const unique = [...new Set((Array.isArray(codes) ? codes : []).filter((code) => /^\d{6}$/.test(code)))];
   const entries = await mapLimit(unique, 14, async (code) => [code, await fetchStockKline(code, options)]);
-  return new Map(entries);
+  const map = new Map(entries);
+  const liveBars = await fetchTencentLiveStockBars(unique, options.startDate, options.endDate);
+  for (const [code, liveBar] of liveBars) {
+    map.set(code, mergeLiveBar(map.get(code) || [], liveBar));
+  }
+  return map;
 }
 
 function buildCard(key, label, mode, result, selectionText) {

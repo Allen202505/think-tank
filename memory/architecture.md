@@ -207,6 +207,7 @@ computeDewaterAttribution
 - 错误降级：所有数据源同时不可用才返回 503；自定义日期、剔除数量超限等参数错误返回 400；单只个股历史失败不阻断报告，计入 `missingHistoryCount`。
 - 涨跌家数快照：`src/data/marketBreadthHistory.json` 由 `scripts/build-market-breadth.mjs` 拉取沪深北 A 股近 320 根日线聚合生成；构建脚本会将当天实时全 A 股涨跌家数合并进快照。
 - 实时补日：`POST /api/market-breadth` 对沪深北全 A 股实时列表缓存 2 分钟，结合腾讯上证指数实时行情覆盖当天；即使日 K 当天尚未落库，也不会继续显示上一交易日。
+- 脱水实时补日：`fetchIndexKline` 和 `fetchStockBarsMap` 会用腾讯实时行情替换同日日线或追加当天日线，保证盘中顶部点位、卡片截止日和图表末端一致。
 - 前端以竖向柱状图与阈值卡同行展示，今日详情压缩为摘要行。
 - 自动化：`scripts/index-dewater.test.mjs` 覆盖脱水计算；`scripts/market-breadth.test.mjs` 覆盖阈值、分布桶与排名。
 

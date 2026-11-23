@@ -10,6 +10,7 @@ import {
   parseEastmoneyKline,
   parseSinaKline,
   parseTencentKline,
+  mergeLiveBar,
   resolveRange,
   resolveSelection,
   sliceRange,
@@ -148,4 +149,18 @@ test('结论根据真实涨跌方向输出权重股支撑/拖累语义', () => {
   assert.match(divergence.title, /官方上涨/);
   assert.match(divergence.text, /比官方指数低 100.00 点/);
   assert.doesNotMatch(divergence.text, /百分点|pp/);
+});
+
+
+test('盘中实时行情可替换同日日线或追加当天日线', () => {
+  const bars = [
+    { date: '2026-11-20', close: 3500 },
+    { date: '2026-11-21', close: 3510 },
+  ];
+  const replaced = mergeLiveBar(bars, { date: '2026-11-21', close: 3520, high: 3530, low: 3490 });
+  assert.equal(replaced.length, 2);
+  assert.equal(replaced.at(-1).close, 3520);
+  const appended = mergeLiveBar(bars, { date: '2026-11-23', close: 3499.91, high: 3503.52, low: 3476.65 });
+  assert.equal(appended.length, 3);
+  assert.equal(appended.at(-1).date, '2026-11-23');
 });
