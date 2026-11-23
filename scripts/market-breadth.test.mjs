@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeMarketBreadthStats } from '../src/lib/marketBreadth.mjs';
+import { computeMarketBreadthStats, mergeLiveBreadthDay } from '../src/lib/marketBreadth.mjs';
 
 const history = {
   startDate: '2026-01-01',
@@ -66,4 +66,14 @@ test('今天、昨天只统计最近一个交易日，近7天按自然日过滤'
   assert.equal(yesterday.latest.date, '2026-01-02');
   assert.equal(week.range.tradingDays, 3);
   assert.equal(week.range.startDate, '2026-01-01');
+});
+
+
+test('实时当日数据可以替换或追加到历史快照', () => {
+  const replaced = mergeLiveBreadthDay(history, { date: '2026-01-04', up: 1, down: 6000, flat: 0, total: 6001, indexChangePct: -3 });
+  assert.equal(replaced.endDate, '2026-01-04');
+  assert.equal(replaced.days.at(-1).down, 6000);
+  const appended = mergeLiveBreadthDay(history, { date: '2026-01-05', up: 2, down: 5000, flat: 1, total: 5003, indexChangePct: -2 });
+  assert.equal(appended.days.at(-1).date, '2026-01-05');
+  assert.equal(appended.days.at(-1).down, 5000);
 });

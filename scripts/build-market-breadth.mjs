@@ -23,6 +23,21 @@ async function fetchJson(url, timeoutMs = 15000) {
   }
 }
 
+async function fetchText(url, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/plain,*/*' },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function withRetry(fn, attempts = 3) {
   let last;
   for (let i = 0; i < attempts; i += 1) {
@@ -47,6 +62,24 @@ async function fetchKline(code, market) {
   const query = new URLSearchParams({ symbol, scale: '240', ma: 'no', datalen: String(HISTORY_BARS) });
   const rows = await withRetry(() => fetchJson(`${SINA_KLINE}?${query}`));
   return Array.isArray(rows) ? rows : [];
+}
+
+async function fetchIndexQuote() {
+  const text = await withRetry(() => fetchText('https://qt.gtimg.cn/q=sh000001', 10000));
+  const match = text.match(/v_sh000001="([^"]*)"/);
+  if (!match) return null;
+  const f = match[1].split('~');
+  const price = Number(f[3]);
+  const prevClose = Number(f[4]);
+  const changePct = Number(f[32]);
+  const time = String(f[30] || '');
+  const date = /^\d{8}/.test(time) ? `${time.slice(0, 4)}-${time.slice(4, 6)}-${time.slice(6, 8)}` : '';
+  if (!date || !Number.isFinite(price) || !Number.isFinite(prevClose)) return null;
+  return {
+    date,
+    close: price,
+    changePct: Number.isFinite(changePct) ? changePct : (prevClose > 0 ? Math.round((price / prevClose - 1) * 10000) / 100 : null),
+  };
 }
 
 async function fetchIndexBars() {
@@ -125,8 +158,23 @@ const indexByDate = new Map(indexBars.map((bar, i) => {
     changePct: prev?.close > 0 ? Math.round((bar.close / prev.close - 1) * 10000) / 100 : null,
   }];
 }));
+const liveIndex = await fetchIndexQuote();
+if (liveIndex) {
+  indexByDate.set(liveIndex.date, { close: liveIndex.close, changePct: liveIndex.changePct });
+  const liveRows = allRows.filter((row) => Number(row.trade) > 0 && Number.isFinite(Number(row.changepercent)));
+  const liveDay = liveRows.reduce((acc, row) => {
+    const change = Number(row.changepercent);
+    acc.total += 1;
+    if (change > 0) acc.up += 1;
+    else if (change < 0) acc.down += 1;
+    else acc.flat += 1;
+    return acc;
+  }, { date: liveIndex.date, up: 0, down: 0, flat: 0, total: 0 });
+  if (liveDay.total >= 1000) byDate.set(liveDay.date, liveDay);
+}
+const latestDate = liveIndex?.date || [...byDate.keys()].sort().at(-1) || '';
 const days = [...byDate.values()]
-  .filter((day) => day.total >= 1000 && day.date <= '2026-11-20')
+  .filter((day) => day.total >= 1000 && day.date <= latestDate)
   .sort((a, b) => a.date.localeCompare(b.date))
   .map((day) => ({
     ...day,

@@ -64,7 +64,7 @@
 - 计算边界：权重使用东财 f21 流通市值，全样本合计与上证指数 f117 对齐，避免 A+H 公司的 H 股混入权重；V1 使用当前沪市 A/B 股样本，未接入历史成分股和历史股本，页面与接口统一标注为“复刻口径”。
 - 多源降级：样本优先东财，失败时切新浪沪市 A 股榜单与行业板块；指数/个股日线按东财 → 腾讯 → 新浪降级，并在页面标注本次数据来源。
 - 接口与测试：`POST /api/index-dewater`、`POST /api/market-breadth`；`scripts/index-dewater.test.mjs` 与 `scripts/market-breadth.test.mjs` 覆盖脱水计算、多源解析、家数阈值、分布桶和排名。
-- 涨跌家数快照：`src/data/marketBreadthHistory.json`，通过 `npm run update:breadth` 重新生成。
+- 涨跌家数快照：`src/data/marketBreadthHistory.json`，通过 `npm run update:breadth` 重新生成。接口会缓存实时沪深北全 A 股列表 2 分钟，并以指数实时行情日期覆盖当天，避免交易时段仍显示上一交易日。
 
 ### 供应链瓶颈分析（2026-10-09）
 

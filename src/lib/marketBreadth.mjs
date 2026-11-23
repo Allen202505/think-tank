@@ -25,6 +25,22 @@ function rankLargestDrop(values, target) {
   return 1 + values.filter((value) => Number(value) < Number(target)).length;
 }
 
+export function mergeLiveBreadthDay(history, liveDay) {
+  if (!liveDay?.date || !Number(liveDay.total)) return history;
+  const days = [...(Array.isArray(history?.days) ? history.days : [])];
+  const index = days.findIndex((day) => day.date === liveDay.date);
+  if (index >= 0) days[index] = { ...days[index], ...liveDay };
+  else days.push(liveDay);
+  days.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return {
+    ...history,
+    days: days.slice(-260),
+    startDate: days.slice(-260)[0]?.date || history?.startDate,
+    endDate: liveDay.date,
+    universeCount: Math.max(Number(history?.universeCount) || 0, Number(liveDay.total) || 0),
+  };
+}
+
 export function computeMarketBreadthStats(history, options = {}) {
   const range = resolveRange({
     range: options.range || '1y',
