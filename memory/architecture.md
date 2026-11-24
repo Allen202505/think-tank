@@ -247,29 +247,38 @@ MungerFinance → FinancialDiagnosisChecklist
 - `withTimeout()` 现在会在 Promise 完成后清理定时器，避免服务端进程因超时定时器悬挂 20 秒以上。
 - 当前 A 股优先；港股、美股证据链未接入，仍使用原有系统数据核验并明确边界。
 
-## 微信小程序提审版架构（2026-09-19）
+## 微信小程序「大师吵股」架构（2026-11-24）
 
 ```text
 微信小程序（原生 WXML/WXSS/JS）
-    ↓ wx.cloud.callFunction
+    ↓ wx.cloud.callFunction({ action, payload })
 微信云函数 mini-api
     ↓ 时间戳 + nonce + OpenID + 请求体 HMAC-SHA256
-Next.js /api/mini/debate 或 /api/mini/reading
-    ↓ 输入拦截 → DeepSeek → 输出拦截
-结构化学习卡片返回小程序
+Next.js /api/mini/debate | reading | research
+    ↓ 工具白名单 → 字段校验 → 公开数据/AI → 输出安全检查
+统一结构化结果返回小程序
     ↓
-wx.setStorageSync（最多 30 条，仅本机）
+wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
 ```
 
-- `miniprogram/`：原生小程序源码，不依赖 Taro/uni-app，避免额外构建链。
-- `miniprogram/config.js`：真实云环境 ID 的配置入口；未配置时前端直接提示，不发起请求。
-- `cloudfunctions/mini-api`：小程序唯一云函数入口；动作白名单固定为 `debate` 和 `reading`，不暴露 Web 端其他 API。
-- `src/lib/miniProgramPolicy.js`：输入输出合规规则、结构化结果归一化、HMAC 签名与 OpenID 哈希。
-- `src/app/api/mini/debate/route.js`：财经圆桌接口；2-4 个学习视角，不拉行情、不做具体证券判断。
-- `src/app/api/mini/reading/route.js`：公开材料学习卡片接口；只做摘要、概念和影响维度梳理。
-- 安全：小程序不直连 Web 生产服务器；云函数请求必须通过时间戳、nonce、OpenID 和请求体 HMAC 校验；重复/篡改/过期请求被拒绝。
-- 隐私：OpenID 仅短期用于限流，服务端哈希后存在进程内 Map；问题正文不写入业务数据库；历史记录只在设备本地。
-- 类目边界：个人主体选择教育信息展示/信息查询，不申请金融业类目；企业版若接入行情、财报或模拟交易，应独立部署和提审。
+- `miniprogram/`：原生小程序源码，不依赖 Taro/uni-app。
+- `miniprogram/pages/home/index`：品牌首页，六种研究工具和财经通识入口。
+- `miniprogram/pages/analysis/index`：六工具统一研究工作台，按工具切换动态表单和结果展示。
+- `miniprogram/data/researchTools.js`：六种工具的前端元数据。
+- `cloudfunctions/mini-api`：唯一云函数入口；动作白名单为 `debate`、`reading`、`research`。
+- `src/lib/miniResearch.js`：研究工具白名单、字段校验、统一提示词、结果归一化和数据安全检查。
+- `src/app/api/mini/research/route.js`：六种研究接口分发：
+  - `news` → AI 新闻事件穿透
+  - `industry` → 公开行情/财务 + AI 行业周期
+  - `dewater` → `buildIndexDewaterReport` 确定性计算，不调用 AI
+  - `fundamental` → 公开行情/财务 + AI 基本面框架
+  - `supply` → `stockChoke` 六步框架 + AI + 移动端归一化
+  - `munger` → 财报文本/HTML/PDF + AI 芒格框架
+- `src/app/api/mini/debate/route.js` 与 `reading/route.js`：保留原有财经圆桌和资讯卡片接口。
+- 安全：云函数签名覆盖 action、时间戳、nonce、OpenID 和请求体；重复、篡改、过期或缺失签名均拒绝。
+- 输出安全：交易指令、目标价、止损止盈、收益预测等命中后拒绝展示；AI 首次输出不合格时研究接口会重写一次。
+- 隐私：OpenID 仅用于哈希后的进程内限流；正文不写业务数据库；历史记录只在设备本地。
+- 类目风险：新增公司、行业、指数和财报分析后，不再等同于旧版纯财经通识小程序；微信后台类目、主体资质和隐私指引必须在提审前重新确认。
 
 ## 股票池、联赛持仓历史与基础面历史（2026-09-21）
 

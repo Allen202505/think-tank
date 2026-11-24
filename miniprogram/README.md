@@ -1,124 +1,141 @@
-# 微信小程序提审版运行说明
+# 「大师吵股」微信小程序
 
-该目录是“多棱镜笔记”微信小程序原生代码。它复用现有 `yieldglide.com` 的 Next.js API，但通过微信云函数 `mini-api` 转发，因此小程序端不需要配置 `web-view`，也不要求把 Vercel 域名加入小程序 request 合法域名。
+该目录是“大师吵股”微信小程序原生代码。小程序通过微信云函数 `mini-api` 访问 `yieldglide.com` 的签名接口，不直接请求 Web 域名，也不使用 `web-view`。
 
-## 1. 提审版本能力
+## 1. 当前能力
 
-- 财经圆桌：从价值、逆向、成长、宏观、风险五个视角解释财经概念。
-- 读懂财经资讯：把公开材料整理为事实、重要性、可能影响、不同解读、概念和不确定性。
-- 学习记录：仅保存在当前设备，最多 30 条。
-- 关于与隐私：展示产品边界、隐私说明和数据处理方式。
+### 研究工具
 
-提审版本不包含：
+- **新闻分析**：按“巴菲特的早餐”事件穿透方法，拆解公开新闻的事实、影响传导、逆向检验和后续观察指标。
+- **行业周期分析**：结合公开行情、财务指标和用户补充行业材料，判断行业阶段、公司位置与拐点信号。
+- **上证指数脱水**：按行业或个股剔除上证权重，展示官方指数、同除数剩余点位、隔离收益、主要剔除对象与数据口径。
+- **基本面研究**：从商业模式、增长质量、现金流、资产负债、竞争优势与反证拆解一家公司。
+- **供应链瓶颈分析**：使用 Serenity 六步框架梳理供应链卡点、候选公司、多空证据与待核验数据。
+- **芒格教你读财报**：支持粘贴财报原文或公开 HTML/PDF 链接，按三张表、利润含金量、营运资金、资本配置与逆向排雷阅读。
 
-- 股票/基金实时行情、股票代码查询、选股池和财报诊断。
-- 买卖、加减仓、持有、目标价、止损止盈、收益预测。
-- 实盘联赛、虚拟持仓、交易、开户、支付、广告和用户公开发布。
+### 财经通识
 
-## 2. 首次配置
+- 财经圆桌：价值、逆向、成长、宏观、风险五个视角解释财经概念。
+- 读懂财经资讯：整理公开材料的事实、影响、概念与不确定性。
+- 本地研究记录：最多 30 条，仅保存在当前设备。
+- 关于、边界与隐私说明。
 
-### 2.0 先看效果（无需 AppID、无需云开发）
+## 2. 合规边界
 
-1. 下载并安装微信开发者工具：<https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html>
-2. 打开开发者工具，选择“导入项目”。
-3. 项目目录选择 `/Users/zxiansheng/Desktop/think-tank`。
-4. AppID 保持 `touristappid` 或选择“测试号”。
-5. 点击“编译”，即可用内置样例预览首页、圆桌、资讯卡片、历史和隐私页面。
+小程序统一执行以下规则：
 
-`miniprogram/config.js` 默认 `demoMode: true`，演示模式不调用 AI、不依赖云函数。正式提审前必须改为 `false`。
+- 不提供买入、卖出、加仓、减仓、持有等交易指令。
+- 不提供目标价、止损止盈位、收益预测或稳赚承诺。
+- 不接入证券交易、开户、支付或用户公开发布功能。
+- 输出同时经过内容安全检查；命中交易建议或收益预测时拒绝展示。
+- 公开行情、财务数据可能延迟、缺失或存在口径差异，页面会提示数据缺口。
 
-### 2.1 注册与开发者工具
+> 新增公司、行业、指数和财报分析能力后，微信小程序的类目、主体资质与审核尺度必须在提审前重新确认。个人主体尤其需要核对金融相关服务的开放范围，不应仅依赖代码中的免责声明。
 
-1. 在微信公众平台注册个人主体小程序。
-2. 当前后台名称已注册为“多棱镜笔记”，简称“多棱镜”；页面标题和分享文案需保持一致。
-3. 安装微信开发者工具，导入仓库根目录 `/Users/zxiansheng/Desktop/think-tank`。
-4. 根目录 `project.config.json` 已写入 AppID `wx5c9e2626c351217f`。
+## 3. 目录与数据流
 
-### 2.2 开通云开发
+```text
+miniprogram/
+├── app.js / app.json / app.wxss
+├── config.js                         # 云环境 ID 与 demoMode
+├── data/researchTools.js             # 六种研究工具元数据
+├── pages/home/index                  # 首页：研究工具与通识入口
+├── pages/analysis/index              # 统一研究工作台
+├── pages/debate/index                # 财经圆桌
+├── pages/reading/index               # 资讯学习卡片
+├── pages/history/index               # 本地研究历史
+├── pages/history-detail/index        # 历史详情
+├── pages/profile/index               # 关于与边界
+└── pages/privacy/index               # 隐私说明
 
-1. 在微信开发者工具中打开“云开发”，创建一个环境。
-2. 把环境 ID 填入 `miniprogram/config.js` 的 `cloudEnv`。
-3. 右键 `cloudfunctions/mini-api`，选择“上传并部署：云端安装依赖”。
-4. 在云函数配置中添加环境变量：
-   - `MINI_PROXY_SECRET`：至少 16 位的随机长字符串，与 Web 端保持一致。
-   - `THINK_TANK_API_BASE`：可选，默认 `https://yieldglide.com`。
-
-生成密钥示例：
-
-```bash
-openssl rand -hex 32
+cloudfunctions/mini-api/index.js      # OpenID、签名、转发
+src/app/api/mini/debate/route.js      # 财经圆桌小程序接口
+src/app/api/mini/reading/route.js     # 资讯卡片小程序接口
+src/app/api/mini/research/route.js    # 六种研究工具小程序接口
+src/lib/miniResearch.js               # 工具白名单、输入校验、提示词与结果归一化
 ```
 
-### 2.3 配置 Web 端
+```text
+微信小程序
+  └─ wx.cloud.callFunction({ name: 'mini-api', data: { action, payload } })
+       ↓
+    cloudfunctions/mini-api
+       ├─ 获取 OPENID
+       ├─ 生成 HMAC-SHA256 签名
+       └─ POST /api/mini/debate | reading | research
+              ↓
+          Next.js 服务端
+              ├─ 校验时间戳、nonce、OPENID 与 HMAC
+              ├─ 输入校验和敏感输出拦截
+              ├─ 拉取公开行情/财务/指数数据或调用 AI
+              └─ 返回统一结构化结果
+```
 
-在 Vercel 项目的 Production 环境变量中增加同名 `MINI_PROXY_SECRET`，然后重新部署。可以额外设置：
+## 4. 首次配置
+
+### 4.1 微信开发者工具
+
+1. 安装微信开发者工具。
+2. 导入仓库根目录 `/Users/zxiansheng/Desktop/think-tank`。
+3. `project.config.json` 已写入 AppID `wx5c9e2626c351217f`。
+4. 当前云环境为 `cloudbase-d0govchp716d4e94d`，`demoMode: false`。
+
+### 4.2 云函数
+
+1. 在微信开发者工具中打开“云开发”。
+2. 右键 `cloudfunctions/mini-api`，选择“上传并部署：云端安装依赖”。
+3. 配置环境变量：
+   - `MINI_PROXY_SECRET`：至少 16 位随机字符串，与 Web 服务一致。
+   - `THINK_TANK_API_BASE`：可选，默认 `https://yieldglide.com`。
+
+### 4.3 Web 服务
+
+在部署环境配置同名 `MINI_PROXY_SECRET`，重新部署 Next.js：
 
 ```bash
 MINI_DAILY_FREE_LIMIT=8
 ```
 
-未配置 `MINI_PROXY_SECRET` 时，`/api/mini/debate` 和 `/api/mini/reading` 会返回 `503`，这是故意的安全降级。
+未配置 `MINI_PROXY_SECRET` 时，`/api/mini/*` 会返回 `503` 或拒绝请求，这是预期的安全降级。
 
-## 3. 本地验证
+### 4.4 微信公众平台
 
-Web API 回归：
+代码改名不会自动修改微信后台注册名称。需要在微信公众平台手动将小程序名称改为“大师吵股”，并同步检查简称、介绍、头像、类目、隐私保护指引和版本描述。
+
+## 5. 本地验证
 
 ```bash
+find miniprogram cloudfunctions -name '*.js' -print0 | xargs -0 -n1 node --check
 npm test
-npm run build
+npm run build -- --webpack
 npm run preflight:mini
 ```
 
-真实 AppID、云环境和图标都配置完成后，执行发布预检：
+本地签名联调：
+
+```bash
+MINI_PROXY_SECRET=test-secret-1234567890 npm run dev -- --port 3210
+```
+
+开发者工具重点检查：
+
+1. 首页显示“大师吵股”和六个研究工具入口。
+2. 六个工具可切换，输入区与结果区不横向溢出。
+3. 新闻分析、行业周期、基本面、供应链、财报阅读能返回结构化结果。
+4. 上证指数脱水能读取公开数据并展示官方/脱水点位与剔除明细。
+5. 历史页“研究”筛选和详情可展示新结果。
+6. 未签名请求返回 401；交易指令和收益预测被拒绝。
+
+发布前执行：
 
 ```bash
 npm run preflight:mini -- --release
 ```
 
-联调时启动：
+## 6. 已知限制
 
-```bash
-MINI_PROXY_SECRET=test-secret npm run dev -- --port 3210
-```
-
-微信开发者工具中确认：
-
-1. 首页可以进入“财经圆桌”和“读懂财经资讯”。
-2. 输入“什么是安全边际？”可以生成圆桌笔记。
-3. 粘贴一段宏观资讯可以生成学习卡片。
-4. 输入“600519 可以买入吗？”会被前端或后端拦截。
-5. 历史记录重启开发者工具后仍存在。
-6. 真机预览中无横向溢出、按钮不被安全区遮挡。
-
-## 4. 目录结构
-
-```text
-project.config.json                 # 微信开发者工具项目入口
-miniprogram/                         # 小程序源码
-├── app.js / app.json / app.wxss
-├── config.js                        # 云环境 ID，需替换
-├── data/perspectives.js
-├── pages/                           # 首页、圆桌、资讯、记录、关于、隐私
-└── utils/                           # 云函数调用、本地记录、格式化
-cloudfunctions/mini-api/             # 签名代理云函数
-src/app/api/mini/debate/route.js     # 圆桌 Web API
-src/app/api/mini/reading/route.js    # 资讯卡片 Web API
-src/lib/miniProgramPolicy.js         # 合规提示词、输入输出拦截、签名校验
-```
-
-## 5. 提交前检查
-
-- `project.config.json` 已替换真实 AppID。
-- `miniprogram/config.js` 的 `demoMode` 已改为 `false`。
-- `miniprogram/config.js` 已替换真实云环境 ID。
-- Vercel 与云函数使用相同的 `MINI_PROXY_SECRET`。
-- 隐私保护指引已按 `submission/隐私保护指引填写.md` 配置。
-- 服务类目选择“教育服务-教育信息展示”，可按实际审核意见补充“工具-信息查询”。
-- 上传 `submission/app-icon-144.png` 作为小程序头像。
-- 按 `submission/截图清单.md` 在开发者工具截取真实页面。
-- 按 `submission/提审包说明.md` 填写版本描述和审核备注。
-- `npm run preflight:mini -- --release` 通过。
-
-## 6. 重要边界
-
-个人主体不能在微信小程序开展证券期货投资咨询，也不能选择金融业相关类目。这个目录是提审版，不是完整 Web 产品的一比一移植。如果后续要上股票行情、财报诊断、选股池或模拟交易，应改由具备相应资质的企业主体接入，并重新评估类目、数据和内容合规。
+- 上证指数脱水使用当前沪市样本和当前权重复刻，不等同于持牌指数公司口径。
+- 行业与基本面研究依赖公开数据源，数据源失败时会明确报错或标注缺口。
+- 财报阅读的链接模式仅支持公开可访问的 HTML/PDF；读取失败时应直接粘贴正文。
+- 每日 AI 生成次数默认 8 次，可用 `MINI_DAILY_FREE_LIMIT` 调整；指数脱水不消耗 AI 次数。
+- 本次改名与功能扩展尚未替代微信公众平台后台的名称、类目和资质变更。

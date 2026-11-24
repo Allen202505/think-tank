@@ -1,14 +1,20 @@
 const { demoMode } = require('../../config');
+const tools = require('../../data/researchTools');
 
 Page({
   data: {
     demoMode,
+    tools,
     quickTopics: [
       '利率变化为什么会推动资产估值变化？',
       '什么是安全边际？',
       '财报里的经营现金流为什么重要？',
       '行业周期通常如何传导？',
     ],
+  },
+
+  goTool(event) {
+    wx.navigateTo({ url: `/pages/analysis/index?tool=${event.currentTarget.dataset.id}` });
   },
 
   goDebate() {
@@ -34,7 +40,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: '多棱镜笔记｜用多个视角读懂财经概念',
+      title: '大师吵股｜六种公开数据分析工具',
       path: '/pages/home/index',
     };
   },

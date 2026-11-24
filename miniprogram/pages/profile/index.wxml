@@ -1,14 +1,14 @@
 <view class="page-shell profile-page">
   <view class="profile-hero">
-    <view class="profile-seal"><text class="profile-seal-text serif">知</text></view>
-    <text class="profile-title serif">多棱镜笔记</text>
-    <text class="profile-subtitle">财经通识 · 多视角学习工具</text>
+    <view class="profile-seal"><text class="profile-seal-text serif">股</text></view>
+    <text class="profile-title serif">大师吵股</text>
+    <text class="profile-subtitle">大师方法 · 公开数据研究</text>
     <text class="profile-version">版本 {{version}}</text>
   </view>
 
   <view class="profile-section">
     <text class="profile-section-title serif">这个工具做什么</text>
-    <text class="profile-section-copy">用多个分析框架解释财经概念，并把公开资讯整理成事实、概念、影响与不确定性四层信息，帮助读者建立自己的判断过程。</text>
+    <text class="profile-section-copy">提供新闻分析、行业周期、上证指数脱水、基本面研究、供应链瓶颈和财报阅读六种公开研究工具，并用财经圆桌与资讯卡片帮助读者建立自己的判断过程。</text>
   </view>
 
   <view class="boundary-card">

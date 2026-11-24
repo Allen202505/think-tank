@@ -5,7 +5,7 @@ const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const API_BASE = String(process.env.THINK_TANK_API_BASE || 'https://yieldglide.com').replace(/\/+$/, '');
-const ALLOWED_ACTIONS = new Set(['debate', 'reading']);
+const ALLOWED_ACTIONS = new Set(['debate', 'reading', 'research']);
 
 function requestJson(url, options = {}) {
   return new Promise((resolve, reject) => {
@@ -82,7 +82,7 @@ exports.main = async (event) => {
     });
 
     if (statusCode >= 200 && statusCode < 300 && data?.ok) {
-      return { ok: true, data: data.data, perspectives: data.perspectives, disclaimer: data.disclaimer };
+      return { ok: true, data: data.data, perspectives: data.perspectives, meta: data.meta || {}, disclaimer: data.disclaimer };
     }
     return { ok: false, error: data?.error || `服务暂时不可用（${statusCode}）` };
   } catch (error) {

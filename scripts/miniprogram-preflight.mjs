@@ -61,7 +61,24 @@ if (!fs.existsSync(icon)) errors.push('缺少 submission/app-icon-144.png');
 
 const apiRoute = path.join(root, 'src/app/api/mini/debate/route.js');
 const readingRoute = path.join(root, 'src/app/api/mini/reading/route.js');
-if (!fs.existsSync(apiRoute) || !fs.existsSync(readingRoute)) errors.push('缺少小程序 Web API 路由');
+const researchRoute = path.join(root, 'src/app/api/mini/research/route.js');
+if (!fs.existsSync(apiRoute) || !fs.existsSync(readingRoute) || !fs.existsSync(researchRoute)) {
+  errors.push('缺少小程序 Web API 路由');
+}
+
+const cloudFunction = fs.readFileSync(path.join(root, 'cloudfunctions/mini-api/index.js'), 'utf8');
+if (!cloudFunction.includes("'research'")) errors.push('云函数 mini-api 未放行 research 操作');
+
+const toolData = fs.readFileSync(path.join(root, 'miniprogram/data/researchTools.js'), 'utf8');
+for (const label of ['新闻分析', '行业周期分析', '上证指数脱水', '基本面研究', '供应链瓶颈分析', '芒格教你读财报']) {
+  if (!toolData.includes(label)) errors.push(`小程序研究工具缺少：${label}`);
+}
+if (app?.window?.navigationBarTitleText !== '大师吵股') {
+  errors.push('小程序导航标题应为“大师吵股”');
+}
+if (!app?.pages?.includes('pages/analysis/index')) {
+  errors.push('app.json 缺少 pages/analysis/index');
+}
 
 if (!release) warnings.push('当前为开发预检；提交前请使用 npm run preflight:mini -- --release');
 

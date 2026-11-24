@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/analysis/index",
     "pages/debate/index",
     "pages/reading/index",
     "pages/history/index",
@@ -11,7 +12,7 @@
   "window": {
     "navigationBarBackgroundColor": "#f3ecdf",
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "多棱镜笔记",
+    "navigationBarTitleText": "大师吵股",
     "backgroundColor": "#f3ecdf",
     "backgroundTextStyle": "dark"
   },

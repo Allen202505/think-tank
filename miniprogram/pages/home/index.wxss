@@ -289,3 +289,77 @@
   from { opacity: 0; transform: translateY(10rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.analysis-section {
+  padding: 42rpx 0 20rpx;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+}
+
+.tool-card {
+  position: relative;
+  min-height: 244rpx;
+  padding: 22rpx 20rpx 24rpx;
+  overflow: hidden;
+  border: 1rpx solid var(--line);
+  border-radius: 22rpx;
+  background: rgba(255, 253, 248, 0.68);
+}
+
+.tool-card-active {
+  border-color: var(--gold);
+  background: rgba(234, 219, 184, 0.38);
+}
+
+.tool-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.tool-card-index {
+  color: var(--gold);
+  font-size: 19rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-card-kicker {
+  color: var(--ink-faint);
+  font-size: 18rpx;
+  letter-spacing: 0.04em;
+}
+
+.tool-card-title {
+  display: block;
+  margin-top: 24rpx;
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.tool-card-copy {
+  display: block;
+  max-width: 250rpx;
+  margin-top: 13rpx;
+  color: var(--ink-soft);
+  font-size: 21rpx;
+  line-height: 1.58;
+}
+
+.tool-card-arrow {
+  position: absolute;
+  right: 18rpx;
+  bottom: 14rpx;
+  color: var(--gold);
+  font-size: 28rpx;
+}
+
+.learning-section {
+  padding-top: 34rpx;
+}

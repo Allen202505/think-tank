@@ -11,7 +11,7 @@
       "memorySize": 256,
       "handler": "index.main",
       "installDependency": true,
-      "description": "多棱镜笔记小程序签名代理",
+      "description": "大师吵股小程序签名代理",
       "envVariables": {
         "MINI_PROXY_SECRET": "{{env.MINI_PROXY_SECRET}}",
         "THINK_TANK_API_BASE": "https://yieldglide.com"

@@ -13,7 +13,12 @@ Page({
       setTimeout(() => wx.navigateBack(), 500);
       return;
     }
-    this.setData({ record: { ...record, timeText: formatTime(record.createdAt) } });
+    const typeText = record.type === 'debate'
+      ? '财经圆桌'
+      : record.type === 'research'
+        ? (record.toolLabel || '研究分析')
+        : '资讯卡片';
+    this.setData({ record: { ...record, typeText, timeText: formatTime(record.createdAt) } });
   },
 
   deleteRecord() {

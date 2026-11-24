@@ -1,0 +1,370 @@
+<view class="page-shell analysis-page">
+  <view class="analysis-hero">
+    <view class="hero-kicker-row">
+      <text class="hero-kicker">{{activeTool.kicker}}</text>
+      <text class="hero-index">{{activeTool.index}} / 06</text>
+    </view>
+    <text class="analysis-title serif">{{activeTool.label}}</text>
+    <text class="analysis-lead">{{activeTool.description}}</text>
+    <view class="boundary-strip">
+      <text class="boundary-strip-label">研究边界</text>
+      <text class="boundary-strip-copy">只做公开信息分析与方法学习，不荐股、不给目标价或收益承诺。</text>
+    </view>
+  </view>
+
+  <scroll-view class="tool-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="tool-track">
+      <view
+        wx:for="{{tools}}"
+        wx:key="id"
+        class="tool-tab {{activeToolId === item.id ? 'tool-tab-active' : ''}}"
+        data-id="{{item.id}}"
+        hover-class="tool-tab-hover"
+        bindtap="selectTool"
+      >
+        <text class="tool-tab-index">{{item.index}}</text>
+        <text class="tool-tab-label">{{item.label}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="form-card">
+    <view class="form-heading">
+      <text class="form-title serif">输入研究材料</text>
+      <text class="form-sample" bindtap="fillSample">填入示例</text>
+    </view>
+
+    <block wx:if="{{activeToolId === 'news'}}">
+      <view class="field-group">
+        <view class="field-label"><text>新闻标题</text><text class="field-counter">{{newsTitle.length}} / 100</text></view>
+        <input
+          class="line-field"
+          value="{{newsTitle}}"
+          maxlength="100"
+          placeholder="可留空，例如：某行业发布新的供需数据"
+          placeholder-class="placeholder"
+          data-field="newsTitle"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>公开新闻正文</text><text class="field-counter">{{newsContent.length}} / 6000</text></view>
+        <textarea
+          class="text-field"
+          value="{{newsContent}}"
+          maxlength="6000"
+          placeholder="粘贴公开新闻、公告摘要或政策材料，至少 20 字…"
+          placeholder-class="placeholder"
+          cursor-spacing="28"
+          data-field="newsContent"
+          bindinput="onInput"
+        ></textarea>
+      </view>
+      <view class="field-tip">分析会区分事实、影响传导、逆向检验与后续观察指标。</view>
+    </block>
+
+    <block wx:elif="{{activeToolId === 'industry'}}">
+      <view class="field-group">
+        <view class="field-label"><text>A 股公司</text><text class="field-counter">名称或代码</text></view>
+        <input
+          class="line-field"
+          value="{{symbol}}"
+          maxlength="40"
+          placeholder="例如：中盐化工 / 600328"
+          placeholder-class="placeholder"
+          data-field="symbol"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>补充行业材料（可选）</text><text class="field-counter">{{industryData.length}} / 1600</text></view>
+        <textarea
+          class="text-field compact-field"
+          value="{{industryData}}"
+          maxlength="1600"
+          placeholder="可补充供需、库存、价格、产能、开工率或政策变化…"
+          placeholder-class="placeholder"
+          cursor-spacing="24"
+          data-field="industryData"
+          bindinput="onInput"
+        ></textarea>
+      </view>
+      <view class="field-tip">系统会尝试读取公开行情与财务指标；缺失数据会明确标注。</view>
+    </block>
+
+    <block wx:elif="{{activeToolId === 'dewater'}}">
+      <view class="field-group">
+        <view class="field-label"><text>分析区间</text><text class="field-counter">固定截止最新交易日</text></view>
+        <view class="chip-grid compact-grid">
+          <view
+            wx:for="{{ranges}}"
+            wx:key="id"
+            class="choice-chip {{dewaterRange === item.id ? 'choice-chip-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="selectRange"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="field-group">
+        <view class="field-label"><text>按行业剔除</text><text class="field-counter">可多选</text></view>
+        <view class="chip-grid">
+          <view
+            wx:for="{{industries}}"
+            wx:key="id"
+            class="choice-chip {{item.selected ? 'choice-chip-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="toggleIndustry"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="field-group">
+        <view class="field-label"><text>按个股剔除</text><text class="field-counter">最多 20 只</text></view>
+        <view class="quick-stock-grid">
+          <view
+            wx:for="{{quickStocks}}"
+            wx:key="code"
+            class="stock-chip {{item.selected ? 'stock-chip-active' : ''}}"
+            data-code="{{item.code}}"
+            data-name="{{item.name}}"
+            bindtap="toggleQuickStock"
+          >
+            <text class="stock-chip-name">{{item.name}}</text>
+            <text class="stock-chip-code">{{item.code}}</text>
+          </view>
+        </view>
+        <view class="stock-input-row">
+          <input
+            class="line-field stock-field"
+            value="{{stockInput}}"
+            maxlength="6"
+            type="number"
+            placeholder="输入 6 位沪市代码"
+            placeholder-class="placeholder"
+            bindinput="onStockInput"
+          />
+          <button class="add-stock-button" bindtap="addStock">添加</button>
+        </view>
+        <view wx:if="{{dewaterStocks.length}}" class="selected-stocks">
+          <view wx:for="{{dewaterStocks}}" wx:key="code" class="selected-stock" data-code="{{item.code}}" bindtap="removeStock">
+            <text>{{item.name}} {{item.code}}</text>
+            <text class="selected-stock-remove">×</text>
+          </view>
+        </view>
+      </view>
+      <view class="field-tip">同时命中行业和个股时只计一次；非上证样本会自动跳过。</view>
+    </block>
+
+    <block wx:elif="{{activeToolId === 'fundamental'}}">
+      <view class="field-group">
+        <view class="field-label"><text>公司</text><text class="field-counter">名称或代码</text></view>
+        <input
+          class="line-field"
+          value="{{symbol}}"
+          maxlength="40"
+          placeholder="例如：贵州茅台 / 600519 / AAPL"
+          placeholder-class="placeholder"
+          data-field="symbol"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>补充关注（可选）</text><text class="field-counter">{{fundamentalNote.length}} / 1000</text></view>
+        <textarea
+          class="text-field compact-field"
+          value="{{fundamentalNote}}"
+          maxlength="1000"
+          placeholder="例如：重点看现金流、应收存货、资本开支或竞争优势…"
+          placeholder-class="placeholder"
+          cursor-spacing="24"
+          data-field="fundamentalNote"
+          bindinput="onInput"
+        ></textarea>
+      </view>
+      <view class="field-tip">输出研究框架与质量评分，不输出买卖评级、目标价或收益预测。</view>
+    </block>
+
+    <block wx:elif="{{activeToolId === 'supply'}}">
+      <view class="field-group">
+        <view class="field-label"><text>产业链 / 板块</text><text class="field-counter">必填</text></view>
+        <input
+          class="line-field"
+          value="{{supplyIndustry}}"
+          maxlength="40"
+          placeholder="例如：AI 算力链、电力设备、创新药"
+          placeholder-class="placeholder"
+          data-field="supplyIndustry"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>市场范围</text><text class="field-counter">候选公司</text></view>
+        <view class="chip-grid compact-grid">
+          <view
+            wx:for="{{markets}}"
+            wx:key="id"
+            class="choice-chip {{supplyMarket === item.id ? 'choice-chip-active' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="selectMarket"
+          >{{item.label}}</view>
+        </view>
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>补充关注（可选）</text><text class="field-counter">{{supplyFocus.length}} / 300</text></view>
+        <textarea
+          class="text-field compact-field"
+          value="{{supplyFocus}}"
+          maxlength="300"
+          placeholder="关注某个材料、设备、客户认证或扩产环节…"
+          placeholder-class="placeholder"
+          cursor-spacing="24"
+          data-field="supplyFocus"
+          bindinput="onInput"
+        ></textarea>
+      </view>
+      <view class="field-tip">报告会同时给出支持逻辑、反证和数据缺口，不把概念热度当作瓶颈证据。</view>
+    </block>
+
+    <block wx:else>
+      <view class="field-group">
+        <view class="field-label"><text>公开财报链接（可选）</text><text class="field-counter">HTML / PDF</text></view>
+        <input
+          class="line-field"
+          value="{{mungerLink}}"
+          maxlength="500"
+          placeholder="https://…"
+          placeholder-class="placeholder"
+          data-field="mungerLink"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>财报原文</text><text class="field-counter">{{mungerContent.length}} / 12000</text></view>
+        <textarea
+          class="text-field report-field"
+          value="{{mungerContent}}"
+          maxlength="12000"
+          placeholder="粘贴年报、季报或公告中的财务部分，至少 200 字…"
+          placeholder-class="placeholder"
+          cursor-spacing="24"
+          data-field="mungerContent"
+          bindinput="onInput"
+        ></textarea>
+      </view>
+      <view class="field-group">
+        <view class="field-label"><text>补充关注（可选）</text><text class="field-counter">{{mungerNote.length}} / 600</text></view>
+        <input
+          class="line-field"
+          value="{{mungerNote}}"
+          maxlength="600"
+          placeholder="例如：利润含金量、应收存货、资本开支"
+          placeholder-class="placeholder"
+          data-field="mungerNote"
+          bindinput="onInput"
+        />
+      </view>
+      <view class="field-tip">本次只依据你提供的财报原文分析，不会自动补造附注编号或页码。</view>
+    </block>
+
+    <view wx:if="{{error}}" class="error-panel inline-error">{{error}}</view>
+
+    <button
+      class="primary-button analysis-submit"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+      bindtap="submitAnalysis"
+    >{{loading ? loadingText : '开始分析'}}</button>
+  </view>
+
+  <view wx:if="{{loading}}" id="analysis-result" class="card analysis-loading">
+    <view class="loading-lines">
+      <view class="loading-line"></view>
+      <view class="loading-line short"></view>
+      <view class="loading-line"></view>
+      <view class="loading-line mid"></view>
+    </view>
+    <text class="loading-caption">{{loadingText}}</text>
+  </view>
+
+  <view wx:if="{{result}}" id="analysis-result" class="result-block">
+    <view class="result-heading">
+      <view class="result-eyebrow">
+        <text>{{result.toolLabel}}</text>
+        <text>公开研究</text>
+      </view>
+      <text class="result-title serif">{{result.title}}</text>
+      <text class="result-summary">{{result.summary}}</text>
+      <view wx:if="{{result.badges.length}}" class="badge-row">
+        <text wx:for="{{result.badges}}" wx:key="*this" class="result-badge">{{item}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.metrics.length}}" class="metric-grid">
+      <view wx:for="{{result.metrics}}" wx:key="label" class="metric-card">
+        <text class="metric-label">{{item.label}}</text>
+        <text class="metric-value serif">{{item.value}}</text>
+        <text wx:if="{{item.note}}" class="metric-note">{{item.note}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.sections.length}}" class="result-sections">
+      <view wx:for="{{result.sections}}" wx:key="title" class="result-section">
+        <view class="result-section-head">
+          <text class="result-section-index">0{{index + 1}}</text>
+          <text class="result-section-title serif">{{item.title}}</text>
+        </view>
+        <text wx:if="{{item.content}}" class="result-section-copy">{{item.content}}</text>
+        <view wx:if="{{item.bullets.length}}" class="result-bullets">
+          <view wx:for="{{item.bullets}}" wx:for-item="bullet" wx:key="*this" class="result-bullet">
+            <view class="result-bullet-dot"></view>
+            <text class="result-bullet-copy">{{bullet}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{result.cards.length}}" class="object-cards">
+      <text class="object-section-title serif">研究对象</text>
+      <view wx:for="{{result.cards}}" wx:key="title" class="object-card">
+        <view class="object-card-head">
+          <view class="object-card-main">
+            <text class="object-card-title">{{item.title}}</text>
+            <text wx:if="{{item.subtitle}}" class="object-card-subtitle">{{item.subtitle}}</text>
+          </view>
+          <text wx:if="{{item.status}}" class="object-status">{{item.status}}</text>
+        </view>
+        <view wx:if="{{item.rows.length}}" class="object-rows">
+          <view wx:for="{{item.rows}}" wx:for-item="row" wx:key="label" class="object-row">
+            <text class="object-row-label">{{row.label}}</text>
+            <text class="object-row-value">{{row.value}}</text>
+          </view>
+        </view>
+        <view wx:if="{{item.bullets.length}}" class="object-bullets">
+          <text wx:for="{{item.bullets}}" wx:for-item="note" wx:key="*this" class="object-bullet">· {{note}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{result.caveats.length}}" class="caveat-block">
+      <text class="caveat-title serif">数据缺口与口径</text>
+      <view wx:for="{{result.caveats}}" wx:key="*this" class="caveat-row">
+        <text class="caveat-mark">!</text>
+        <text class="caveat-copy">{{item}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{result.followUps.length}}" class="followup-block">
+      <text class="followup-title serif">继续核查</text>
+      <view wx:for="{{result.followUps}}" wx:key="*this" class="followup-row">
+        <text class="followup-index">{{index + 1}}</text>
+        <text class="followup-copy">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="notice result-notice">{{disclaimer}}</view>
+    <view class="result-actions">
+      <button class="secondary-button" bindtap="goHistory">查看历史研究</button>
+    </view>
+  </view>
+</view>

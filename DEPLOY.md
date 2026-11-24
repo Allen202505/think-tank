@@ -55,14 +55,14 @@
 - [ ] 服务器上 .env.production 不含明文密钥泄露（勿提交到 git）
 - [ ] `http://127.0.0.1:3000/api/health` 返回 200，且 `commit` 与当前部署提交一致
 
-## 六、微信小程序提审版部署
+## 六、微信小程序「大师吵股」部署
 
-小程序提审版使用“微信云函数代理 + 现有 Next.js API”，不依赖小程序 request 合法域名。完整步骤见 [`miniprogram/README.md`](./miniprogram/README.md)。
+小程序使用“微信云函数代理 + 现有 Next.js API”，不依赖小程序 request 合法域名。完整步骤见 [`miniprogram/README.md`](./miniprogram/README.md)。
 
 1. 在腾讯云服务器 `/opt/think-tank/.env.production` 增加随机 `MINI_PROXY_SECRET`，重新部署 Web 端。
 2. 在微信开发者工具创建云开发环境，把环境 ID 写入 `miniprogram/config.js`。
 3. 在 `cloudfunctions/mini-api` 配置相同的 `MINI_PROXY_SECRET`，选择“上传并部署：云端安装依赖”。
 4. 把根目录 `project.config.json` 的 `appid` 替换为真实个人小程序 AppID。
-5. 使用真实设备验证圆桌和资讯生成，再按 `submission/提审包说明.md` 提交审核。
+5. 验证新闻分析、行业周期、上证指数脱水、基本面、供应链和财报阅读，再按 `submission/提审包说明.md` 重新评估类目与提交审核。
 
-注意：个人主体不能选择金融业类目。提审版本不得加入股票代码、行情、选股、财报诊断、实盘联赛、买卖建议、收益预测、交易或支付入口。
+注意：新增公司、行业、指数和财报分析后，必须在微信公众平台重新确认主体资质与开放类目。小程序仍不提供买卖指令、目标价、收益预测、交易或支付入口。

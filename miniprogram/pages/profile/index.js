@@ -2,7 +2,7 @@ const { clearHistory } = require('../../utils/storage');
 
 Page({
   data: {
-    version: '1.0.0',
+    version: '1.1.0',
   },
 
   openPrivacy() {
@@ -35,7 +35,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: '多棱镜笔记｜财经通识学习工具',
+      title: '大师吵股｜公开数据研究工具',
       path: '/pages/home/index',
     };
   },

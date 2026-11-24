@@ -5,7 +5,11 @@ function decorate(records) {
   return records.map((record) => ({
     ...record,
     timeText: formatTime(record.createdAt),
-    typeText: record.type === 'debate' ? '财经圆桌' : '资讯卡片',
+    typeText: record.type === 'debate'
+      ? '财经圆桌'
+      : record.type === 'research'
+        ? (record.toolLabel || '研究分析')
+        : '资讯卡片',
   }));
 }
 
@@ -71,6 +75,6 @@ Page({
   },
 
   goLearn() {
-    wx.navigateTo({ url: '/pages/debate/index' });
+    wx.navigateTo({ url: '/pages/analysis/index' });
   },
 });

@@ -1,13 +1,13 @@
 <view class="page-shell privacy-page">
   <view class="privacy-header">
     <text class="privacy-title serif">隐私保护说明</text>
-    <text class="privacy-date">更新日期：2026 年 9 月 19 日</text>
-    <text class="privacy-lead">多棱镜笔记无需注册账号，也不收集通讯录、定位、相机、相册、麦克风等权限。</text>
+    <text class="privacy-date">更新日期：2026 年 11 月 24 日</text>
+    <text class="privacy-lead">大师吵股无需注册账号，也不收集通讯录、定位、相机、相册、麦克风等权限。</text>
   </view>
 
   <view class="privacy-section">
     <text class="privacy-section-title serif">1. 我们处理哪些信息</text>
-    <text class="privacy-copy">你在“财经圆桌”输入的问题、在“读懂财经资讯”粘贴的公开材料，会用于生成本次学习内容。请不要提交姓名、电话、证件、账户、持仓或其他敏感个人信息。</text>
+    <text class="privacy-copy">你在“财经圆桌”和“读懂财经资讯”中输入的问题或公开材料，以及“新闻分析”“行业周期分析”“上证指数脱水”“基本面研究”“供应链瓶颈分析”“芒格教你读财报”中提交的新闻正文、公司名称或代码、行业材料、指数剔除条件、财报链接或财报原文，会用于生成本次研究内容。请不要提交姓名、电话、证件、账户、持仓或其他敏感个人信息。</text>
   </view>
 
   <view class="privacy-section">
@@ -22,7 +22,7 @@
 
   <view class="privacy-section">
     <text class="privacy-section-title serif">4. AI 与第三方服务</text>
-    <text class="privacy-copy">为生成学习内容，当前输入的文本会通过微信云函数发送至本项目的 AI 服务接口处理。业务接口不会将问题正文写入数据库，也不会用于训练自有模型。微信云开发、网络服务和模型服务商可能按照其平台规则处理必要的运行日志。</text>
+    <text class="privacy-copy">为生成研究内容，当前输入的文本会通过微信云函数发送至本项目的 AI 服务接口处理；行情、指数和部分财务数据来自东方财富、腾讯证券、新浪财经及 Yahoo Finance 等公开数据接口。业务接口不会将正文写入业务数据库，也不会用于训练自有模型。微信云开发、网络服务、公开数据源和模型服务商可能按照其平台规则处理必要的运行日志。</text>
   </view>
 
   <view class="privacy-section">
@@ -35,7 +35,7 @@
 
   <view class="privacy-section">
     <text class="privacy-section-title serif">6. 内容边界</text>
-    <text class="privacy-copy">本工具只用于财经通识学习与公开资讯整理。AI 可能产生错误、遗漏或过时信息，不构成投资建议、收益承诺或交易依据。涉及重大决策时，请咨询具备合法资质的专业人士。</text>
+    <text class="privacy-copy">本工具只用于公开信息研究、财经方法学习与教学性分析。行情、财务数据可能延迟、缺失或存在口径差异，AI 可能产生错误、遗漏或过时信息，不构成投资建议、收益承诺或交易依据。涉及重大决策时，请咨询具备合法资质的专业人士。</text>
   </view>
 
   <view class="privacy-section">

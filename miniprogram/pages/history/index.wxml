@@ -9,6 +9,7 @@
 
   <view class="filter-row">
     <view class="filter-item {{filter === 'all' ? 'filter-item-active' : ''}}" data-filter="all" bindtap="changeFilter">全部</view>
+    <view class="filter-item {{filter === 'research' ? 'filter-item-active' : ''}}" data-filter="research" bindtap="changeFilter">研究</view>
     <view class="filter-item {{filter === 'debate' ? 'filter-item-active' : ''}}" data-filter="debate" bindtap="changeFilter">圆桌</view>
     <view class="filter-item {{filter === 'reading' ? 'filter-item-active' : ''}}" data-filter="reading" bindtap="changeFilter">资讯</view>
   </view>
@@ -37,7 +38,7 @@
 
   <view wx:else class="empty-block">
     <text class="empty-title serif">还没有学习记录</text>
-    <text class="empty-copy">完成一次财经圆桌或资讯卡片后，记录会出现在这里。</text>
+    <text class="empty-copy">完成一次研究分析、财经圆桌或资讯卡片后，记录会出现在这里。</text>
     <button class="secondary-button empty-action" bindtap="goLearn">开始学习</button>
   </view>
 </view>
