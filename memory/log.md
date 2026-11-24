@@ -21,11 +21,15 @@
 - `find miniprogram -name '*.js' -print0 | xargs -0 -n1 node --check`：通过。
 - `git diff --check`：通过。
 - 生产服务器 `.env.production` 已写入 `MINI_APPID=wxefc4526e6d1c6416`、32 位 AppSecret 和既有 `MINI_PROXY_SECRET`；未输出或提交密钥。
+- 已推送 `d9d5817` 并自动部署；生产 `/api/health` 返回该 commit。
+- 生产 `/api/mini/session` 无效 code 返回 401；无 Bearer Token 的研究接口返回 401。
+- 真实 `wx.login()` code → session 返回 200（7200 秒令牌）→ 新闻分析返回 200，得到 4 个结构化小节。
+- 微信开发者工具直连请求完成新闻分析，令牌写入本地；因工具缓存旧域名列表，本地临时关闭 `urlCheck` 验证后已恢复 `true`。
+- FITRY 后台已配置 `https://yieldglide.com` 为 `request` 合法域名。
 
 **待完成**：
-- 微信后台 `request` 合法域名需扫码确认 `https://yieldglide.com`。
-- 提交并部署生产后验证 `/api/health`、`/api/mini/session` 和开发者工具端到端。
-- FITRY 后台名称、头像、介绍、类目、隐私指引、版本上传和提审。
+- FITRY 后台名称、头像、介绍、类目、隐私指引、新版本上传和提审。
+- 真机六工具逐项验收。
 
 ## 2026-11-24 · 小程序更名为「大师吵股」并新增六种研究工具
 

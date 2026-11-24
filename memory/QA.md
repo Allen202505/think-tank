@@ -12,7 +12,7 @@
 
 每次修改后至少完成：
 
-- [x] 小程序改名与六工具版本：`npm test` 139/139 通过。
+- [x] 小程序改名、六工具与服务器直连版本：`npm test` 140/140 通过。
 - [x] 小程序改名与六工具版本：`npm run build -- --webpack` 通过，`/api/mini/research` 已生成。
 - [x] 小程序改名与六工具版本：`npm run preflight:mini` 通过，8 个页面、45 个小程序文件。
 - [x] 小程序签名联调：无签名 401；脱水、新闻、行业、基本面、供应链和财报分析均返回 200。
@@ -55,15 +55,15 @@
 - [x] 我的股票池可移除单只股票，确认后池内数量和其他股票保持正确。
 - [x] 大师详情可在「持仓与变动」「投资策略历史」间切换，待执行买入不会伪装成当前持仓。
 - [ ] 行业周期分析的数据缺口不会编造，缺失项有明确提示。
-- [x] 小程序提审版 `miniprogram/`、`cloudfunctions/mini-api/` 全部 JS 语法检查通过，12 个 JSON 配置解析通过。
-- [x] 小程序默认 `demoMode: true`，无需 AppID/云开发即可在开发者工具查看完整界面和样例结果。
+- [x] 小程序提审版 `miniprogram/` 全部 JS 语法检查通过，JSON 配置解析通过。
+- [x] 小程序支持 `demoMode` 样例模式，正式配置为 `demoMode: false` 并直连自有服务器。
 - [x] `npm test` 通过，新增小程序输入拦截、输出拦截、结构化结果和新版签名校验用例。
 - [x] `scripts/share-results.test.mjs` 覆盖快照构建（历史接口与只读快照页仍在用）、类型拒绝、递归移除敏感字段和上传文件排除；命令：`npm test`。
 - [x] 小程序 Web API 已进入 `npm run build`，`/api/mini/debate` 与 `/api/mini/reading` 均成功编译。
 - [x] 签名联调通过：无签名返回 401，股票代码请求返回 400，合法圆桌和资讯请求均返回 200。
-- [x] 微信开发者工具已导入真实 AppID `wx5c9e2626c351217f`，绑定云环境并完成模拟器编译。
-- [x] 云函数 `mini-api` 已部署到 `cloudbase-d0govchp716d4e94d`，环境变量已配置。
-- [x] Web 生产环境已配置同一 `MINI_PROXY_SECRET`；无签名请求返回 401，签名请求返回 200。
+- [x] 微信开发者工具已导入 FITRY AppID `wxefc4526e6d1c6416`，直连自有服务器并完成模拟器编译。
+- [x] 生产服务器已配置 `MINI_APPID`、`MINI_APPSECRET` 与 `MINI_PROXY_SECRET`。
+- [x] 生产 `/api/mini/session` 与 Bearer Token 研究接口通过真实 `wx.login()` code 联调。
 - [x] 代码版本 `1.0.0` 已上传，隐私保护指引已提交，提审已正式提交。
 - [x] 腾讯云香港 Lighthouse 已部署 Docker 版 Next.js，容器运行中且首页、robots 返回 200。
 - [x] Cloudflare 静态缓存已配置：图片/字体边缘 30 天、浏览器 1 天；新 URL 二次请求返回 `cf-cache-status: HIT`，JS/CSS 保持 HIT。
@@ -126,7 +126,7 @@ npm start
 npm test
 ```
 
-当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序与实时报价合并（含报价偏离上限）、联赛/市场快照、行情多源回退（含 secid→腾讯代码映射）、公开链接 SSRF 防护、真实客户端 IP 限流、财报侦查诊断、Supabase 代理路径安全，以及小程序六研究工具校验、输入/输出拦截、结构化归一化、脱水格式化和云函数签名校验，共 139 个用例。
+当前覆盖：API 响应解析、A 股搜索分类、选股池数值/百分比/文本排序与实时报价合并（含报价偏离上限）、联赛/市场快照、行情多源回退（含 secid→腾讯代码映射）、公开链接 SSRF 防护、真实客户端 IP 限流、财报侦查诊断、Supabase 代理路径安全，以及小程序六研究工具校验、输入/输出拦截、结构化归一化、脱水格式化、Bearer 会话令牌和旧签名兼容校验，共 140 个用例。
 
 ### 2.2 腾讯云 Lighthouse 自动部署
 
@@ -1127,15 +1127,16 @@ npm test
 - [x] MP-19 微信开发者工具 2026-11-24 日志显示研究工作台进入编译流程，未发现 WXML/JS 编译错误。
 - [x] MP-19A 微信开发者工具自动化实测：首页标题、六个工具、六工具切换、脱水表单和结果卡片正常，控制台无警告。
 - [x] MP-19B 小程序头像已从旧“多”字标替换为“股”字暖米白暗金图标。
-- [ ] MP-20 生产 Web 已部署直连改造，`/api/health` 返回新 commit。
-- [ ] MP-20A 生产 `/api/mini/session` 收到无效 code 时返回 400/401，不返回 404/503。
-- [ ] MP-20B 微信开发者工具模拟器完成 `wx.login()` → session → research 端到端，无云函数超时。
+- [x] MP-20 生产 Web 已部署 `d9d5817`，`/api/health` 返回该 commit。
+- [x] MP-20A 生产 `/api/mini/session` 收到无效 code 时返回 401，不返回 404/503。
+- [x] MP-20B 真实 `wx.login()` code → session 返回 200（7200 秒令牌）→ 新闻分析返回 200（4 个小节），无云函数超时。
+- [x] MP-20C 微信开发者工具直连请求完成新闻分析，令牌写入本地且无异常；本地验证时因开发者工具域名缓存临时关闭 urlCheck，验证后已恢复 `true`。
 - [ ] MP-21 真机完成六种工具逐项验收，无白屏、横向溢出、按钮遮挡或安全区适配问题。
 - [ ] MP-22 微信公众平台名称已改为“大师吵股”，类目、资质和隐私指引已按新能力重新确认。
 - [x] MP-23 旧 AppID 下 1.1.0 曾上传，包大小 104.2 KB；FITRY AppID 下需重新上传。
 - [ ] MP-24 FITRY AppID 新版本已上传、提交审核并发布。
-- [ ] MP-25 生产服务器已配置 `MINI_APPID=wxefc4526e6d1c6416`、AppSecret 与签名密钥，且密钥未进入 Git。
-- [ ] MP-26 微信后台已添加 `https://yieldglide.com` 为 `request` 合法域名。
+- [x] MP-25 生产服务器已配置 `MINI_APPID=wxefc4526e6d1c6416`、AppSecret 与签名密钥，且密钥未进入 Git。
+- [x] MP-26 FITRY 微信后台已添加 `https://yieldglide.com` 为 `request` 合法域名。
 
 ### 自动化与联调命令
 
