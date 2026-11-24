@@ -1094,9 +1094,11 @@ npm test
   - 芒格教你读财报：公开 HTML/PDF 或粘贴原文，按三张表和逆向排雷阅读。
 - 研究工作台结果统一为标题、摘要、标签、指标、小节、对象卡片、数据缺口和继续核查问题。
 - 研究记录、圆桌和资讯共用一个本地历史，最多 30 条；历史页支持“研究/圆桌/资讯”筛选。
-- 小程序通过 `wx.cloud.callFunction` 调用 `mini-api`，不直接请求生产域名。
-- 云函数 action 白名单为 `debate`、`reading`、`research`。
-- HMAC-SHA256 覆盖 action、时间戳、nonce、OpenID 和请求体。
+- 小程序通过 `wx.login()` 获取 code，调用 `POST https://yieldglide.com/api/mini/session` 换取 2 小时短期 Bearer Token。
+- 后续直接请求 `/api/mini/debate`、`/api/mini/reading`、`/api/mini/research`，不初始化 `wx.cloud`、不部署云函数。
+- `MINI_APPID`、`MINI_APPSECRET` 与 `MINI_PROXY_SECRET` 仅保存在生产服务器环境。
+- 会话令牌包含 OpenID 和过期时间并用 HMAC-SHA256 签名；无令牌或篡改令牌返回 401。
+- 微信公众平台必须将 `https://yieldglide.com` 加入 `request` 合法域名。
 - `/api/mini/research` 的六工具分发与归一化位于 `src/lib/miniResearch.js`。
 - 交易指令、目标价、止损止盈和收益预测在输入与输出同时拦截；AI 输出首次不合格时自动重写一次。
 - 默认每日 8 次 AI 生成机会；上证指数脱水不占 AI 次数。
@@ -1104,16 +1106,16 @@ npm test
 
 ### 回归用例
 
-- [x] MP-01 小程序和云函数全部 JS 文件通过 `node --check`。
-- [x] MP-02 `project.config.json`、`app.json`、页面 JSON 和云函数 JSON 可解析。
-- [x] MP-03 `npm test` 通过：139/139。
+- [x] MP-01 小程序全部 JS 文件通过 `node --check`。
+- [x] MP-02 `project.config.json`、`app.json` 和页面 JSON 可解析。
+- [x] MP-03 `npm test` 通过：140/140，其中新增会话令牌签发、过期与篡改拒绝用例。
 - [x] MP-04 六工具白名单、字段长度和工具参数校验通过。
 - [x] MP-05 研究结果结构化归一化、数据缺口和卡片字段通过。
 - [x] MP-06 供应链 0-10 瓶颈分统一换算为百分制。
 - [x] MP-07 脱水报告可格式化为移动端指标和小节。
 - [x] MP-08 输出守卫拦截“建议买入、目标价”等交易建议。
-- [x] MP-09 HMAC 签名正确时通过，请求体被篡改时拒绝。
-- [x] MP-10 无签名 `POST /api/mini/research` 返回 401。
+- [x] MP-09 旧 HMAC 兼容签名正确时通过，请求体被篡改时拒绝。
+- [x] MP-10 无 Bearer Token 或旧 HMAC 的 `POST /api/mini/research` 返回 401。
 - [x] MP-11 本地签名联调：上证指数脱水返回 200，近一月银行组实际剔除 33 只。
 - [x] MP-12 本地签名联调：新闻分析返回 200。
 - [x] MP-13 本地签名联调：行业周期分析 `600519` 返回 200。
@@ -1121,37 +1123,38 @@ npm test
 - [x] MP-15 本地签名联调：供应链瓶颈分析返回 200。
 - [x] MP-16 芒格读财报首次输出触发安全拦截后自动重写并返回 200。
 - [x] MP-17 `npm run build -- --webpack` 通过，`/api/mini/research` 出现在构建路由。
-- [x] MP-18 `npm run preflight:mini` 通过：8 个页面、45 个小程序文件。
+- [x] MP-18 `npm run preflight:mini -- --release` 通过：8 个页面、45 个小程序文件，且确认无 `wx.cloud`。
 - [x] MP-19 微信开发者工具 2026-11-24 日志显示研究工作台进入编译流程，未发现 WXML/JS 编译错误。
 - [x] MP-19A 微信开发者工具自动化实测：首页标题、六个工具、六工具切换、脱水表单和结果卡片正常，控制台无警告。
 - [x] MP-19B 小程序头像已从旧“多”字标替换为“股”字暖米白暗金图标。
-- [x] MP-20 生产 Web 已部署 `114cf72`，云函数 `mini-api` 已重新部署；生产 `/api/health` 返回该 commit。
-- [x] MP-20A 生产模拟器端到端：新闻分析返回 200；上证指数脱水返回官方 3548.37、近一年 -7.52%、同除数剩余点位 2838.91、实际剔除 33 只。
+- [ ] MP-20 生产 Web 已部署直连改造，`/api/health` 返回新 commit。
+- [ ] MP-20A 生产 `/api/mini/session` 收到无效 code 时返回 400/401，不返回 404/503。
+- [ ] MP-20B 微信开发者工具模拟器完成 `wx.login()` → session → research 端到端，无云函数超时。
 - [ ] MP-21 真机完成六种工具逐项验收，无白屏、横向溢出、按钮遮挡或安全区适配问题。
 - [ ] MP-22 微信公众平台名称已改为“大师吵股”，类目、资质和隐私指引已按新能力重新确认。
-- [x] MP-23 小程序代码 1.1.0 已上传，包大小 104.2 KB（106698 Byte）。
-- [ ] MP-24 1.1.0 已提交审核并发布。
+- [x] MP-23 旧 AppID 下 1.1.0 曾上传，包大小 104.2 KB；FITRY AppID 下需重新上传。
+- [ ] MP-24 FITRY AppID 新版本已上传、提交审核并发布。
+- [ ] MP-25 生产服务器已配置 `MINI_APPID=wxefc4526e6d1c6416`、AppSecret 与签名密钥，且密钥未进入 Git。
+- [ ] MP-26 微信后台已添加 `https://yieldglide.com` 为 `request` 合法域名。
 
 ### 自动化与联调命令
 
 ```bash
-find miniprogram cloudfunctions -name '*.js' -print0 | xargs -0 -n1 node --check
+find miniprogram -name '*.js' -print0 | xargs -0 -n1 node --check
 npm test
 npm run build -- --webpack
 npm run preflight:mini
 ```
 
-本地签名联调：
+生产会话接口冒烟：
 
 ```bash
-MINI_PROXY_SECRET=test-secret-1234567890 npm run dev -- --port 3210
+curl -i -X POST https://yieldglide.com/api/mini/session \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"invalid-code"}'
 ```
 
-研究接口需要携带 `x-mini-timestamp`、`x-mini-nonce`、`x-mini-openid`、`x-mini-signature`。签名 canonical 为：
-
-```text
-action\ntimestamp\nnonce\nopenid\nrawBody
-```
+研究接口当前携带 `Authorization: Bearer <session token>`；服务端仍保留旧时间戳 HMAC 校验以兼容历史调用。Bearer 令牌由 `MINI_PROXY_SECRET` 签发，2 小时后过期，遇到 401 时小程序自动重新 `wx.login()` 一次。
 
 重点检查：
 

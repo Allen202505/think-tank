@@ -1,5 +1,32 @@
 # 决策记录
 
+## 2026-11-24 · 小程序改为自有服务器直连，移除云开发运行时依赖
+
+**背景**：FITRY AppID 已复用为主小程序主体，用户明确不再维护微信云开发。旧云函数链路存在 3 秒超时，且服务器已承载全部功能与代码，不需要云函数作为中间层。
+
+**改动**：
+- 小程序新增 `wx.login()` → `POST /api/mini/session` 登录流程；服务端使用 `MINI_APPID`、`MINI_APPSECRET` 调用微信 `jscode2session`，再用 `MINI_PROXY_SECRET` 签发 2 小时 Bearer Token。
+- `/api/mini/debate|reading|research` 优先校验 Bearer Token，遇到 401 后小程序清除缓存并自动重新登录一次；旧 HMAC 请求头仅保留服务端兼容。
+- 小程序删除 `wx.cloud.init`、云函数调用与云环境配置，研究请求直接访问 `https://yieldglide.com`，请求超时提高到 60 秒。
+- `project.config.json` 改用 FITRY AppID `wxefc4526e6d1c6416` 并移除 `cloudfunctionRoot`。
+- 提审预检改为检查 HTTPS `apiBase`、自有服务器 API 路由和 `wx.request`，并禁止小程序重新引入 `wx.cloud`。
+- 同步更新小程序 README、隐私指引、审核话术、PRD、架构、项目说明、QA 与部署说明。
+
+**影响范围**：小程序登录、研究/圆桌/资讯请求、生产服务器环境变量、微信 `request` 域名配置、提审预检和隐私说明；Web 端业务功能与其他未提交雷达改动不变。
+
+**验证**：
+- `npm test`：140/140 通过，包含 Bearer Token 正常校验、篡改拒绝和错误密钥拒绝。
+- `npm run build -- --webpack`：通过，`/api/mini/session` 与三个小程序业务接口进入生产路由。
+- `npm run preflight:mini -- --release`：通过，8 个页面、45 个小程序文件；小程序源码无 `wx.cloud`。
+- `find miniprogram -name '*.js' -print0 | xargs -0 -n1 node --check`：通过。
+- `git diff --check`：通过。
+- 生产服务器 `.env.production` 已写入 `MINI_APPID=wxefc4526e6d1c6416`、32 位 AppSecret 和既有 `MINI_PROXY_SECRET`；未输出或提交密钥。
+
+**待完成**：
+- 微信后台 `request` 合法域名需扫码确认 `https://yieldglide.com`。
+- 提交并部署生产后验证 `/api/health`、`/api/mini/session` 和开发者工具端到端。
+- FITRY 后台名称、头像、介绍、类目、隐私指引、版本上传和提审。
+
 ## 2026-11-24 · 小程序更名为「大师吵股」并新增六种研究工具
 
 **背景**：用户要求把线上小程序「多棱镜笔记」更名为「大师吵股」，并把 Web 端已有的新闻分析、行业周期、上证指数脱水、基本面研究、供应链瓶颈和芒格读财报能力带入小程序。

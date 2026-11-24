@@ -4,7 +4,7 @@
 
 ## 目标
 
-把 Web 端已有的公开研究与分析能力收敛为微信原生小程序，统一品牌为「大师吵股」。小程序通过微信云函数签名代理访问 Next.js 服务端，不直接暴露 Web 域名、模型 Key 或内部接口。
+把 Web 端已有的公开研究与分析能力收敛为微信原生小程序，统一品牌为「大师吵股」。小程序通过 `wx.login()` 获取临时 code，由自有 Next.js 服务端向微信换取 OpenID 并签发短期 Bearer Token；研究请求直接访问 `https://yieldglide.com/api/mini/*`，不再依赖微信云开发。
 
 ## 当前产品范围
 
@@ -83,20 +83,18 @@
 ```text
 微信小程序
   ├─ 本地历史：wx.setStorageSync
-  └─ wx.cloud.callFunction({ name: 'mini-api' })
+  ├─ wx.login() → POST /api/mini/session
+  └─ Authorization: Bearer <短期令牌>
           ↓
-      cloudfunctions/mini-api
-          ├─ 获取 OPENID
-          ├─ 生成 HMAC-SHA256 签名
-          └─ POST /api/mini/debate | reading | research
-                  ↓
-              Next.js 服务端
-                  ├─ 校验时间戳、nonce、OPENID 和 HMAC
-                  ├─ 校验工具白名单与字段长度
-                  ├─ 交易指令/收益预测拦截
-                  ├─ 公开行情、财务、指数数据或 AI
-                  ├─ 统一结构化结果
-                  └─ 输出安全检查
+      https://yieldglide.com
+          ├─ 服务端调用微信 jscode2session
+          ├─ 签发 2 小时 HMAC 会话令牌
+          ├─ /api/mini/debate | reading | research
+          ├─ 校验工具白名单与字段长度
+          ├─ 交易指令/收益预测拦截
+          ├─ 公开行情、财务、指数数据或 AI
+          ├─ 统一结构化结果
+          └─ 输出安全检查
 ```
 
 ## API 与代码入口
@@ -104,7 +102,7 @@
 - 小程序首页：`miniprogram/pages/home/index`
 - 研究工作台：`miniprogram/pages/analysis/index`
 - 工具元数据：`miniprogram/data/researchTools.js`
-- 云函数：`cloudfunctions/mini-api/index.js`
+- 会话接口：`src/app/api/mini/session/route.js`
 - 小程序研究接口：`src/app/api/mini/research/route.js`
 - 校验、提示词、归一化：`src/lib/miniResearch.js`
 - 圆桌接口：`src/app/api/mini/debate/route.js`
@@ -115,7 +113,7 @@
 - 仍然禁止输入或输出买入、卖出、加仓、减仓、持有等交易指令。
 - 仍然禁止目标价、止损止盈位、收益预测、稳赚承诺。
 - 公司名称或代码只在行业周期、基本面、指数脱水和财报研究中作为研究对象使用，不放宽交易建议限制。
-- 云函数签名覆盖 action、时间戳、nonce、OpenID 和请求体；Web API 拒绝缺失、过期、篡改和重复请求。
+- 小程序通过微信登录 code 换取 2 小时短期 Bearer Token；Web API 拒绝缺失、过期或签名被篡改的令牌。旧 HMAC 请求头仅保留兼容，不是当前客户端链路。
 - 每日 AI 次数默认 8 次，由 `MINI_DAILY_FREE_LIMIT` 调整；指数脱水不占 AI 次数。
 - 输入正文不写入业务数据库；OpenID 仅做哈希后的进程内限流。
 - 公开数据源包括东方财富、腾讯证券、新浪财经和 Yahoo Finance；页面明确提示数据延迟、缺失和口径差异。
@@ -131,11 +129,16 @@
 
 ## 运行配置
 
-- AppID：`wx5c9e2626c351217f`
-- 云环境：`cloudbase-d0govchp716d4e94d`
+- AppID：`wxefc4526e6d1c6416`（FITRY 主体）
+- 服务器地址：`https://yieldglide.com`
 - `demoMode`：`false`
-- Web 端与云函数必须配置相同 `MINI_PROXY_SECRET`。
-- 云函数可选 `THINK_TANK_API_BASE`，默认 `https://yieldglide.com`。
+- 微信公众平台需将 `https://yieldglide.com` 加入 `request` 合法域名。
+- 服务器环境变量：
+  - `MINI_APPID=wxefc4526e6d1c6416`
+  - `MINI_APPSECRET`：FITRY AppSecret，只保存在服务器 `.env.production`，不入库。
+  - `MINI_PROXY_SECRET`：会话令牌签名密钥，至少 16 位，不入库。
+  - `MINI_DAILY_FREE_LIMIT`：默认可设为 `8`。
+- 不再初始化 `wx.cloud`，不再部署或调用 `mini-api` 云函数。
 
 ## 验证状态
 

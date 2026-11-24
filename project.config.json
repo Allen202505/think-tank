@@ -1,5 +1,5 @@
 {
-  "description": "大师吵股 · 微信小程序正式版",
+  "description": "大师吵股 · 微信小程序正式版（FITRY 主体）",
   "packOptions": {
     "ignore": [
       {
@@ -36,10 +36,9 @@
   },
   "compileType": "miniprogram",
   "libVersion": "3.7.12",
-  "appid": "wx5c9e2626c351217f",
+  "appid": "wxefc4526e6d1c6416",
   "projectname": "master-stock-debate",
   "miniprogramRoot": "miniprogram/",
-  "cloudfunctionRoot": "cloudfunctions/",
   "condition": {},
   "simulatorPluginLibVersion": {},
   "editorSetting": {}

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildMiniProxySignature,
+  buildMiniSessionToken,
   inspectMiniOutput,
   normalizeDebateResult,
   normalizeReadingResult,
@@ -10,6 +11,7 @@ import {
   validateMiniQuestion,
   validateMiniReading,
   verifyMiniProxyRequest,
+  verifyMiniSessionToken,
 } from '../src/lib/miniProgramPolicy.js';
 
 test('mini program rejects stock codes and actionable trading prompts', () => {
@@ -97,4 +99,15 @@ test('mini program proxy signature verifies the exact request and rejects tamper
   assert.equal(verifyMiniProxyRequest(request, `${rawBody} `, 'debate').ok, false);
   if (previous === undefined) delete process.env.MINI_PROXY_SECRET;
   else process.env.MINI_PROXY_SECRET = previous;
+});
+
+
+test('mini session token signs openid and rejects expiry/tampering', () => {
+  const secret = 'test-secret-1234567890';
+  const built = buildMiniSessionToken('openid-session', secret, 60_000);
+  const verified = verifyMiniSessionToken(built.token, secret);
+  assert.equal(verified.ok, true);
+  assert.equal(verified.openid, 'openid-session');
+  assert.equal(verifyMiniSessionToken(`${built.token}x`, secret).ok, false);
+  assert.equal(verifyMiniSessionToken(built.token, 'another-secret-123456').ok, false);
 });

@@ -1,4 +1,4 @@
-import { verifyMiniProxyRequest } from './miniProgramPolicy.js';
+import { verifyMiniProxyRequest, verifyMiniSessionToken } from './miniProgramPolicy.js';
 
 export async function authorizeMiniRequest(request, action) {
   let rawBody = '';
@@ -8,9 +8,6 @@ export async function authorizeMiniRequest(request, action) {
     return { ok: false, status: 400, error: '无法读取小程序请求' };
   }
 
-  const auth = verifyMiniProxyRequest(request, rawBody, action);
-  if (!auth.ok) return auth;
-
   let body = {};
   try {
     body = rawBody ? JSON.parse(rawBody) : {};
@@ -18,6 +15,16 @@ export async function authorizeMiniRequest(request, action) {
     return { ok: false, status: 400, error: '小程序请求格式错误' };
   }
 
+  const authorization = request.headers.get('authorization') || '';
+  const bearer = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  if (bearer) {
+    const tokenAuth = verifyMiniSessionToken(bearer, process.env.MINI_PROXY_SECRET || '');
+    if (!tokenAuth.ok) return tokenAuth;
+    return { ok: true, body, auth: { ...tokenAuth, method: 'bearer' } };
+  }
+
+  const auth = verifyMiniProxyRequest(request, rawBody, action);
+  if (!auth.ok) return auth;
   return { ok: true, body, auth };
 }
 

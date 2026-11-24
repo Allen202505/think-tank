@@ -33,8 +33,7 @@ think-tank/
 │   └── log.md                # 决策记录
 ├── miniprogram/              # 微信原生小程序提审版
 │   ├── pages/                # 首页/圆桌/资讯/记录/关于/隐私
-│   └── utils/                # 云函数调用与本地存储
-├── cloudfunctions/mini-api/  # 小程序签名代理云函数
+│   └── utils/                # 自有服务器请求与本地存储
 └── package.json
 ```
 
@@ -251,13 +250,16 @@ MungerFinance → FinancialDiagnosisChecklist
 
 ```text
 微信小程序（原生 WXML/WXSS/JS）
-    ↓ wx.cloud.callFunction({ action, payload })
-微信云函数 mini-api
-    ↓ 时间戳 + nonce + OpenID + 请求体 HMAC-SHA256
-Next.js /api/mini/debate | reading | research
-    ↓ 工具白名单 → 字段校验 → 公开数据/AI → 输出安全检查
-统一结构化结果返回小程序
-    ↓
+    ├─ wx.login() → POST /api/mini/session
+    └─ Authorization: Bearer <2 小时短期令牌>
+              ↓
+Next.js https://yieldglide.com
+    ├─ jscode2session 换取 OpenID
+    ├─ HMAC 签发/校验会话令牌
+    ├─ /api/mini/debate | reading | research
+    ├─ 工具白名单 → 字段校验 → 公开数据/AI → 输出安全检查
+    └─ 统一结构化结果返回小程序
+              ↓
 wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
 ```
 
@@ -265,7 +267,8 @@ wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
 - `miniprogram/pages/home/index`：品牌首页，六种研究工具和财经通识入口。
 - `miniprogram/pages/analysis/index`：六工具统一研究工作台，按工具切换动态表单和结果展示。
 - `miniprogram/data/researchTools.js`：六种工具的前端元数据。
-- `cloudfunctions/mini-api`：唯一云函数入口；动作白名单为 `debate`、`reading`、`research`。
+- `src/app/api/mini/session/route.js`：接收 `wx.login()` code，调用微信 `jscode2session`，签发 2 小时 HMAC Bearer Token。
+- `miniprogram/utils/api.js`：直连 `https://yieldglide.com`，本地缓存短期令牌，遇到 401 自动重新登录一次。
 - `src/lib/miniResearch.js`：研究工具白名单、字段校验、统一提示词、结果归一化和数据安全检查。
 - `src/app/api/mini/research/route.js`：六种研究接口分发：
   - `news` → AI 新闻事件穿透
@@ -275,7 +278,9 @@ wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
   - `supply` → `stockChoke` 六步框架 + AI + 移动端归一化
   - `munger` → 财报文本/HTML/PDF + AI 芒格框架
 - `src/app/api/mini/debate/route.js` 与 `reading/route.js`：保留原有财经圆桌和资讯卡片接口。
-- 安全：云函数签名覆盖 action、时间戳、nonce、OpenID 和请求体；重复、篡改、过期或缺失签名均拒绝。
+- 安全：会话令牌覆盖 OpenID 与过期时间，任何缺失、过期或篡改均拒绝；旧时间戳 HMAC 仅保留服务端兼容，不再由小程序调用。
+- 微信配置：`https://yieldglide.com` 必须加入小程序 `request` 合法域名；服务器保存 `MINI_APPID`、`MINI_APPSECRET`、`MINI_PROXY_SECRET`。
+- 运行依赖：不再初始化 `wx.cloud`，云开发不承载登录或研究请求。
 - 输出安全：交易指令、目标价、止损止盈、收益预测等命中后拒绝展示；AI 首次输出不合格时研究接口会重写一次。
 - 隐私：OpenID 仅用于哈希后的进程内限流；正文不写业务数据库；历史记录只在设备本地。
 - 类目风险：新增公司、行业、指数和财报分析后，不再等同于旧版纯财经通识小程序；微信后台类目、主体资质和隐私指引必须在提审前重新确认。

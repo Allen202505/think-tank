@@ -27,19 +27,17 @@ function walk(dir) {
 const project = readJson('project.config.json');
 const app = readJson('miniprogram/app.json');
 readJson('miniprogram/sitemap.json');
-readJson('cloudfunctions/mini-api/package.json');
-readJson('cloudfunctions/mini-api/config.json');
 
 if (project?.miniprogramRoot !== 'miniprogram/') errors.push('project.config.json 的 miniprogramRoot 应为 miniprogram/');
-if (project?.cloudfunctionRoot !== 'cloudfunctions/') errors.push('project.config.json 的 cloudfunctionRoot 应为 cloudfunctions/');
+if (project?.cloudfunctionRoot) errors.push('提审版不应配置 cloudfunctionRoot，小程序已改用自有服务器直连');
 if (!project?.appid) errors.push('project.config.json 缺少 appid');
 if (release && project?.appid === 'touristappid') errors.push('发布前必须替换 project.config.json 的 touristappid');
 
 const config = fs.readFileSync(path.join(root, 'miniprogram/config.js'), 'utf8');
-const envMatch = config.match(/cloudEnv:\s*['"]([^'"]+)['"]/);
+const apiBaseMatch = config.match(/apiBase:\s*['"]([^'"]+)['"]/);
 const demoMatch = config.match(/demoMode:\s*(true|false)/);
-if (!envMatch) errors.push('miniprogram/config.js 缺少 cloudEnv');
-if (release && envMatch?.[1] === 'YOUR_CLOUD_ENV_ID') errors.push('发布前必须配置真实云环境 ID');
+if (!apiBaseMatch) errors.push('miniprogram/config.js 缺少 apiBase');
+if (release && !/^https:\/\/[^/]+/i.test(apiBaseMatch?.[1] || '')) errors.push('发布前必须配置 HTTPS 服务器地址');
 if (release && demoMatch?.[1] !== 'false') errors.push('发布前必须将 miniprogram/config.js 的 demoMode 设为 false');
 
 for (const page of app?.pages || []) {
@@ -54,20 +52,19 @@ const wxml = miniFiles.filter((file) => file.endsWith('.wxml')).map((file) => fs
 const js = miniFiles.filter((file) => file.endsWith('.js')).map((file) => fs.readFileSync(file, 'utf8')).join('\n');
 
 if (/<web-view\b/i.test(wxml)) errors.push('提审版不允许使用 web-view');
-if (/\bwx\.request\s*\(/.test(js)) errors.push('小程序应通过云函数请求，不应直接调用 wx.request');
+if (/\bwx\.cloud\b/.test(js)) errors.push('小程序不应再依赖微信云开发');
+if (!/\bwx\.request\s*\(/.test(js)) errors.push('小程序缺少自有服务器请求逻辑');
 
 const icon = path.join(root, 'submission/app-icon-144.png');
 if (!fs.existsSync(icon)) errors.push('缺少 submission/app-icon-144.png');
 
+const sessionRoute = path.join(root, 'src/app/api/mini/session/route.js');
 const apiRoute = path.join(root, 'src/app/api/mini/debate/route.js');
 const readingRoute = path.join(root, 'src/app/api/mini/reading/route.js');
 const researchRoute = path.join(root, 'src/app/api/mini/research/route.js');
-if (!fs.existsSync(apiRoute) || !fs.existsSync(readingRoute) || !fs.existsSync(researchRoute)) {
-  errors.push('缺少小程序 Web API 路由');
+if (!fs.existsSync(sessionRoute) || !fs.existsSync(apiRoute) || !fs.existsSync(readingRoute) || !fs.existsSync(researchRoute)) {
+  errors.push('缺少小程序服务器 API 路由');
 }
-
-const cloudFunction = fs.readFileSync(path.join(root, 'cloudfunctions/mini-api/index.js'), 'utf8');
-if (!cloudFunction.includes("'research'")) errors.push('云函数 mini-api 未放行 research 操作');
 
 const toolData = fs.readFileSync(path.join(root, 'miniprogram/data/researchTools.js'), 'utf8');
 for (const label of ['新闻分析', '行业周期分析', '上证指数脱水', '基本面研究', '供应链瓶颈分析', '芒格教你读财报']) {

@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const MINI_DISCLAIMER =
   '本内容仅用于财经通识学习，不构成投资建议、收益承诺或交易依据。请独立判断并注意风险。';
@@ -168,6 +168,46 @@ export function buildMiniProxySignature({ action, timestamp, nonce, openid, rawB
 
 export function hashOpenId(openid) {
   return createHash('sha256').update(String(openid || '')).digest('hex');
+}
+
+export function buildMiniSessionToken(openid, secret, ttlMs = 2 * 60 * 60 * 1000) {
+  const safeOpenid = String(openid || '').trim();
+  const safeSecret = String(secret || '');
+  if (!safeOpenid || safeSecret.length < 16) throw new Error('小程序会话参数无效');
+  const payload = {
+    v: 1,
+    sub: safeOpenid,
+    exp: Date.now() + Math.max(60_000, Number(ttlMs) || 0),
+    jti: randomBytes(12).toString('hex'),
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const signature = createHmac('sha256', safeSecret).update(encoded).digest('base64url');
+  return { token: `${encoded}.${signature}`, expiresAt: payload.exp };
+}
+
+export function verifyMiniSessionToken(token, secret) {
+  const safeSecret = String(secret || '');
+  if (!safeSecret || safeSecret.length < 16) {
+    return { ok: false, status: 503, error: '小程序会话密钥未配置或过短' };
+  }
+  const [encoded, signature] = String(token || '').split('.');
+  if (!encoded || !signature) return { ok: false, status: 401, error: '小程序会话令牌无效' };
+  const expected = createHmac('sha256', safeSecret).update(encoded).digest('base64url');
+  const left = Buffer.from(signature, 'utf8');
+  const right = Buffer.from(expected, 'utf8');
+  if (left.length !== right.length || !timingSafeEqual(left, right)) {
+    return { ok: false, status: 401, error: '小程序会话令牌无效' };
+  }
+  let payload = null;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+  } catch {
+    return { ok: false, status: 401, error: '小程序会话令牌无效' };
+  }
+  if (payload?.v !== 1 || !payload?.sub || !Number.isFinite(Number(payload?.exp)) || Number(payload.exp) <= Date.now()) {
+    return { ok: false, status: 401, error: '小程序会话已过期' };
+  }
+  return { ok: true, openid: String(payload.sub), identity: hashOpenId(payload.sub), expiresAt: Number(payload.exp) };
 }
 
 function safeEqualHex(a, b) {

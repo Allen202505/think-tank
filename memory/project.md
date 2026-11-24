@@ -10,7 +10,7 @@
 - **框架**: Next.js 16.4.3（App Router）
 - **语言**: React 18
 - **部署**: 腾讯云 Lighthouse（中国香港，Docker + 服务器自动拉取）
-- **小程序**: 微信原生小程序「大师吵股」+ 微信云开发云函数（2026-11-24 扩展六种研究工具）
+- **小程序**: 微信原生小程序「大师吵股」+ 自有 Next.js 服务器直连（2026-11-24 扩展六种研究工具，AppID 复用 FITRY 主体）
 - **AI**: DeepSeek（.env.local 存 key，不入库）；每位未配置 Key 的访客默认 2 次免费体验，用尽后引导配置自己的 API Key；「跟踪大师动态」使用 DeepSeek Search / Fetch + JSON mode
 - **行情数据源**: 东财 → 腾讯证券 → 新浪（A 股实时行情与日 K 多级兜底）
 
@@ -35,12 +35,13 @@
 
 ### 微信小程序「大师吵股」
 
-- 入口代码：`miniprogram/`；云函数代理：`cloudfunctions/mini-api/`。
+- 入口代码：`miniprogram/`；会话服务：`src/app/api/mini/session/route.js`。
 - 页面：首页、研究工作台、财经圆桌、读懂财经资讯、研究记录、记录详情、关于与边界、隐私保护说明。
 - 六种研究工具：新闻分析、行业周期分析、上证指数脱水、基本面研究、供应链瓶颈分析、芒格教你读财报。
-- 数据链路：小程序 → 微信云函数签名代理 → `yieldglide.com/api/mini/*` → 公开数据源和/或 AI 模型。
+- 数据链路：小程序 `wx.login()` → `yieldglide.com/api/mini/session` 换取短期 Bearer Token → `/api/mini/*` 直连 → 公开数据源和/或 AI 模型；不使用微信云开发。
 - 安全边界：不提供买卖、持仓、目标价、收益预测、交易、开户或支付；输入和输出均做检查。
-- 合规待办：微信后台名称需改为「大师吵股」；新增公司、行业、指数和财报分析后，主体资质、服务类目和隐私保护指引必须重新确认。
+- 合规待办：FITRY 后台名称需改为「大师吵股」并配置 `https://yieldglide.com` 为 `request` 合法域名；新增公司、行业、指数和财报分析后，主体资质、服务类目和隐私保护指引必须重新确认。
+- 服务器配置：`MINI_APPID=wxefc4526e6d1c6416`；`MINI_APPSECRET` 与 `MINI_PROXY_SECRET` 仅保存在部署环境。
 
 ### 芒格教你读财报（A 股财报侦查 v1）
 - 芒格主分析会先经过「财报侦查诊断 Skill」的证据排查，再写解读正文，避免只做泛泛点评。
@@ -85,7 +86,7 @@
 - GitHub: github.com/Allen202505/think-tank（main）
 - 部署：腾讯云香港 Lighthouse 运行 Docker Compose；push 到 `main` 后由服务器定时检查更新并自动拉取、构建、重启。`DEEPSEEK_API_KEY`、`DEEPSEEK_SEARCH_API_KEY`（可选）、Supabase 等必要环境变量保存在服务器 `/opt/think-tank/.env.production`，不进入仓库
 - 结果分享链接入口已于 2026-10-13 下线：`supabase/share_results.sql` 与 `SUPABASE_SERVICE_ROLE_KEY` 现仅影响历史快照的读取，不再有新写入入口
-- 小程序：Web 生产环境与微信云函数需配置相同的 `MINI_PROXY_SECRET`；云环境 ID 与真实 AppID 由开发者账号配置。六种研究工具的架构、合规边界与发布待办详见 `memory/miniprogram.md` 和 `miniprogram/README.md`
+- 小程序：生产服务器配置 `MINI_APPID`、`MINI_APPSECRET`、`MINI_PROXY_SECRET` 与 `MINI_DAILY_FREE_LIMIT`；FITRY AppID 为 `wxefc4526e6d1c6416`，小程序直连 `https://yieldglide.com`，不使用微信云开发。六种研究工具的架构、合规边界与发布待办详见 `memory/miniprogram.md` 和 `miniprogram/README.md`
 - 本地开发：npm run dev（默认 3000，本机常用 3210）
 
 ## 迭代维护要求

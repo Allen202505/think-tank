@@ -1,6 +1,6 @@
 # 「大师吵股」微信小程序
 
-该目录是“大师吵股”微信小程序原生代码。小程序通过微信云函数 `mini-api` 访问 `yieldglide.com` 的签名接口，不直接请求 Web 域名，也不使用 `web-view`。
+该目录是“大师吵股”微信小程序原生代码。小程序通过 `wx.login()` 获取临时 code，由 `yieldglide.com` 换取 OpenID 并签发短期 Bearer Token，之后直接请求 `https://yieldglide.com/api/mini/*`；不使用微信云开发，也不使用 `web-view`。
 
 ## 1. 当前能力
 
@@ -37,7 +37,7 @@
 ```text
 miniprogram/
 ├── app.js / app.json / app.wxss
-├── config.js                         # 云环境 ID 与 demoMode
+├── config.js                         # 自有服务器地址与 demoMode
 ├── data/researchTools.js             # 六种研究工具元数据
 ├── pages/home/index                  # 首页：研究工具与通识入口
 ├── pages/analysis/index              # 统一研究工作台
@@ -48,7 +48,7 @@ miniprogram/
 ├── pages/profile/index               # 关于与边界
 └── pages/privacy/index               # 隐私说明
 
-cloudfunctions/mini-api/index.js      # OpenID、签名、转发
+src/app/api/mini/session/route.js     # wx.login code 换短期会话令牌
 src/app/api/mini/debate/route.js      # 财经圆桌小程序接口
 src/app/api/mini/reading/route.js     # 资讯卡片小程序接口
 src/app/api/mini/research/route.js    # 六种研究工具小程序接口
@@ -57,15 +57,12 @@ src/lib/miniResearch.js               # 工具白名单、输入校验、提示�
 
 ```text
 微信小程序
-  └─ wx.cloud.callFunction({ name: 'mini-api', data: { action, payload } })
-       ↓
-    cloudfunctions/mini-api
-       ├─ 获取 OPENID
-       ├─ 生成 HMAC-SHA256 签名
-       └─ POST /api/mini/debate | reading | research
+  ├─ wx.login() → POST /api/mini/session
+  └─ Authorization: Bearer <2 小时短期令牌>
               ↓
-          Next.js 服务端
-              ├─ 校验时间戳、nonce、OPENID 与 HMAC
+       https://yieldglide.com
+              ├─ jscode2session 换取 OpenID
+              ├─ HMAC 签发并校验会话令牌
               ├─ 输入校验和敏感输出拦截
               ├─ 拉取公开行情/财务/指数数据或调用 AI
               └─ 返回统一结构化结果
@@ -77,45 +74,46 @@ src/lib/miniResearch.js               # 工具白名单、输入校验、提示�
 
 1. 安装微信开发者工具。
 2. 导入仓库根目录 `/Users/zxiansheng/Desktop/think-tank`。
-3. `project.config.json` 已写入 AppID `wx5c9e2626c351217f`。
-4. 当前云环境为 `cloudbase-d0govchp716d4e94d`，`demoMode: false`。
+3. `project.config.json` 已写入 FITRY AppID `wxefc4526e6d1c6416`。
+4. `demoMode: false`，`apiBase: 'https://yieldglide.com'`；项目不再配置云开发环境。
 
-### 4.2 云函数
+### 4.2 服务器配置
 
-1. 在微信开发者工具中打开“云开发”。
-2. 右键 `cloudfunctions/mini-api`，选择“上传并部署：云端安装依赖”。
-3. 配置环境变量：
-   - `MINI_PROXY_SECRET`：至少 16 位随机字符串，与 Web 服务一致。
-   - `THINK_TANK_API_BASE`：可选，默认 `https://yieldglide.com`。
-
-### 4.3 Web 服务
-
-在部署环境配置同名 `MINI_PROXY_SECRET`，重新部署 Next.js：
+在服务器 `/opt/think-tank/.env.production` 配置：
 
 ```bash
+MINI_APPID=wxefc4526e6d1c6416
+MINI_APPSECRET=<FITRY AppSecret>
+MINI_PROXY_SECRET=<至少 16 位随机签名密钥>
 MINI_DAILY_FREE_LIMIT=8
 ```
 
-未配置 `MINI_PROXY_SECRET` 时，`/api/mini/*` 会返回 `503` 或拒绝请求，这是预期的安全降级。
+`MINI_APPSECRET` 与 `MINI_PROXY_SECRET` 只保存在服务器，不能提交 Git 或写入小程序代码。缺项时 `/api/mini/session` 返回 `503`，这是预期的安全降级。
 
-### 4.4 微信公众平台
+### 4.3 微信公众平台
 
-代码改名不会自动修改微信后台注册名称。需要在微信公众平台手动将小程序名称改为“大师吵股”，并同步检查简称、介绍、头像、类目、隐私保护指引和版本描述。
+1. 在“开发管理 → 开发设置 → 服务器域名”中，把 `https://yieldglide.com` 加入 `request` 合法域名。
+2. 代码改名不会自动修改微信后台注册名称；需在 FITRY 后台将名称改为“大师吵股”。
+3. 同步检查简称、介绍、头像、类目、隐私保护指引和版本描述。
 
 ## 5. 本地验证
 
 ```bash
-find miniprogram cloudfunctions -name '*.js' -print0 | xargs -0 -n1 node --check
+find miniprogram -name '*.js' -print0 | xargs -0 -n1 node --check
 npm test
 npm run build -- --webpack
 npm run preflight:mini
 ```
 
-本地签名联调：
+本地会话联调至少需要真实 AppID/AppSecret；生产环境验证：
 
 ```bash
-MINI_PROXY_SECRET=test-secret-1234567890 npm run dev -- --port 3210
+curl -i -X POST https://yieldglide.com/api/mini/session \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"invalid-code"}'
 ```
+
+预期不是 `404` 或 `503`；无效 code 应返回 `400/401`。
 
 开发者工具重点检查：
 
@@ -124,7 +122,7 @@ MINI_PROXY_SECRET=test-secret-1234567890 npm run dev -- --port 3210
 3. 新闻分析、行业周期、基本面、供应链、财报阅读能返回结构化结果。
 4. 上证指数脱水能读取公开数据并展示官方/脱水点位与剔除明细。
 5. 历史页“研究”筛选和详情可展示新结果。
-6. 未签名请求返回 401；交易指令和收益预测被拒绝。
+6. 无 Bearer Token 的研究请求返回 401；无效登录 code 不返回 404/503；交易指令和收益预测被拒绝。
 
 发布前执行：
 
