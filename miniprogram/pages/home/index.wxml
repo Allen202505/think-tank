@@ -14,26 +14,81 @@
     </view>
   </view>
 
-  <view class="tool-grid">
-    <button
-      wx:for="{{tools}}"
-      wx:key="id"
-      class="tool-card"
-      hover-class="tool-card-active"
-      hover-stay-time="60"
-      data-id="{{item.id}}"
-      aria-label="进入{{item.label}}"
-      bindtap="goTool"
-    >
-      <view class="tool-card-head">
-        <view class="tool-icon-shell">
-          <image class="tool-icon" src="{{item.icon}}" mode="aspectFit" />
+
+  <view class="home-main">
+    <view wx:if="{{dewaterPreview}}" class="dewater-card" hover-class="dewater-card-active" bindtap="goDewaterDetail">
+      <view class="dewater-head">
+        <view>
+          <text class="dewater-kicker">上证指数脱水</text>
+          <text class="dewater-range">{{dewaterPreview.rangeText}}</text>
         </view>
-        <view class="tool-chevron"></view>
+        <view class="dewater-link">
+          <text>看详情</text>
+          <view class="tool-chevron"></view>
+        </view>
       </view>
-      <text class="tool-title">{{item.label}}</text>
-      <text class="tool-description">{{item.shortDescription}}</text>
-    </button>
+
+      <view class="dewater-compare">
+        <view class="dewater-metric">
+          <text class="dewater-label">上证指数</text>
+          <text class="dewater-value">{{dewaterPreview.officialLevelText}}</text>
+          <text class="dewater-return {{dewaterPreview.officialReturnClass}}">区间 {{dewaterPreview.officialReturnText}}</text>
+        </view>
+        <view class="dewater-rule"></view>
+        <view class="dewater-metric">
+          <text class="dewater-label">脱水后真实指数</text>
+          <text class="dewater-value is-accent">{{dewaterPreview.dewaterLevelText}}</text>
+          <text class="dewater-return {{dewaterPreview.dewaterReturnClass}}">区间 {{dewaterPreview.dewaterReturnText}}</text>
+        </view>
+      </view>
+
+      <canvas type="2d" id="homeDewaterChart" class="dewater-chart"></canvas>
+
+      <view class="dewater-foot">
+        <text>剔除 {{dewaterPreview.removedText}} · 权重 {{dewaterPreview.selectedWeightText}}</text>
+        <text>截至 {{dewaterPreview.asOfText}}</text>
+      </view>
+      <text wx:if="{{dewaterPreview.isStale}}" class="dewater-stale">当前为缓存数据</text>
+    </view>
+
+    <view wx:elif="{{dewaterLoading}}" class="dewater-card dewater-skeleton">
+      <view class="skeleton-line wide"></view>
+      <view class="skeleton-line"></view>
+      <view class="skeleton-line short"></view>
+      <text>正在读取上证指数脱水数据…</text>
+    </view>
+
+    <view wx:else class="dewater-card dewater-error" bindtap="retryDewater">
+      <text class="dewater-error-title">脱水数据暂时没有加载出来</text>
+      <text class="dewater-error-copy">{{dewaterError || '点击重新加载'}}</text>
+    </view>
+
+    <view class="tool-section-head">
+      <text class="tool-section-title">研究工具</text>
+      <text class="tool-section-count">06</text>
+    </view>
+
+    <view class="tool-grid">
+      <button
+        wx:for="{{tools}}"
+        wx:key="id"
+        class="tool-card"
+        hover-class="tool-card-active"
+        hover-stay-time="60"
+        data-id="{{item.id}}"
+        aria-label="进入{{item.label}}"
+        bindtap="goTool"
+      >
+        <view class="tool-card-head">
+          <view class="tool-icon-shell">
+            <image class="tool-icon" src="{{item.icon}}" mode="aspectFit" />
+          </view>
+          <view class="tool-chevron"></view>
+        </view>
+        <text class="tool-title">{{item.label}}</text>
+        <text class="tool-description">{{item.shortDescription}}</text>
+      </button>
+    </view>
   </view>
 
   <view class="home-footer">

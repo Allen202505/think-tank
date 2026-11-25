@@ -62,7 +62,8 @@ const sessionRoute = path.join(root, 'src/app/api/mini/session/route.js');
 const apiRoute = path.join(root, 'src/app/api/mini/debate/route.js');
 const readingRoute = path.join(root, 'src/app/api/mini/reading/route.js');
 const researchRoute = path.join(root, 'src/app/api/mini/research/route.js');
-if (!fs.existsSync(sessionRoute) || !fs.existsSync(apiRoute) || !fs.existsSync(readingRoute) || !fs.existsSync(researchRoute)) {
+const dewaterCardRoute = path.join(root, 'src/app/api/mini/dewater-card/route.js');
+if (!fs.existsSync(sessionRoute) || !fs.existsSync(apiRoute) || !fs.existsSync(readingRoute) || !fs.existsSync(researchRoute) || !fs.existsSync(dewaterCardRoute)) {
   errors.push('缺少小程序服务器 API 路由');
 }
 
@@ -70,6 +71,9 @@ const homeWxml = fs.readFileSync(path.join(root, 'miniprogram/pages/home/index.w
 const homeJs = fs.readFileSync(path.join(root, 'miniprogram/pages/home/index.js'), 'utf8');
 if (!homeWxml.includes('bindtap="goTool"') || !homeWxml.includes('tool-card')) {
   errors.push('首页缺少研究工具快捷入口');
+}
+if (!homeWxml.includes('dewaterPreview') || !homeWxml.includes('goDewaterDetail')) {
+  errors.push('首页缺少上证指数脱水数据卡');
 }
 for (const forbidden of ['财经通识', 'quickTopics', 'demo-banner', '一次可靠的研究', '从一个问题开始']) {
   if (homeWxml.includes(forbidden) || homeJs.includes(forbidden)) errors.push(`首页仍包含已移除内容：${forbidden}`);

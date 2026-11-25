@@ -359,6 +359,93 @@ export function buildMiniDewaterResult(report, input = {}) {
   return inspected.ok ? result : null;
 }
 
+function compactTimeline(dates = [], official = [], dewater = [], maxPoints = 180) {
+  const length = Math.min(dates.length, official.length, dewater.length);
+  if (!length) return { dates: [], official: [], dewater: [] };
+  if (length <= maxPoints) {
+    return {
+      dates: dates.slice(0, length),
+      official: official.slice(0, length),
+      dewater: dewater.slice(0, length),
+    };
+  }
+  const step = (length - 1) / (maxPoints - 1);
+  const indices = [...new Set(Array.from({ length: maxPoints }, (_, index) => Math.round(index * step)))];
+  return {
+    dates: indices.map((index) => dates[index]),
+    official: indices.map((index) => official[index]),
+    dewater: indices.map((index) => dewater[index]),
+  };
+}
+
+export function buildMiniDewaterCard(report) {
+  const official = report?.official;
+  const current = report?.current;
+  const dewater = current?.dewater;
+  if (!official || !current || !dewater) return null;
+
+  const selectionLabels = Array.isArray(report?.meta?.selectionLabels)
+    ? report.meta.selectionLabels.map((item) => oneLine(item, 40)).filter(Boolean)
+    : [];
+  const timeline = compactTimeline(
+    current?.chart?.dates || [],
+    current?.chart?.official || [],
+    current?.chart?.dewater || [],
+  );
+
+  return {
+    schemaVersion: 1,
+    kind: 'dewater-card',
+    title: '上证指数 vs 脱水后真实指数',
+    indexName: report?.index?.name || '上证指数',
+    range: {
+      id: report?.range?.id || '1y',
+      label: report?.range?.label || '近一年',
+      startDate: report?.range?.startDate || '',
+      endDate: report?.range?.endDate || '',
+      tradingDays: Number(report?.range?.tradingDays) || 0,
+    },
+    asOf: report?.asOf || report?.range?.endDate || '',
+    scheme: selectionLabels.join(' + ') || '银行',
+    official: {
+      level: official.level ?? null,
+      startLevel: official.startLevel ?? null,
+      returnPct: official.returnPct ?? null,
+      changePoints: official.changePoints ?? null,
+    },
+    dewater: {
+      level: dewater.sameDivisorLevel ?? dewater.endLevel ?? null,
+      startLevel: dewater.startLevel ?? null,
+      returnPct: dewater.returnPct ?? null,
+      differencePp: dewater.differencePp ?? null,
+      gapPoints: dewater.pointsBelowOfficial ?? null,
+    },
+    selection: {
+      removedCount: current?.selection?.matchedCount ?? 0,
+      selectedWeightPct: current?.selection?.selectedWeightPct ?? null,
+      remainingCount: current?.selection?.remainingCount ?? null,
+    },
+    conclusion: {
+      tone: report?.conclusion?.tone || 'neutral',
+      title: report?.conclusion?.title || '官方指数与剩余市场对比',
+      text: report?.conclusion?.text || '',
+    },
+    chart: timeline,
+    topItems: (current?.selection?.items || []).slice(0, 8).map((item) => ({
+      name: oneLine(item.name, 40),
+      code: String(item.code || ''),
+      weightPct: item.weightPct ?? null,
+      returnPct: item.returnPct ?? null,
+      contributionPoints: item.contributionPoints ?? null,
+    })),
+    methodology: oneLine(report?.index?.methodology || '当前沪市样本 + 流通市值权重复刻', 80),
+    dataQuality: oneLine(report?.dataQuality?.level || '复刻口径', 40),
+    caveats: (report?.dataQuality?.notes || []).map((item) => oneLine(item, 240)).filter(Boolean).slice(0, 6),
+    sources: (report?.dataQuality?.sources || []).map((item) => oneLine(item, 100)).filter(Boolean).slice(0, 6),
+    updatedAt: report?.updatedAt || '',
+  };
+}
+
 export function buildMiniStockChokeResult(normalized, { industry = '', market = 'auto' } = {}) {
   if (!normalized || typeof normalized !== 'object') return null;
   const summary = normalized.summary || {};

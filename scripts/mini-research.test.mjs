@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MINI_RESEARCH_TOOLS,
+  buildMiniDewaterCard,
   buildMiniDewaterResult,
   buildMiniResearchMessages,
   buildMiniStockChokeResult,
@@ -145,4 +146,34 @@ test('mini supply chain maps structured analysis into mobile cards', () => {
   assert.equal(result.metrics[0].value, '90/100');
   assert.equal(result.cards[0].title, '测试公司');
   assert.match(result.cards[0].bullets[0], /客户验证风险/);
+});
+
+
+test('mini dewater card keeps homepage comparison and bounded chart data', () => {
+  const chart = {
+    dates: Array.from({ length: 220 }, (_, index) => `2026-01-${String(index + 1).padStart(2, '0')}`),
+    official: Array.from({ length: 220 }, (_, index) => 3000 + index),
+    dewater: Array.from({ length: 220 }, (_, index) => 2800 + index * 1.2),
+  };
+  const card = buildMiniDewaterCard({
+    index: { name: '上证指数', methodology: '当前沪市样本 + 流通市值权重复刻' },
+    asOf: '2026-11-24',
+    range: { id: '1y', label: '近一年', startDate: '2025-11-24', endDate: '2026-11-24', tradingDays: 220 },
+    official: { level: 3548.37, startLevel: 3836.88, returnPct: -7.52, changePoints: -288.51 },
+    current: {
+      dewater: { sameDivisorLevel: 2838.91, startLevel: 3000, returnPct: -5.37, differencePp: 2.15, pointsBelowOfficial: -709.46 },
+      selection: { matchedCount: 33, selectedWeightPct: 12.5, remainingCount: 1900, items: [{ name: '测试银行', code: '600000', weightPct: 1.1, returnPct: 2.3, contributionPoints: 1.5 }] },
+      chart,
+    },
+    conclusion: { tone: 'weighted', title: '剩余市场表现更强', text: '测试结论' },
+    dataQuality: { level: '复刻口径', notes: ['未接入历史成分股'], sources: ['东方财富'] },
+    meta: { selectionLabels: ['银行'] },
+    updatedAt: '2026-11-24T12:00:00.000Z',
+  });
+  assert.equal(card.official.level, 3548.37);
+  assert.equal(card.dewater.level, 2838.91);
+  assert.equal(card.selection.removedCount, 33);
+  assert.equal(card.chart.dates.length, 180);
+  assert.equal(card.chart.dates[0], chart.dates[0]);
+  assert.equal(card.chart.dates.at(-1), chart.dates.at(-1));
 });

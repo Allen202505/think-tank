@@ -15,7 +15,9 @@
 
 ### 首页与辅助入口
 
-- 首页只展示六种研究工具快捷入口，采用深色品牌封面与双列快捷卡，不放置长段介绍、快捷问题或方法说明。
+- 首页先展示固定“近一年 · 剔除银行”的上证指数脱水核心数据卡，再展示六种研究工具快捷入口。
+- 脱水卡展示上证指数、脱水后真实指数、两者区间收益、双线走势和数据截止日；点击进入独立详情页。
+- 首页采用深色品牌封面与双列快捷卡，不放置长段介绍、快捷问题或方法说明。
 - 工具卡使用独立线性 SVG 图标，支持轻量错峰入场、按压反馈和减少动态效果。
 - 底部保留“研究记录”和“关于与隐私”两个必要辅助入口。
 - 财经圆桌、读懂财经资讯和本地记录仍保留在对应页面，不再占用首页空间。
@@ -39,7 +41,8 @@ miniprogram/
 ├── app.js / app.json / app.wxss
 ├── config.js                         # 自有服务器地址与 demoMode
 ├── data/researchTools.js             # 六种研究工具元数据
-├── pages/home/index                  # 首页：六种研究工具快捷入口
+├── pages/home/index                  # 首页：脱水数据卡与六种研究工具快捷入口
+├── pages/dewater-detail/index        # 上证指数脱水详情
 ├── pages/analysis/index              # 统一研究工作台
 ├── pages/debate/index                # 财经圆桌
 ├── pages/reading/index               # 资讯学习卡片
@@ -52,6 +55,7 @@ src/app/api/mini/session/route.js     # wx.login code 换短期会话令牌
 src/app/api/mini/debate/route.js      # 财经圆桌小程序接口
 src/app/api/mini/reading/route.js     # 资讯卡片小程序接口
 src/app/api/mini/research/route.js    # 六种研究工具小程序接口
+src/app/api/mini/dewater-card/route.js # 首页脱水数据卡接口
 src/lib/miniResearch.js               # 工具白名单、输入校验、提示词与结果归一化
 ```
 
@@ -117,7 +121,8 @@ curl -i -X POST https://yieldglide.com/api/mini/session \
 
 开发者工具重点检查：
 
-1. 首页只显示轻量品牌和六个研究工具入口，无营销长文、快捷问题或方法卡片。
+1. 首页显示上证指数脱水核心数据卡和六个研究工具入口，无营销长文、快捷问题或方法卡片。
+2. 点击脱水卡进入详情页，核对官方/脱水双线走势、区间收益、剔除对象和口径说明。
 2. 六个工具可切换，输入区与结果区不横向溢出。
 3. 新闻分析、行业周期、基本面、供应链、财报阅读能返回结构化结果。
 4. 上证指数脱水能读取公开数据并展示官方/脱水点位与剔除明细。

@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/dewater-detail/index",
     "pages/analysis/index",
     "pages/debate/index",
     "pages/reading/index",

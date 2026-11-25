@@ -1,0 +1,97 @@
+<view class="detail-page">
+  <view class="detail-hero">
+    <text class="detail-kicker">{{card.rangeText || '近一年 · 剔除银行'}}</text>
+    <text class="detail-title serif">上证指数 vs 脱水后真实指数</text>
+    <view class="detail-hero-meta">
+      <text>{{card.dataQuality || '复刻口径'}}</text>
+      <text>截至 {{card.asOfText || '—'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading && !card}}" class="detail-state">
+    <view class="state-line wide"></view>
+    <view class="state-line"></view>
+    <view class="state-line short"></view>
+    <text>正在读取上证指数与脱水后的公开行情…</text>
+  </view>
+
+  <view wx:elif="{{error && !card}}" class="detail-state">
+    <text class="state-title">数据暂时没有加载出来</text>
+    <text class="state-copy">{{error}}</text>
+    <button class="secondary-button state-button" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="chart-panel">
+      <view class="legend-row">
+        <view class="legend-item"><view class="legend-line official"></view><text>上证指数</text></view>
+        <view class="legend-item"><view class="legend-line dewater"></view><text>脱水后真实指数</text></view>
+      </view>
+      <canvas type="2d" id="detailDewaterChart" class="detail-chart"></canvas>
+      <view class="chart-dates">
+        <text>{{card.range.startDate}}</text>
+        <text>{{card.range.endDate}}</text>
+      </view>
+    </view>
+
+    <view class="compare-panel">
+      <view class="compare-cell">
+        <text class="compare-label">上证指数</text>
+        <text class="compare-value">{{card.officialLevelText}}</text>
+        <text class="compare-return {{card.officialReturnClass}}">区间 {{card.officialReturnText}}</text>
+        <text class="compare-note">起点 {{card.officialStartText}}</text>
+      </view>
+      <view class="compare-rule"></view>
+      <view class="compare-cell">
+        <text class="compare-label">脱水后真实指数</text>
+        <text class="compare-value accent">{{card.dewaterLevelText}}</text>
+        <text class="compare-return {{card.dewaterReturnClass}}">区间 {{card.dewaterReturnText}}</text>
+        <text class="compare-note">{{card.gapText}}</text>
+      </view>
+    </view>
+
+    <view class="analysis-panel">
+      <text class="panel-label">数据结论</text>
+      <text class="conclusion-title serif">{{card.conclusion.title}}</text>
+      <text class="conclusion-copy">{{card.conclusion.text}}</text>
+    </view>
+
+    <view class="stat-strip">
+      <view class="stat-cell">
+        <text class="stat-label">实际剔除</text>
+        <text class="stat-value">{{card.removedText}}</text>
+      </view>
+      <view class="stat-cell">
+        <text class="stat-label">剔除权重</text>
+        <text class="stat-value">{{card.selectedWeightText}}</text>
+      </view>
+      <view class="stat-cell">
+        <text class="stat-label">独立区间差</text>
+        <text class="stat-value {{card.gapClass}}">{{card.differenceText}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{card.topItems.length}}" class="items-panel">
+      <text class="panel-label">主要剔除对象</text>
+      <view wx:for="{{card.topItems}}" wx:key="code" class="item-row">
+        <view class="item-main">
+          <text class="item-name">{{item.name}}</text>
+          <text class="item-code">{{item.code}} · 权重 {{item.weightText}}</text>
+        </view>
+        <view class="item-stats">
+          <text class="item-return {{item.returnClass}}">{{item.returnText}}</text>
+          <text class="item-contribution">贡献 {{item.contributionText}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="quality-panel">
+      <text class="panel-label">口径说明</text>
+      <text class="quality-method">{{card.methodology}}</text>
+      <text wx:for="{{card.caveats}}" wx:key="*this" class="quality-note">· {{item}}</text>
+      <text wx:if="{{card.isStale}}" class="quality-stale">当前展示缓存数据，正在等待下一次更新。</text>
+    </view>
+
+    <button class="primary-button detail-action" bindtap="goAdjust">调整脱水方案</button>
+  </block>
+</view>
