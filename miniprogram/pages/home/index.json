@@ -1,4 +1,9 @@
 {
-  "navigationBarTitleText": "大师吵股",
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "navigationBarBackgroundColor": "#211b15",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#f3ecdf",
+  "backgroundTextStyle": "dark",
   "enablePullDownRefresh": false
 }

@@ -1,29 +1,38 @@
 <view class="home-page">
-  <view class="home-brand">
-    <view class="brand-seal"><text class="brand-seal-text serif">股</text></view>
-    <view class="brand-copy">
-      <text class="brand-title serif">大师吵股</text>
-      <text class="brand-subtitle">选择一种方式，开始公开信息研究</text>
+  <view class="hero">
+    <text class="hero-watermark serif">股</text>
+    <view class="brand-lockup">
+      <view class="brand-seal"><text class="brand-seal-text serif">股</text></view>
+      <view class="brand-copy">
+        <text class="brand-title serif">大师吵股</text>
+        <text class="brand-subtitle">六种公开信息研究工具</text>
+      </view>
+    </view>
+    <view class="hero-meta">
+      <text>公开信息</text>
+      <text>独立判断</text>
     </view>
   </view>
 
-  <view class="tool-list">
+  <view class="tool-grid">
     <button
       wx:for="{{tools}}"
       wx:key="id"
-      class="tool-entry"
-      hover-class="tool-entry-active"
+      class="tool-card"
+      hover-class="tool-card-active"
       hover-stay-time="60"
       data-id="{{item.id}}"
       aria-label="进入{{item.label}}"
       bindtap="goTool"
     >
-      <text class="tool-symbol serif">{{item.shortLabel}}</text>
-      <view class="tool-copy">
-        <text class="tool-title">{{item.label}}</text>
-        <text class="tool-description">{{item.shortDescription}}</text>
+      <view class="tool-card-head">
+        <view class="tool-icon-shell">
+          <image class="tool-icon" src="{{item.icon}}" mode="aspectFit" />
+        </view>
+        <view class="tool-chevron"></view>
       </view>
-      <view class="tool-chevron"></view>
+      <text class="tool-title">{{item.label}}</text>
+      <text class="tool-description">{{item.shortDescription}}</text>
     </button>
   </view>
 

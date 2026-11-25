@@ -2,7 +2,7 @@ module.exports = [
   {
     id: 'news',
     index: '01',
-    shortLabel: '闻',
+    icon: '/assets/tools/news.svg',
     shortDescription: '拆事实、看传导',
     label: '新闻分析',
     kicker: '巴菲特的早餐法',
@@ -12,7 +12,7 @@ module.exports = [
   {
     id: 'industry',
     index: '02',
-    shortLabel: '周',
+    icon: '/assets/tools/cycle.svg',
     shortDescription: '判断行业位置',
     label: '行业周期分析',
     kicker: '周期与拐点',
@@ -22,7 +22,7 @@ module.exports = [
   {
     id: 'dewater',
     index: '03',
-    shortLabel: '上',
+    icon: '/assets/tools/dewater.svg',
     shortDescription: '看权重之外的市场',
     label: '上证指数脱水',
     kicker: '结构透视',
@@ -32,7 +32,7 @@ module.exports = [
   {
     id: 'fundamental',
     index: '04',
-    shortLabel: '基',
+    icon: '/assets/tools/fundamental.svg',
     shortDescription: '拆生意与财务',
     label: '基本面研究',
     kicker: '生意与财务',
@@ -42,7 +42,7 @@ module.exports = [
   {
     id: 'supply',
     index: '05',
-    shortLabel: '链',
+    icon: '/assets/tools/supply.svg',
     shortDescription: '找产业链卡点',
     label: '供应链瓶颈分析',
     kicker: '卡脖子框架',
@@ -52,7 +52,7 @@ module.exports = [
   {
     id: 'munger',
     index: '06',
-    shortLabel: '报',
+    icon: '/assets/tools/report.svg',
     shortDescription: '排财报风险',
     label: '芒格教你读财报',
     kicker: '三张表排雷',
