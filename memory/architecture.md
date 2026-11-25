@@ -264,7 +264,7 @@ wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
 ```
 
 - `miniprogram/`：原生小程序源码，不依赖 Taro/uni-app。
-- `miniprogram/pages/home/index`：品牌首页，六种研究工具和财经通识入口。
+- `miniprogram/pages/home/index`：轻量品牌首页，只保留六种研究工具快捷入口；记录与隐私作为底部必要辅助入口。
 - `miniprogram/pages/analysis/index`：六工具统一研究工作台，按工具切换动态表单和结果展示。
 - `miniprogram/data/researchTools.js`：六种工具的前端元数据。
 - `src/app/api/mini/session/route.js`：接收 `wx.login()` code，调用微信 `jscode2session`，签发 2 小时 HMAC Bearer Token。

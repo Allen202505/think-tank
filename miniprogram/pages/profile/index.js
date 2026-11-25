@@ -2,7 +2,7 @@ const { clearHistory } = require('../../utils/storage');
 
 Page({
   data: {
-    version: '1.1.0',
+    version: '1.7.0',
   },
 
   openPrivacy() {

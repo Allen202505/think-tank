@@ -1,117 +1,38 @@
-<view class="page-shell home-page">
-  <view class="masthead">
-    <view class="brand-lockup">
-      <view class="brand-seal"><text class="brand-seal-text serif">股</text></view>
-      <view class="brand-copy">
-        <text class="brand-title serif">大师吵股</text>
-        <text class="brand-subtitle">大师方法 · 公开数据研究</text>
+<view class="home-page">
+  <view class="home-brand">
+    <view class="brand-seal"><text class="brand-seal-text serif">股</text></view>
+    <view class="brand-copy">
+      <text class="brand-title serif">大师吵股</text>
+      <text class="brand-subtitle">选择一种方式，开始公开信息研究</text>
+    </view>
+  </view>
+
+  <view class="tool-list">
+    <button
+      wx:for="{{tools}}"
+      wx:key="id"
+      class="tool-entry"
+      hover-class="tool-entry-active"
+      hover-stay-time="60"
+      data-id="{{item.id}}"
+      aria-label="进入{{item.label}}"
+      bindtap="goTool"
+    >
+      <text class="tool-symbol serif">{{item.shortLabel}}</text>
+      <view class="tool-copy">
+        <text class="tool-title">{{item.label}}</text>
+        <text class="tool-description">{{item.shortDescription}}</text>
       </view>
-    </view>
-
-    <text class="masthead-lead">把新闻、行业、指数和财报，放进同一套可核验的研究框架。</text>
-    <view class="boundary-strip">
-      <text class="boundary-strip-label">研究边界</text>
-      <text class="boundary-strip-copy">只做公开信息分析与方法学习，不提供荐买荐卖、目标价或收益预测。</text>
-    </view>
+      <view class="tool-chevron"></view>
+    </button>
   </view>
 
-  <view wx:if="{{demoMode}}" class="demo-banner">
-    <text class="demo-banner-title">本地演示模式</text>
-    <text class="demo-banner-copy">当前使用内置样例展示完整界面，不会调用 AI；正式提审前会切换为真实云函数。</text>
-  </view>
-
-  <view class="analysis-section">
-    <view class="section-heading">
-      <text class="section-title serif">选择研究工具</text>
-      <text class="section-note">六种方法，分别回答不同问题。</text>
+  <view class="home-footer">
+    <text class="home-boundary">公开信息研究 · 不构成投资建议</text>
+    <view class="utility-links">
+      <text class="utility-link" bindtap="goHistory">研究记录</text>
+      <view class="utility-dot"></view>
+      <text class="utility-link" bindtap="goProfile">关于与隐私</text>
     </view>
-
-    <view class="tool-grid">
-      <view
-        wx:for="{{tools}}"
-        wx:key="id"
-        class="tool-card"
-        hover-class="tool-card-active"
-        data-id="{{item.id}}"
-        bindtap="goTool"
-      >
-        <view class="tool-card-top">
-          <text class="tool-card-index">{{item.index}}</text>
-          <text class="tool-card-kicker">{{item.kicker}}</text>
-        </view>
-        <text class="tool-card-title serif">{{item.label}}</text>
-        <text class="tool-card-copy">{{item.description}}</text>
-        <view class="tool-card-arrow">↗</view>
-      </view>
-    </view>
-  </view>
-
-  <view class="entry-section learning-section">
-    <view class="section-heading">
-      <text class="section-title serif">财经通识</text>
-      <text class="section-note">从一个问题或一段资讯开始学习。</text>
-    </view>
-
-    <view class="entry-list">
-      <view class="entry-row" hover-class="entry-row-active" bindtap="goDebate">
-        <view class="entry-index">A</view>
-        <view class="entry-main">
-          <text class="entry-title">财经圆桌</text>
-          <text class="entry-desc">让价值、逆向、成长、宏观与风险五个视角分别解释同一个概念。</text>
-        </view>
-        <text class="entry-arrow">›</text>
-      </view>
-
-      <view class="entry-divider"></view>
-
-      <view class="entry-row" hover-class="entry-row-active" bindtap="goReading">
-        <view class="entry-index">B</view>
-        <view class="entry-main">
-          <text class="entry-title">读懂一条财经资讯</text>
-          <text class="entry-desc">整理事实、概念、影响与仍需核实的材料。</text>
-        </view>
-        <text class="entry-arrow">›</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="topic-section">
-    <text class="section-title serif">从一个问题开始</text>
-    <scroll-view class="topic-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-      <view class="topic-track">
-        <view
-          wx:for="{{quickTopics}}"
-          wx:key="*this"
-          class="topic-chip"
-          hover-class="topic-chip-active"
-          data-topic="{{item}}"
-          bindtap="startTopic"
-        >
-          <text>{{item}}</text>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
-
-  <view class="method-block">
-    <text class="method-kicker serif">一次可靠的研究</text>
-    <view class="method-row">
-      <text class="method-number">1</text>
-      <text class="method-copy">区分事实、解释与判断</text>
-    </view>
-    <view class="method-row">
-      <text class="method-number">2</text>
-      <text class="method-copy">同时保留支持证据与反证</text>
-    </view>
-    <view class="method-row">
-      <text class="method-number">3</text>
-      <text class="method-copy">把数据缺口写清楚</text>
-    </view>
-  </view>
-
-  <view class="footer-links">
-    <view class="footer-link" bindtap="goHistory">我的研究记录</view>
-    <view class="footer-dot"></view>
-    <view class="footer-link" bindtap="goProfile">关于与隐私</view>
   </view>
 </view>

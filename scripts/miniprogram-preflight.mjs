@@ -66,9 +66,21 @@ if (!fs.existsSync(sessionRoute) || !fs.existsSync(apiRoute) || !fs.existsSync(r
   errors.push('缺少小程序服务器 API 路由');
 }
 
+const homeWxml = fs.readFileSync(path.join(root, 'miniprogram/pages/home/index.wxml'), 'utf8');
+const homeJs = fs.readFileSync(path.join(root, 'miniprogram/pages/home/index.js'), 'utf8');
+if (!homeWxml.includes('bindtap="goTool"') || !homeWxml.includes('tool-entry')) {
+  errors.push('首页缺少研究工具快捷入口');
+}
+for (const forbidden of ['财经通识', 'quickTopics', 'demo-banner', '一次可靠的研究', '从一个问题开始']) {
+  if (homeWxml.includes(forbidden) || homeJs.includes(forbidden)) errors.push(`首页仍包含已移除内容：${forbidden}`);
+}
+
 const toolData = fs.readFileSync(path.join(root, 'miniprogram/data/researchTools.js'), 'utf8');
 for (const label of ['新闻分析', '行业周期分析', '上证指数脱水', '基本面研究', '供应链瓶颈分析', '芒格教你读财报']) {
   if (!toolData.includes(label)) errors.push(`小程序研究工具缺少：${label}`);
+}
+for (const field of ['shortLabel', 'shortDescription']) {
+  if (!toolData.includes(`${field}:`)) errors.push(`小程序研究工具缺少 ${field} 快捷入口元数据`);
 }
 if (app?.window?.navigationBarTitleText !== '大师吵股') {
   errors.push('小程序导航标题应为“大师吵股”');

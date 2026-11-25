@@ -2,6 +2,8 @@ module.exports = [
   {
     id: 'news',
     index: '01',
+    shortLabel: '闻',
+    shortDescription: '拆事实、看传导',
     label: '新闻分析',
     kicker: '巴菲特的早餐法',
     description: '拆事实、看传导、做逆向检验。',
@@ -10,6 +12,8 @@ module.exports = [
   {
     id: 'industry',
     index: '02',
+    shortLabel: '周',
+    shortDescription: '判断行业位置',
     label: '行业周期分析',
     kicker: '周期与拐点',
     description: '判断行业阶段与公司所处位置。',
@@ -18,6 +22,8 @@ module.exports = [
   {
     id: 'dewater',
     index: '03',
+    shortLabel: '上',
+    shortDescription: '看权重之外的市场',
     label: '上证指数脱水',
     kicker: '结构透视',
     description: '剔除权重股，观察剩余市场的真实表现。',
@@ -26,6 +32,8 @@ module.exports = [
   {
     id: 'fundamental',
     index: '04',
+    shortLabel: '基',
+    shortDescription: '拆生意与财务',
     label: '基本面研究',
     kicker: '生意与财务',
     description: '从商业模式、现金流和竞争优势拆公司。',
@@ -34,6 +42,8 @@ module.exports = [
   {
     id: 'supply',
     index: '05',
+    shortLabel: '链',
+    shortDescription: '找产业链卡点',
     label: '供应链瓶颈分析',
     kicker: '卡脖子框架',
     description: '沿产业链寻找停摆会拖慢全局的节点。',
@@ -42,6 +52,8 @@ module.exports = [
   {
     id: 'munger',
     index: '06',
+    shortLabel: '报',
+    shortDescription: '排财报风险',
     label: '芒格教你读财报',
     kicker: '三张表排雷',
     description: '看利润含金量、资产负债与资本配置。',
