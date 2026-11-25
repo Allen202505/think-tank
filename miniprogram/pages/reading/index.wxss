@@ -29,7 +29,7 @@
   padding: 22rpx 24rpx;
   border: 1rpx solid var(--line);
   border-radius: 18rpx;
-  background: rgba(234, 219, 184, 0.28);
+  background: #eef3f5;
 }
 
 .source-note-title,
@@ -149,7 +149,7 @@
   padding: 26rpx;
   border: 1rpx solid var(--line);
   border-radius: 20rpx;
-  background: rgba(255, 253, 248, 0.52);
+  background: #ffffff;
 }
 
 .concept-term,
@@ -213,7 +213,7 @@
   padding: 28rpx 30rpx;
   border: 1rpx solid var(--line-strong);
   border-radius: 20rpx;
-  background: rgba(234, 219, 184, 0.34);
+  background: #eef3f5;
 }
 
 .takeaway-label,

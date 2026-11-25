@@ -264,7 +264,7 @@ wx.setStorageSync（研究/圆桌/资讯最多 30 条，仅本机）
 ```
 
 - `miniprogram/`：原生小程序源码，不依赖 Taro/uni-app。
-- `miniprogram/pages/home/index`：自定义导航栏的深色品牌封面首页，顶部展示上证指数脱水核心数据卡，双列展示六个带 SVG 图标的研究工具快捷入口；记录与隐私作为底部必要辅助入口。
+- `miniprogram/pages/home/index`：自定义导航栏的白色品牌封面首页，顶部展示上证指数脱水核心数据卡，双列展示六个带 SVG 图标的研究工具快捷入口；记录与隐私作为底部必要辅助入口。
 - `miniprogram/pages/dewater-detail/index`：脱水核心数据详情页，展示官方与脱水指数双线走势、区间收益、点位差、剔除对象和口径说明。
 - `src/app/api/mini/dewater-card/route.js`：首页脱水数据卡接口，复用确定性脱水计算并做 5 分钟内存缓存。
 - `miniprogram/pages/analysis/index`：六工具统一研究工作台，按工具切换动态表单和结果展示。

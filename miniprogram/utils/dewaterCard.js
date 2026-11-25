@@ -171,8 +171,8 @@ function drawDewaterTrend(canvasId, chart) {
     };
 
     const area = context.createLinearGradient(0, padTop, 0, height);
-    area.addColorStop(0, 'rgba(161, 124, 57, 0.16)');
-    area.addColorStop(1, 'rgba(161, 124, 57, 0)');
+    area.addColorStop(0, 'rgba(63, 101, 120, 0.16)');
+    area.addColorStop(1, 'rgba(63, 101, 120, 0)');
     context.beginPath();
     dewater.forEach((value, index) => {
       const px = x(index);
@@ -187,7 +187,7 @@ function drawDewaterTrend(canvasId, chart) {
     context.fill();
 
     drawLine(official, 'rgba(96, 86, 72, 0.72)', 1.15);
-    drawLine(dewater, '#9f7835', 1.8);
+    drawLine(dewater, '#3f6578', 1.8);
   });
 }
 

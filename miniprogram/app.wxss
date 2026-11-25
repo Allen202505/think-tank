@@ -1,21 +1,21 @@
 page {
-  --paper: #f3ecdf;
-  --paper-light: #fbf8f1;
-  --paper-deep: #e8decc;
-  --ink: #262018;
-  --ink-soft: #5e574d;
-  --ink-faint: #7f776a;
-  --line: #d7cbb8;
-  --line-strong: #b7a789;
-  --gold: #85631d;
-  --gold-bright: #a47c25;
-  --gold-soft: #eadbb8;
+  --paper: #f7f8f9;
+  --paper-light: #ffffff;
+  --paper-deep: #eceff1;
+  --ink: #1b1f22;
+  --ink-soft: #60676d;
+  --ink-faint: #8a9197;
+  --line: #e2e5e8;
+  --line-strong: #cbd1d6;
+  --gold: #3f6578;
+  --gold-bright: #557d90;
+  --gold-soft: #e9f0f3;
   --danger: #9b3f34;
   --success: #386a52;
-  --shadow: 0 16rpx 44rpx rgba(52, 42, 28, 0.09);
+  --shadow: 0 16rpx 44rpx rgba(23, 36, 43, 0.07);
   min-height: 100%;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 380rpx),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), transparent 380rpx),
     var(--paper);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -91,7 +91,7 @@ button::after {
 .card {
   border: 1rpx solid var(--line);
   border-radius: 24rpx;
-  background: rgba(251, 248, 241, 0.88);
+  background: #ffffff;
   box-shadow: var(--shadow);
 }
 
@@ -116,7 +116,7 @@ button::after {
   padding: 26rpx;
   border: 1rpx solid var(--line);
   border-radius: 22rpx;
-  background: rgba(255, 253, 248, 0.74);
+  background: #ffffff;
   color: var(--ink);
   font-size: 29rpx;
   line-height: 1.72;
@@ -130,7 +130,7 @@ button::after {
   padding: 22rpx 24rpx;
   border: 1rpx solid var(--line);
   border-radius: 18rpx;
-  background: rgba(234, 219, 184, 0.36);
+  background: #f1f5f7;
   color: var(--ink-soft);
   font-size: 24rpx;
   line-height: 1.65;

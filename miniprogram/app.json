@@ -11,10 +11,10 @@
     "pages/privacy/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#f3ecdf",
+    "navigationBarBackgroundColor": "#f7f8f9",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "大师吵股",
-    "backgroundColor": "#f3ecdf",
+    "backgroundColor": "#f7f8f9",
     "backgroundTextStyle": "dark"
   },
   "style": "v2",

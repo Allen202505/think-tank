@@ -81,16 +81,16 @@
   overflow: hidden;
   border: 1rpx solid var(--line);
   border-radius: 20rpx;
-  background: rgba(255, 253, 248, 0.48);
+  background: #ffffff;
 }
 
 .perspective-chip-active {
-  background: rgba(234, 219, 184, 0.42);
+  background: #eef3f5;
 }
 
 .perspective-chip-selected {
   border-color: var(--gold);
-  background: rgba(234, 219, 184, 0.52);
+  background: #eef3f5;
 }
 
 .perspective-name,
@@ -219,7 +219,7 @@
   margin-top: 24rpx;
   padding: 20rpx 22rpx;
   border-radius: 16rpx;
-  background: rgba(234, 219, 184, 0.3);
+  background: #eef3f5;
 }
 
 .question-prompt-label,
@@ -245,7 +245,7 @@
   padding: 28rpx 30rpx;
   border: 1rpx solid var(--line-strong);
   border-radius: 20rpx;
-  background: rgba(255, 253, 248, 0.62);
+  background: #ffffff;
 }
 
 .takeaway-label,

@@ -89,7 +89,7 @@
   padding: 18rpx 22rpx;
   border: 1rpx solid var(--line);
   border-radius: 18rpx;
-  background: rgba(251, 248, 241, 0.68);
+  background: #ffffff;
 }
 
 .tool-tab-active {
@@ -120,7 +120,7 @@
 }
 
 .tool-tab-active .tool-tab-index {
-  color: #c8a966;
+  color: #a9c7d4;
 }
 
 .tool-tab-active .tool-tab-label {
@@ -132,7 +132,7 @@
   padding: 30rpx 26rpx 28rpx;
   border: 1rpx solid var(--line);
   border-radius: 26rpx;
-  background: rgba(255, 253, 248, 0.66);
+  background: #ffffff;
   box-shadow: var(--shadow);
 }
 
@@ -166,7 +166,7 @@
   padding: 0 24rpx;
   border: 1rpx solid var(--line);
   border-radius: 18rpx;
-  background: rgba(255, 253, 248, 0.8);
+  background: #ffffff;
   color: var(--ink);
   font-size: 28rpx;
 }
@@ -201,14 +201,14 @@
   padding: 15rpx 22rpx;
   border: 1rpx solid var(--line);
   border-radius: 14rpx;
-  background: rgba(251, 248, 241, 0.66);
+  background: #ffffff;
   color: var(--ink-soft);
   font-size: 24rpx;
 }
 
 .choice-chip-active {
   border-color: var(--gold);
-  background: rgba(234, 219, 184, 0.58);
+  background: #eef3f5;
   color: var(--ink);
   font-weight: 700;
 }
@@ -223,13 +223,13 @@
   padding: 15rpx 12rpx;
   border: 1rpx solid var(--line);
   border-radius: 14rpx;
-  background: rgba(251, 248, 241, 0.66);
+  background: #ffffff;
   text-align: center;
 }
 
 .stock-chip-active {
   border-color: var(--gold);
-  background: rgba(234, 219, 184, 0.58);
+  background: #eef3f5;
 }
 
 .stock-chip-name,
@@ -387,7 +387,7 @@
   padding: 22rpx 20rpx;
   border: 1rpx solid var(--line);
   border-radius: 18rpx;
-  background: rgba(251, 248, 241, 0.7);
+  background: #ffffff;
 }
 
 .metric-label,
@@ -496,7 +496,7 @@
   padding: 24rpx;
   border: 1rpx solid var(--line);
   border-radius: 20rpx;
-  background: rgba(251, 248, 241, 0.74);
+  background: #ffffff;
 }
 
 .object-card-head {
@@ -533,7 +533,7 @@
   flex-shrink: 0;
   padding: 7rpx 12rpx;
   border-radius: 999rpx;
-  background: rgba(234, 219, 184, 0.54);
+  background: #eef3f5;
   color: var(--gold);
   font-size: 20rpx;
   font-weight: 700;

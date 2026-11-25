@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "脱水数据",
-  "navigationBarBackgroundColor": "#211b15",
-  "navigationBarTextStyle": "white",
-  "backgroundColor": "#f3ecdf",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#f7f8f9",
   "backgroundTextStyle": "dark"
 }

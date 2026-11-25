@@ -50,7 +50,7 @@
 
 .filter-item-active {
   border-color: var(--gold);
-  background: rgba(234, 219, 184, 0.46);
+  background: #eef3f5;
   color: var(--ink);
   font-weight: 700;
 }
@@ -61,7 +61,7 @@
 }
 
 .record-row-active {
-  background: rgba(234, 219, 184, 0.22);
+  background: #eef3f5;
 }
 
 .record-meta,
